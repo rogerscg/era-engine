@@ -66,13 +66,8 @@ class Engine {
     if (!this.renderer) {
       this.renderer = this.createRenderer();
     }
-    this.minimap = Minimap.get();
-    this.minimap.handleEngineReset();
     if (this.fpsEnabled) {
       this.enableFpsCounter();
-    }
-    if (this.pingEnabled) {
-      this.enablePingCounter();
     }
     this.camera = this.createCamera();
 
@@ -99,9 +94,6 @@ class Engine {
     this.camera = this.createCamera();
     if (this.fpsEnabled) {
       this.enableFpsCounter();
-    }
-    if (this.pingEnabled) {
-      this.enablePingCounter();
     }
     this.started = true;
     if (!this.rendering) {
@@ -160,7 +152,6 @@ class Engine {
       this.rendering = false;
       return;
     }
-    this.minimap.render();
     requestAnimationFrame((time) => {
       this.render(time);
     });

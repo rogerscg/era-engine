@@ -6,7 +6,9 @@ import EraEvent from './era_event.js';
 class SettingsEvent extends EraEvent {
   
   /**
-   * Takes in the goal model on which the puck was scored.
+   * Takes in the new settings object.
+   * TODO: Don't actually propagate the settings object. Rely on Settings
+   * instance.
    */
   constructor(settings) {
     const label = 'settings';

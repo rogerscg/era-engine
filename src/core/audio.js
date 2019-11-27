@@ -26,14 +26,11 @@ class Audio {
   constructor() {
     this.context = new AudioContext();
 
-    // Map containing all sounds used in the game. Key is the sound name,
+    // Map containing all sounds used in the engine. Key is the sound name,
     // value is the sound buffer.
     this.sounds = new Map();
-    
-    // Map containing all sounds particular to an arena.
-    this.arenaSounds = new Map();
 
-    // The ambient sounds loaded for the current arena.
+    // The ambient sounds loaded.
     this.backgroundSounds = new Array();
     this.ambientEventSounds = new Array();
     
@@ -124,12 +121,7 @@ class Audio {
    */
   playSound(name, adjustVolume = 1.0) {
     const defaultSound = this.sounds.get(name);
-    const arenaSounds = this.arenaSounds.get(name);
     let buffer = defaultSound;
-    if (arenaSounds) {
-      shuffleArray(arenaSounds);
-      buffer = arenaSounds[0];
-    }
     if (!buffer) {
       return false;
     }
@@ -158,59 +150,6 @@ class Audio {
   handleSettingsChange(e) {
     const settings = e.settings;
     this.masterVolume = settings.volume;
-  }
-  
-  /**
-   * Loads the sounds specific to an arena.
-   */
-  loadArenaSounds(soundConfig) {
-    for (let category in soundConfig) {
-      const sounds = soundConfig[category];
-      sounds.forEach((sound) => this.loadArenaSound(category, sound));
-    }
-  }
-  
-  /**
-   * Loads an individual arena sound.
-   */
-  loadArenaSound(category, sound) {
-    const [name, extension] = sound.split('.');
-    this.loadSound(name, extension).then(({name, buffer}) => {
-      if (!this.arenaSounds.has(category)) {
-        this.arenaSounds.set(category, new Array());
-      }
-      this.arenaSounds.get(category).push(buffer);
-    });
-  }
-
-  /**
-   * Loads the ambient track for an arena.
-   */
-  loadAmbientArenaTrack(ambientConfig) {
-    const backgroundSounds = ambientConfig.background;
-    const eventSounds = ambientConfig.events;
-    this.ambientVolume = ambientConfig.volume ? ambientConfig.volume : .05;
-    const backgroundPromises = new Array();
-    const eventPromises = new Array();
-    backgroundSounds.forEach((sound) => {
-      const path = `assets/sounds/${sound}`;
-      const loadPromise = this.createSoundRequest(path)
-        .then((event) => this.bufferSound(event));
-      backgroundPromises.push(loadPromise);
-    });
-    eventSounds.forEach((sound) => {
-      const path = `assets/sounds/${sound}`;
-      const loadPromise = this.createSoundRequest(path)
-        .then((event) => this.bufferSound(event));
-      eventPromises.push(loadPromise);
-    });
-    return Promise.all(backgroundPromises).then((buffers) => {
-      this.backgroundSounds = buffers;
-      return Promise.all(eventPromises);
-    }).then((buffers) => {
-      this.ambientEventSounds = buffers;
-      return Promise.resolve();
-    });
   }
 
   /**
@@ -301,7 +240,6 @@ class Audio {
    */
   handleEngineReset() {
     this.stopAmbientSound();
-    this.arenaSounds.clear();
   }
 }
 

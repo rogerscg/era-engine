@@ -4,6 +4,7 @@
   "description": "ERA Engine - A wrapper around Three.js to assist development.",
   "main": "test_server.js",
   "scripts": {
+    "build": "rollup -c utils/rollup_config.js",
     "start": "node test_server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

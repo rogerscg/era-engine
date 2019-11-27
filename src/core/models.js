@@ -64,61 +64,6 @@ class Models {
       });
     });
   }
-
-  /**
-   * Loads the physical data from an arena model.
-   */
-  loadPhysicalArenaModel(type) {
-    return new Promise((resolve, reject) => {
-      if (forServer) {
-        const path = `../client/assets/arenas/${type}/walls.json`;
-        fs.readFile(path, 'utf8', (err, data) => {
-          if (err) {
-            console.error(err);
-          }
-          resolve(JSON.parse(data));
-        });
-      } else {
-        const loader = new THREE.FileLoader();
-        loader.load(`../../assets/arenas/${type}/walls.json`, (data) => {
-          resolve(JSON.parse(data));
-        });
-      }
-    });
-  }
-
-  /**
-   * Loads the visual scene for an arena.
-   */
-  loadVisualArenaWalls(type) {
-    return new Promise((resolve, reject) => {
-      const loader = new THREE.GLTFLoader();
-      loader.load(`assets/arenas/${type}/sources/walls.gltf`, (gltf) => {
-        resolve(gltf.scene);
-      }, (progress) => {
-
-      }, (err) => {
-        reject(console.error(err));
-      });
-    });
-  }
-
-  /**
-   * Loads the environment around the arena..
-   */
-  loadArenaEnvironmentModel(type) {
-    return new Promise((resolve, reject) => {
-      const loader = new THREE.GLTFLoader();
-      loader.load(`assets/arenas/${type}/sources/environment.gltf`, (gltf) => {
-        resolve(gltf.scene);
-      }, (progress) => {
-
-      }, (err) => {
-        reject(console.error(err));
-      });
-    });
-  }
-
 }
 
 export default Models;

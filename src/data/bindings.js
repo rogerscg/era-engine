@@ -1,6 +1,6 @@
 /**
- * Defines the default input bindings per device
- * Binding id is sent over the network
+ * Defines the default input bindings per device. Binding id is sent over the
+ * network.
  */
 const Bindings = {
   BACKWARD: {
@@ -8,34 +8,6 @@ const Bindings = {
     keys: {
       keyboard: 83,
       controller: 'axes1',
-    }
-  },
-  CAM_LOWER: {
-    binding_id: 1,
-    keys: {
-      keyboard: 67,
-      controller: 'button13',
-    }
-  },
-  CAM_RAISE: {
-    binding_id: 2,
-    keys: {
-      keyboard: 32,
-      controller: 'button12',
-    }
-  },
-  CHAT: {
-    binding_id: 3,
-    keys: {
-      keyboard: 84,
-      controller: 'button3',
-    }
-  },
-  LIFT: {
-    binding_id: 4,
-    keys: {
-      keyboard: 0,
-      controller: 'button7',
     }
   },
   FORWARD: {
@@ -64,46 +36,6 @@ const Bindings = {
     keys: {
       keyboard: 16,
       controller: 'button5',
-    }
-  },
-  STOP: {
-    binding_id: 9,
-    keys: {
-      keyboard: 32,
-      controller: 'button6',
-    }
-  },
-  TOGGLE_HUD: {
-    binding_id: 10,
-    keys: {
-      keyboard: 72,
-      controller: 'button8',
-    }
-  },
-  RESET_PRACTICE: {
-    binding_id: 11,
-    keys: {
-      keyboard: 82,
-      controller: 'button8',
-    }
-  },
-  TWIN_STICK_X: {
-    binding_id: 12,
-    keys: {
-      controller: 'axes2',
-    }
-  },
-  TWIN_STICK_Y: {
-    binding_id: 13,
-    keys: {
-      controller: 'axes3',
-    }
-  },
-  LOOK_BACK: {
-    binding_id: 14,
-    keys: {
-      keyboard: 69,
-      controller: 'button0',
     }
   },
 };

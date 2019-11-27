@@ -1,18 +1,18 @@
 import EraEvent from './era_event.js';
 
-const label = 'reset';
+const LABEL = 'reset';
 
 /**
- * Engine reset event. Fired when a game has ended and matchmaking should begin.
+ * Engine reset event.
  */
 class EngineResetEvent extends EraEvent {
   constructor() {
-    super(label, {});
+    super(LABEL, {});
   }
   
   /** @override */
   static listen(callback) {
-    EraEvent.listen(label, callback);
+    EraEvent.listen(LABEL, callback);
   }
 }
 

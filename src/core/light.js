@@ -34,17 +34,6 @@ class Light {
   reset() {
     lightInstance = null;
   }
-  
-  /**
-   * Sets the lighting based on arena lighting config.
-   */
-  setArenaLighting(lightingConfig) {
-    this.ambientLight = this.createAmbientLight(lightingConfig.ambient);
-    this.directionalLights =
-      this.createDirectionalLights(lightingConfig.directional);
-    this.spotLights =
-      this.createSpotLights(lightingConfig.spotlight);
-  }
 
   /**
    * Creates the ambient lighting. Use this for easing/darkening shadows.

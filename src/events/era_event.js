@@ -1,7 +1,7 @@
 import Events from '../core/events.js';
 
 /**
- * Superclass for all custom events within the game. Utilizes the
+ * Superclass for all custom events within the engine. Utilizes the
  * engine-specific event handling system used for both client and
  * server.
  */
@@ -10,6 +10,7 @@ class EraEvent {
   constructor(label, data, context) {
     this.label = label;
     this.data = data;
+    // TODO: Remove "context" and provide an actual target.
     this.context = context;
   }
   

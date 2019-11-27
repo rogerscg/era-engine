@@ -7,7 +7,7 @@ import Bindings from '../data/bindings.js';
  */
 let settingsInstance = null;
 
-const SLAPSHOT_SETTINGS = 'slapshot_settings';
+const SETTINGS_KEY = 'era_settings';
 
 class Settings {
 
@@ -39,22 +39,22 @@ class Settings {
    * the default.
    */
   initSettings() {
-    if (!localStorage.getItem(SLAPSHOT_SETTINGS)) {
+    if (!localStorage.getItem(SETTINGS_KEY)) {
       this.createDefaults();
     }
     try {
-      JSON.parse(localStorage.getItem(SLAPSHOT_SETTINGS));
+      JSON.parse(localStorage.getItem(SETTINGS_KEY));
     } catch (e) {
       this.createDefaults();
     }
-    return JSON.parse(localStorage.getItem(SLAPSHOT_SETTINGS));
+    return JSON.parse(localStorage.getItem(SETTINGS_KEY));
   }
 
   /**
    * Creates the default settings object in local storage.
    */
   createDefaults() {
-    localStorage.setItem(SLAPSHOT_SETTINGS, JSON.stringify(DEFAULT_SETTINGS));
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(DEFAULT_SETTINGS));
   }
 
   /**
@@ -63,7 +63,7 @@ class Settings {
    */
   apply() {
     localStorage.setItem(
-      SLAPSHOT_SETTINGS, JSON.stringify(this.settingsObject));
+      SETTINGS_KEY, JSON.stringify(this.settingsObject));
     const event = new SettingsEvent(this.settingsObject);
     event.fire();
   }
