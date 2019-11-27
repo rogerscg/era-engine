@@ -20,5 +20,8 @@
   "homepage": "https://github.com/rogerscg/era-engine#readme",
   "dependencies": {
     "express": "^4.17.1"
+  },
+  "devDependencies": {
+    "rollup": "^1.25.1"
   }
 }
