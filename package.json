@@ -1,0 +1,23 @@
+{
+  "name": "era-engine",
+  "version": "1.0.0",
+  "description": "ERA Engine - A wrapper around Three.js to assist development.",
+  "main": "test_server.js",
+  "scripts": {
+    "start": "node test_server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rogerscg/era-engine.git"
+  },
+  "author": "rogerscg",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/rogerscg/era-engine/issues"
+  },
+  "homepage": "https://github.com/rogerscg/era-engine#readme",
+  "dependencies": {
+    "express": "^4.17.1"
+  }
+}
