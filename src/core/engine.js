@@ -32,7 +32,6 @@ class Engine {
     this.ui = UI.get();
     this.network = Network.get();
     this.fpsEnabled = Settings.get().settingsObject.fps;
-    this.pingEnabled = Settings.get().settingsObject.ping;
     this.started = false;
     this.rendering = false;
     if (ENABLE_DEBUG) {
@@ -220,26 +219,6 @@ class Engine {
     }
     parent.removeChild(this.stats.dom);
     this.stats = null;
-  }
-
-  enablePingCounter() {
-    const element = document.getElementById('ping-text');
-    element.style.display = 'inherit';
-    const val = document.getElementById('ping-value');
-    const loop = () => {
-      PingService.get().ping().then((ping) => {
-        if (this.pingEnabled) {
-          val.innerHTML = ping;
-          setTimeout(() => loop(), 1000);
-        }
-      });
-    };
-    loop();
-  }
-
-  disablePingCounter() {
-    const element = document.getElementById('ping-text');
-    element.style.display = '';
   }
 
   /**
