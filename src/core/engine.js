@@ -144,6 +144,7 @@ class Engine {
     TWEEN.update(timeStamp);
     this.physics.update();
     if (this.rendererStats) {
+      console.log('render');
       this.rendererStats.update(this.renderer);
     }
     this.registeredUpdates.forEach((object) => object.update(timeStamp));
@@ -199,6 +200,7 @@ class Engine {
     if (this.stats) {
       return;
     }
+    this.fpsEnabled = true;
     let stats = new Stats();
     this.stats = stats;
     document.body.appendChild(stats.dom);
@@ -211,6 +213,7 @@ class Engine {
   }
 
   disableFpsCounter() {
+    this.fpsEnabled = false;
     const parent = this.stats.dom.parentElement;
     if (!parent) {
       return;

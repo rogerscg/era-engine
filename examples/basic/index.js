@@ -1,3 +1,5 @@
 import {Engine} from '/src/era.js';
 
-Engine.get().start();
+const engine = Engine.get();
+engine.start();
+engine.enableFpsCounter();
