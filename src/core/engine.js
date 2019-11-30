@@ -162,7 +162,7 @@ class Engine {
    */
   createRenderer() {
     const renderer = rendererPool.get(RendererTypes.GAME);
-    const container = document.getElementById('game-container');
+    const container = document.getElementById('container');
     container.appendChild(renderer.domElement);
     window.addEventListener('resize', this.onWindowResize.bind(this), false);
     return renderer;

@@ -4,7 +4,7 @@ export default [
 		plugins: [],
 		output: [
 			{
-				format: 'umd',
+				format: 'esm',
 				name: 'ERA',
 				file: 'build/era.js'
 			}

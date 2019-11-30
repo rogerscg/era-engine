@@ -1,3 +1,4 @@
+import DEFAULT_SETTINGS from '../data/settings.js';
 import SOUND_DATA from '../data/sounds.js';
 import Events from './events.js';
 import Settings from './settings.js';
