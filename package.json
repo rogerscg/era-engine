@@ -1,8 +1,8 @@
 {
   "name": "era-engine",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "ERA Engine - A wrapper around Three.js to assist development.",
-  "main": "test_server.js",
+  "main": "build/era.js",
   "scripts": {
     "build": "rollup -c utils/rollup_config.js",
     "start": "node test_server.js",
@@ -18,10 +18,8 @@
     "url": "https://github.com/rogerscg/era-engine/issues"
   },
   "homepage": "https://github.com/rogerscg/era-engine#readme",
-  "dependencies": {
-    "express": "^4.17.1"
-  },
   "devDependencies": {
+    "express": "^4.17.1",
     "rollup": "^1.25.1"
   }
 }
