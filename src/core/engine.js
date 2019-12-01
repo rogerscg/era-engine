@@ -51,6 +51,10 @@ class Engine {
     return this.camera;
   }
 
+  getRenderer() {
+    return this.renderer;
+  }
+
   /**
    * Starts the engine. This is separate from the constructor as it
    * is asynchronous.
