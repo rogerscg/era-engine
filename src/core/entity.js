@@ -8,9 +8,10 @@ import {createUUID} from './util.js';
  * Super class for all entities within the game, mostly those
  * that are updated by the physics engine.
  */
-class Entity {
+class Entity extends THREE.Object3D {
 
   constructor(parentGame) {
+    super();
     this.uuid = createUUID();
     this.parentGame = parentGame;
     this.mesh = null;
@@ -57,6 +58,7 @@ class Entity {
     }
     const scene = Models.get().storage.get(this.modelName).clone();
     this.mesh = scene;
+    this.add(this.mesh);
     return this.mesh;
   }
 

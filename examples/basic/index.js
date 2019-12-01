@@ -16,9 +16,9 @@ async function start() {
   light.createDirectionalLight(500, 1500, 500, 0xffffff, 0.9);
   const scene = engine.getScene();
   const xwing = new XWing().build();
-  scene.add(xwing.getMesh());
+  scene.add(xwing);
   engine.getCamera().position.set(5, 10, 20);
-  engine.getCamera().lookAt(xwing.getMesh().position);
+  engine.getCamera().lookAt(xwing.position);
 }
 
 document.addEventListener('DOMContentLoaded', start);
