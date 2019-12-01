@@ -4,8 +4,7 @@ async function start() {
   const engine = Engine.get();
   await Models.get().loadAllFromFile('/examples/basic/models/models.json');
   engine.start();
-  engine.enableFpsCounter();
-  engine.enableRenderStats();
+  engine.enableDebug();
 
   const light = Light.get();
   light.createAmbientLight({

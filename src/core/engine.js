@@ -9,8 +9,6 @@ import Settings from './settings.js';
 import UI from './ui.js';
 import {RendererTypes, rendererPool} from './renderer_pool.js';
 
-const ENABLE_DEBUG = false;
-
 let instance = null;
 
 /**
@@ -180,6 +178,19 @@ class Engine {
     const camera = new THREE.PerspectiveCamera(viewAngle, aspect, near, far);
     camera.rotation.order = 'YXZ';
     return camera;
+  }
+
+  /**
+   * Enables both FPS and renderer stats.
+   */
+  enableDebug() {
+    this.enableFpsCounter();
+    this.enableRenderStats();
+  }
+
+  disableDebug() {
+    this.disableFpsCounter();
+    this.disableRenderStats();
   }
 
   /**
