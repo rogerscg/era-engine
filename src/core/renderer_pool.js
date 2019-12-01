@@ -58,7 +58,7 @@ class RendererPool {
     });
     renderer.gammaOutput = true;
     renderer.gammaInput = true;
-    renderer.setClearColor(0xaaaaaa);
+    renderer.setClearColor(0x111111);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.setPixelRatio(window.devicePixelRatio);

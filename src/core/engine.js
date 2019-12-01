@@ -27,6 +27,7 @@ class Engine {
 
   constructor() {
     // Lazy-load all important components.
+    // TODO: Remove these and register as components.
     this.ui = UI.get();
     this.network = Network.get();
     this.audio = Audio.get();

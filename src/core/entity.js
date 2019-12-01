@@ -1,7 +1,8 @@
 import Events from './events.js';
+import Models from './models.js';
 import Physics from './physics.js';
 import Settings from './settings.js';
-import { createUUID } from './util.js';
+import {createUUID} from './util.js';
 
 /**
  * Super class for all entities within the game, mostly those
@@ -13,7 +14,9 @@ class Entity {
     this.uuid = createUUID();
     this.parentGame = parentGame;
     this.mesh = null;
-    this.physicsObject = null;
+    this.modelName = null;
+    this.physicsBody = null;
+    this.physicsEnabled = false;
     this.actions = {}; // Map of action -> value (0 - 1)
     this.inputDevice = 'keyboard';
     this.mouseMovement = {
@@ -21,13 +24,49 @@ class Entity {
       y: 0
     };
     this.mouseSensitivity = 50;
+    this.enableMouseY = Settings.get().settingsObject.mouse_y;
+    this.mouseSensitivity = Settings.get().settingsObject.mouse_sensitivity;
+    this.settingsListener = Events.get().addListener(
+      'settings', this.handleSettingsChange.bind(this)
+    );
+  }
 
-    if (!forServer) {
-      this.enableMouseY = Settings.get().settingsObject.mouse_y;
-      this.mouseSensitivity = Settings.get().settingsObject.mouse_sensitivity;
-      this.settingsListener = Events.get().addListener(
-        'settings', this.handleSettingsChange.bind(this)
-      );
+  withPhysics() {
+    this.physicsEnabled = true;
+  }
+
+  /**
+   * Creates the mesh and physics object.
+   */
+  build() {
+    if (this.modelName) {
+      this.generateMesh();
+    }
+    if (this.physicsEnabled) {
+      this.generatePhysicsBody();
+    }
+    return this;
+  }
+
+  /**
+   * Creates the mesh for the entity, using the entity name provided.
+   */
+  generateMesh() {
+    if (!this.modelName) {
+      return console.warn('Model name not provided');
+    }
+    const scene = Models.get().storage.get(this.modelName).clone();
+    this.mesh = scene;
+    return this.mesh;
+  }
+
+  /**
+   * Creates the physics object for the entity. This should be defined by each
+   * entity.
+   */
+  generatePhysicsBody() {
+    if (this.physicsEnabled) {
+      return console.warn('generatePhysicsBody not implemented for entity');
     }
   }
 
@@ -35,7 +74,7 @@ class Entity {
    * Serializes the physics aspect of the entity.
    */
   serializePhysics() {
-    const body = this.physicsObject;
+    const body = this.physicsBody;
     if (!body)
       return null;
     const precision = 4;
@@ -45,6 +84,10 @@ class Entity {
       body.velocity.map((x) => x.toFixed(precision)),
       [body.angle.toFixed(precision)],
     ];
+  }
+
+  getMesh() {
+    return this.mesh;
   }
 
   /**
@@ -124,12 +167,12 @@ class Entity {
    * synchronized.
    */
   update() {
-    if (!this.mesh || !this.physicsObject) {
+    if (!this.mesh || !this.physicsBody) {
       return;
     }
-    this.mesh.position.x = this.physicsObject.interpolatedPosition[0];
-    this.mesh.position.z = this.physicsObject.interpolatedPosition[1];
-    this.mesh.rotation.y = -this.physicsObject.interpolatedAngle;
+    this.mesh.position.x = this.physicsBody.interpolatedPosition[0];
+    this.mesh.position.z = this.physicsBody.interpolatedPosition[1];
+    this.mesh.rotation.y = -this.physicsBody.interpolatedAngle;
   }
 
   /** 
@@ -139,10 +182,10 @@ class Entity {
     if (!physics)
       return;
     const [angVelo, pos, velo, rot] = physics;
-    this.physicsObject.angularVelocity = angVelo;
-    this.physicsObject.angle = rot;
-    p2.vec2.copy(this.physicsObject.position, pos);
-    p2.vec2.copy(this.physicsObject.velocity, velo);
+    this.physicsBody.angularVelocity = angVelo;
+    this.physicsBody.angle = rot;
+    p2.vec2.copy(this.physicsBody.position, pos);
+    p2.vec2.copy(this.physicsBody.velocity, velo);
   }
 
   /**
