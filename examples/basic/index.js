@@ -5,6 +5,7 @@ async function start() {
   await Models.get().loadAllFromFile('/examples/basic/models/models.json');
   engine.start();
   engine.enableFpsCounter();
+  engine.enableRenderStats();
 
   const light = Light.get();
   light.createAmbientLight({

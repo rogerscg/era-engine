@@ -63,6 +63,23 @@ function shuffleArray(array) {
 }
 
 /**
+ * Loads a JSON from the given file path.
+ * @param {string} path 
+ * @return {Promise<Object>} Parsed JSON object.
+ * @async
+ */
+async function loadJsonFromFile(path) {
+  return new Promise((resolve, reject) => {
+    const loader = new THREE.FileLoader();
+    loader.load(path, (data) => {
+      resolve(JSON.parse(data));
+    }, () => {}, (err) => {
+      reject(err);
+    });
+  });
+}
+
+/**
  * Core implementation for managing events and listeners. This
  * exists out of necessity for a simple event and message system
  * for both the client and the server.
@@ -980,213 +997,22 @@ class EngineResetEvent extends EraEvent {
   }
 }
 
-/**
- * Light core for the game engine. Creates and manages light
- * sources in-game. Should be used as a singleton.
- */
-
-let lightInstance = null;
-
-class Light {
-
-  /**
-   * Enforces singleton light instance.
-   */
-  static get() {
-    if (!lightInstance) {
-      lightInstance = new Light();
-    }
-    return lightInstance;
-  }
-
-  constructor() {
-    this.ambientLight = null;
-    this.directionalLights = [];
-    this.settingsListener = Events.get().addListener(
-      'settings', this.handleSettingsChange.bind(this)
-    );
-  }
-  
-  /**
-   * Resets the lighting.
-   */
-  reset() {
-    lightInstance = null;
-  }
-
-  /**
-   * Creates the ambient lighting. Use this for easing/darkening shadows.
-   */
-  createAmbientLight(ambientConfig) {
-    const ambientLight =
-          new THREE.AmbientLight(parseInt(ambientConfig.color, 16));
-    ambientLight.intensity = ambientConfig.intensity;
-    engine.getScene().add(ambientLight);
-    return ambientLight;
-  }
-
-  /**
-   * Creates the entire set of directional lights.
-   */
-  createDirectionalLights(directionalConfig) {
-    const directionalLights = [];
-    if (!directionalConfig || !directionalConfig.length) {
-      return directionalLights;
-    }
-    for (let i = 0; i < directionalConfig.length; i++) {
-      const light = directionalConfig[i];
-      const x = light.x;
-      const y = light.y;
-      const z = light.z;
-      const color = parseInt(light.color, 16);
-      const intensity = light.intensity;
-      directionalLights.push(
-        this.createDirectionalLight(x, y, z, color, intensity));
-    }
-    return directionalLights;
-  }
-
-  /**
-   * Creates the directional lighting. Use this for generating shadows.
-   */
-  createDirectionalLight(x, y, z, color, intensity) {
-    const directionalLight = new THREE.DirectionalLight(color);
-    directionalLight.position.set(x, y, z);
-    directionalLight.intensity = intensity;
-    if (Settings.get().settingsObject.shaders) {
-      this.shadersEnabled = true;
-      this.createShaders(directionalLight);
-    }
-    engine.getScene().add(directionalLight);
-    return directionalLight;
-  }
-  
-  /**
-   * Creates the entire set of directional lights.
-   */
-  createSpotLights(spotConfig) {
-    const spotLights = new Array();
-    if (!spotConfig || !spotConfig.length) {
-      return spotLights;
-    }
-    for (let i = 0; i < spotConfig.length; i++) {
-      const light = spotConfig[i];
-      const x = light.x;
-      const y = light.y;
-      const z = light.z;
-      const color = parseInt(light.color, 16);
-      const intensity = light.intensity;
-      const angle = light.angle;
-      const penumbra = light.penumbra;
-      const shaders = light.shaders;
-      spotLights.push(this.createSpotLight(
-        x, y, z, color, intensity, angle, penumbra, shaders));
-    }
-    return spotLights;
-  }
-  
-  /**
-   * Creates a spot light. Use this for generating shadows.
-   */
-  createSpotLight(x, y, z, color, intensity, angle, penumbra, shaders) {
-    const spotLight = new THREE.SpotLight(color);
-    spotLight.position.set(x, y, z);
-    spotLight.intensity = intensity;
-    spotLight.angle = angle;
-    spotLight.penumbra = penumbra;
-    if (Settings.get().settingsObject.shaders && shaders) {
-      this.shadersEnabled = true;
-      this.createShaders(spotLight);
-    }
-    window.spotLight = spotLight;
-    engine.getScene().add(spotLight);
-    return spotLight;
-  }
-
-  /**
-   * Creates the shaders for a directional light.
-   */
-  createShaders(light) {
-    const cameraRange = 120;
-    light.castShadow = true;
-    light.shadow.camera.bottom = -cameraRange;
-    light.shadow.camera.left = -cameraRange;
-    light.shadow.camera.right = cameraRange;
-    light.shadow.camera.top = cameraRange;
-    light.shadow.camera.near = 1;
-    light.shadow.camera.far = 500;
-    light.shadow.bias = .0001;
-    light.shadow.radius = 4;
-    light.shadow.mapSize.width = 2048;
-    light.shadow.mapSize.height = 2048;
-  }
-  
-  /**
-   * Handles the settings change event.
-   */
-  handleSettingsChange(e) {
-    const settings = e.settings;
-    if (!!settings.shaders == !!this.shadersEnabled) {
-      return;
-    }
-    if (settings.shaders) {
-      this.enableShaders();
-    } else {
-      this.disableShaders();
-    }
-  }
-  
-  /**
-   * Enables shaders.
-   */
-  enableShaders() {
-    this.shadersEnabled = true;
-    this.directionalLights.forEach((light) => {
-      this.createShaders(light);
-    });
-    this.spotLights.forEach((light) => {
-      this.createShaders(light);
-    });
-  }
-  
-  /**
-   * Disables shaders.
-   */
-  disableShaders() {
-    this.shadersEnabled = false;
-    this.directionalLights.forEach((light) => {
-      light.castShadow = false;
-    });
-    this.spotLights.forEach((light) => {
-      light.castShadow = false;
-    });
-  }
-
-}
-
-const MODEL_DATA = {
-  // example: {
-  //   name: 'example',
-  //   scale: 1
-  // },
-};
+let instance = null;
 
 /**
  * Core implementation for loading 3D models for use in-game.
  */
-
-let modelsInstance = null;
-
 class Models {
 
   /**
    * Enforces a singleton instance of Models.
+   * @returns {Models}
    */
   static get() {
-    if (!modelsInstance) {
-      modelsInstance = new Models();
+    if (!instance) {
+      instance = new Models();
     }
-    return modelsInstance;
+    return instance;
   }
 
   constructor() {
@@ -1196,43 +1022,70 @@ class Models {
   }
 
   /**
-   * Loads all necessary models for the engine start. Returns
-   * a promise so the engine can wait until ready.
+   * Loads all models described from the provided file path. The file should
+   * be a JSON file. Follow the example at /src/data/models.json.
+   * @param {string} filePath
+   * @async
    */
-  loadInitial() {
-    let promises = [];
-    for (let name in MODEL_DATA) {
-      const modelData = MODEL_DATA[name];
-      promises.push(this.loadModel(modelData));
+  async loadAllFromFile(filePath) {
+    if (!filePath) {
+      return;
+    }
+    // Load JSON file with all models and options.
+    let allModelData;
+    try {
+      allModelData = await loadJsonFromFile(filePath);
+    } catch (e) {
+      throw new Error(e);
+    }
+    // Extract the directory from the file path, use for loading models.
+    const directory = filePath.substr(0, filePath.lastIndexOf('/') + 1);
+    const promises = new Array();
+    for (let name in allModelData) {
+      const options = allModelData[name];
+      promises.push(this.loadModel(directory, name, options));
     }
     return Promise.all(promises);
   }
 
   /**
-   * Load the model from file. Uses the glTF file format and loader.
+   * Load the model from file and places it into model storage. Uses the glTF
+   * file format and loader.
+   * @param {string} path
+   * @param {Object} options
+   * @async
    */
-  loadModel(modelData) {
-    return new Promise((resolve, reject) => {
-      const name = modelData.name;
+  async loadModel(directory, name, options) {
+    // TODO: Handle different model file types.
+    const path = `${directory}${name}.gltf`;
+    return new Promise((resolve) => {
       const loader = new THREE.GLTFLoader();
-      loader.load(`assets/models/${name}/scene.gltf`, (gltf) => {
-        if (modelData.scale.x) {
-          gltf.scene.scale.copy(modelData.scale);
-        } else {
-          gltf.scene.scale.setScalar(modelData.scale);
+      loader.load(path, (gltf) => {
+        if (options.scale) {
+          gltf.scene.scale.setScalar(options.scale);
         }
-        if (modelData.double) {
+        if (options.side == 2) {
           extractMeshes(gltf.scene)
             .forEach((mesh) => mesh.material.side = THREE.DoubleSide);
         }
         this.storage.set(name, gltf.scene);
         resolve();
-      }, (progress) => {
-
-      }, (err) => {
-        reject(console.error(err));
+      }, () => {}, (err) => {
+        throw new Error(err);
       });
     });
+  }
+
+  /**
+   * Creates a clone of a model from storage.
+   * @param {string} name
+   * @return {THREE.Object3D}
+   */
+  createModel(name) {
+    if (!this.storage.has(name)) {
+      return null;
+    }
+    return this.storage.get(name).clone();
   }
 }
 
@@ -1924,7 +1777,7 @@ class RendererPool {
 const rendererPool = new RendererPool();
 const RendererTypes = Types;
 
-let instance = null;
+let instance$1 = null;
 
 /**
  * Engine core for the game.
@@ -1934,17 +1787,21 @@ class Engine {
    * Enforces singleton engine instance.
    */
   static get() {
-    if (!instance) {
-      instance = new Engine();
+    if (!instance$1) {
+      instance$1 = new Engine();
     }
-    return instance;
+    return instance$1;
   }
 
   constructor() {
+    // Lazy-load all important components.
     this.ui = UI.get();
     this.network = Network.get();
+    this.audio = Audio.get();
+    this.controls = Controls.get();
+    this.physics = Physics.get();
+    this.models = Models.get();
     this.fpsEnabled = Settings.get().settingsObject.fps;
-    this.pingEnabled = Settings.get().settingsObject.ping;
     this.started = false;
     this.rendering = false;
     this.registeredUpdates = new Map();
@@ -1955,6 +1812,10 @@ class Engine {
 
   getScene() {
     return this.scene;
+  }
+
+  getCamera() {
+    return this.camera;
   }
 
   /**
@@ -1976,13 +1837,6 @@ class Engine {
     }
     this.camera = this.createCamera();
 
-    this.audio = Audio.get();
-    this.light = Light.get();
-    this.controls = Controls.get();
-    this.physics = Physics.get();
-    this.models = Models.get();
-
-    await this.models.loadInitial();
     this.started = true;
     this.rendering = true;
     requestAnimationFrame(() => {
@@ -1994,8 +1848,6 @@ class Engine {
    * Resets the game engine to its initial state.
    */
   reset() {
-    this.light = Light.get();
-    this.physics = Physics.get();
     this.camera = this.createCamera();
     if (this.fpsEnabled) {
       this.enableFpsCounter();
@@ -2023,7 +1875,6 @@ class Engine {
       this.game = null;
     }
     new EngineResetEvent().fire();
-    this.light.reset();
     this.controls.reset();
     this.physics.terminate();
     if (this.rendering) {
@@ -2049,6 +1900,7 @@ class Engine {
     TWEEN.update(timeStamp);
     this.physics.update();
     if (this.rendererStats) {
+      console.log('render');
       this.rendererStats.update(this.renderer);
     }
     this.registeredUpdates.forEach((object) => object.update(timeStamp));
@@ -2104,6 +1956,7 @@ class Engine {
     if (this.stats) {
       return;
     }
+    this.fpsEnabled = true;
     let stats = new Stats();
     this.stats = stats;
     document.body.appendChild(stats.dom);
@@ -2116,32 +1969,13 @@ class Engine {
   }
 
   disableFpsCounter() {
+    this.fpsEnabled = false;
     const parent = this.stats.dom.parentElement;
     if (!parent) {
       return;
     }
     parent.removeChild(this.stats.dom);
     this.stats = null;
-  }
-
-  enablePingCounter() {
-    const element = document.getElementById('ping-text');
-    element.style.display = 'inherit';
-    const val = document.getElementById('ping-value');
-    const loop = () => {
-      PingService.get().ping().then((ping) => {
-        if (this.pingEnabled) {
-          val.innerHTML = ping;
-          setTimeout(() => loop(), 1000);
-        }
-      });
-    };
-    loop();
-  }
-
-  disablePingCounter() {
-    const element = document.getElementById('ping-text');
-    element.style.display = '';
   }
 
   /**
@@ -2168,4 +2002,361 @@ class Engine {
   }
 }
 
-export { Engine };
+/**
+ * Super class for all entities within the game, mostly those
+ * that are updated by the physics engine.
+ */
+class Entity {
+
+  constructor(parentGame) {
+    this.uuid = createUUID();
+    this.parentGame = parentGame;
+    this.mesh = null;
+    this.physicsObject = null;
+    this.actions = {}; // Map of action -> value (0 - 1)
+    this.inputDevice = 'keyboard';
+    this.mouseMovement = {
+      x: 0,
+      y: 0
+    };
+    this.mouseSensitivity = 50;
+
+    if (!forServer) {
+      this.enableMouseY = Settings.get().settingsObject.mouse_y;
+      this.mouseSensitivity = Settings.get().settingsObject.mouse_sensitivity;
+      this.settingsListener = Events.get().addListener(
+        'settings', this.handleSettingsChange.bind(this)
+      );
+    }
+  }
+
+  /**
+   * Serializes the physics aspect of the entity.
+   */
+  serializePhysics() {
+    const body = this.physicsObject;
+    if (!body)
+      return null;
+    const precision = 4;
+    return [
+      [body.angularVelocity.toFixed(precision)],
+      body.interpolatedPosition.map((x) => x.toFixed(precision)),
+      body.velocity.map((x) => x.toFixed(precision)),
+      [body.angle.toFixed(precision)],
+    ];
+  }
+
+  /**
+   * Clears all input registered to the entity. This is used in
+   * the case controller input is removed from the entity.
+   */
+  clearInput() {
+    this.actions = {};
+    this.mouseMovement = {
+      x: 0,
+      y: 0
+    };
+    this.parentGame.sendInput(this);
+  }
+
+  /**
+   * Sets an action to the specified value for the entity
+   */
+  setAction(action, value) {
+    if (this.actions[action] && this.actions[action] === value) {
+      return;
+    }
+    if (value !== 0) {
+      this.actions[action] = value;
+    } else {
+      delete this.actions[action];
+    }
+    this.parentGame.sendInput(this);
+  }
+
+  /**
+   * Returns if input bound to a specific function is present.
+   */
+  isKeyPressed(binding) {
+    return this.actions && this.actions[binding.binding_id];
+  }
+
+  /**
+   * Check the force a key is pressed with
+   * @param {String} binding 
+   */
+  getForce(binding) {
+    return this.actions[binding.binding_id] || 0;
+  }
+
+  /**
+   * Sets the mouse movement vector for the entity.
+   */
+  setMouseMovement(x, y) {
+    const ratio = this.mouseSensitivity / 50;
+    if (this.enableMouseY) {
+      this.mouseMovement.y = x * ratio;
+      this.mouseMovement.x = y * ratio;
+    } else {
+      this.mouseMovement.x = x * ratio;
+      this.mouseMovement.y = y * ratio;
+    }
+    this.parentGame.sendInput(this);
+    if (!this.parentGame.isOffline) {
+      this.mouseMovement.x = 0;
+      this.mouseMovement.y = 0;
+    }
+  }
+
+  /**
+   * Takes in data passed from the client to the server as input.
+   */
+  setInputFromData(data) {
+    this.mouseMovement = data.mouseMovement;
+    this.cameraRotation = data.cameraRotation;
+    this.actions = data.actions ? data.actions : {};
+    this.inputDevice = data.inputDevice;
+  }
+
+  /**
+   * Called every step of the physics engine to keep the mesh and physics object
+   * synchronized.
+   */
+  update() {
+    if (!this.mesh || !this.physicsObject) {
+      return;
+    }
+    this.mesh.position.x = this.physicsObject.interpolatedPosition[0];
+    this.mesh.position.z = this.physicsObject.interpolatedPosition[1];
+    this.mesh.rotation.y = -this.physicsObject.interpolatedAngle;
+  }
+
+  /** 
+   * Updates the entity based on data sent from the server.
+   */
+  consumeUpdate(physics) {
+    if (!physics)
+      return;
+    const [angVelo, pos, velo, rot] = physics;
+    this.physicsObject.angularVelocity = angVelo;
+    this.physicsObject.angle = rot;
+    p2.vec2.copy(this.physicsObject.position, pos);
+    p2.vec2.copy(this.physicsObject.velocity, velo);
+  }
+
+  /**
+   * Registers the entity to the physics engine.
+   */
+  registerToPhysics() {
+    Physics.get().registerEntity(this);
+  }
+
+  /**
+   * Registers a component of an entity to the physics engine. This
+   * is primarily used if there is a body separate from the entity's
+   * main physics body.
+   */
+  registerComponent(body) {
+    let physics;
+    if (this.parentGame && this.parentGame.physics) {
+      physics = this.parentGame.physics;
+    } else {
+      physics = Physics.get();
+    }
+    physics.registerComponent(body);
+  }
+
+  /**
+   * Handles the settings change event.
+   */
+  handleSettingsChange(e) {
+    const settings = e.settings;
+    this.enableMouseY = settings.mouse_y;
+    this.mouseSensitivity = settings.mouse_sensitivity;
+  }
+}
+
+/**
+ * Light core for the game engine. Creates and manages light
+ * sources in-game. Should be used as a singleton.
+ */
+
+let lightInstance = null;
+
+class Light {
+
+  /**
+   * Enforces singleton light instance.
+   */
+  static get() {
+    if (!lightInstance) {
+      lightInstance = new Light();
+    }
+    return lightInstance;
+  }
+
+  constructor() {
+    this.ambientLight = null;
+    this.directionalLights = [];
+    this.settingsListener = Events.get().addListener(
+      'settings', this.handleSettingsChange.bind(this)
+    );
+  }
+  
+  /**
+   * Resets the lighting.
+   */
+  reset() {
+    lightInstance = null;
+  }
+
+  /**
+   * Creates the ambient lighting. Use this for easing/darkening shadows.
+   */
+  createAmbientLight(ambientConfig) {
+    const ambientLight =
+          new THREE.AmbientLight(parseInt(ambientConfig.color, 16));
+    ambientLight.intensity = ambientConfig.intensity;
+    Engine.get().getScene().add(ambientLight);
+    return ambientLight;
+  }
+
+  /**
+   * Creates the entire set of directional lights.
+   */
+  createDirectionalLights(directionalConfig) {
+    const directionalLights = [];
+    if (!directionalConfig || !directionalConfig.length) {
+      return directionalLights;
+    }
+    for (let i = 0; i < directionalConfig.length; i++) {
+      const light = directionalConfig[i];
+      const x = light.x;
+      const y = light.y;
+      const z = light.z;
+      const color = parseInt(light.color, 16);
+      const intensity = light.intensity;
+      directionalLights.push(
+        this.createDirectionalLight(x, y, z, color, intensity));
+    }
+    return directionalLights;
+  }
+
+  /**
+   * Creates the directional lighting. Use this for generating shadows.
+   */
+  createDirectionalLight(x, y, z, color, intensity) {
+    const directionalLight = new THREE.DirectionalLight(color);
+    directionalLight.position.set(x, y, z);
+    directionalLight.intensity = intensity;
+    if (Settings.get().settingsObject.shaders) {
+      this.shadersEnabled = true;
+      this.createShaders(directionalLight);
+    }
+    Engine.get().getScene().add(directionalLight);
+    return directionalLight;
+  }
+  
+  /**
+   * Creates the entire set of directional lights.
+   */
+  createSpotLights(spotConfig) {
+    const spotLights = new Array();
+    if (!spotConfig || !spotConfig.length) {
+      return spotLights;
+    }
+    for (let i = 0; i < spotConfig.length; i++) {
+      const light = spotConfig[i];
+      const x = light.x;
+      const y = light.y;
+      const z = light.z;
+      const color = parseInt(light.color, 16);
+      const intensity = light.intensity;
+      const angle = light.angle;
+      const penumbra = light.penumbra;
+      const shaders = light.shaders;
+      spotLights.push(this.createSpotLight(
+        x, y, z, color, intensity, angle, penumbra, shaders));
+    }
+    return spotLights;
+  }
+  
+  /**
+   * Creates a spot light. Use this for generating shadows.
+   */
+  createSpotLight(x, y, z, color, intensity, angle, penumbra, shaders) {
+    const spotLight = new THREE.SpotLight(color);
+    spotLight.position.set(x, y, z);
+    spotLight.intensity = intensity;
+    spotLight.angle = angle;
+    spotLight.penumbra = penumbra;
+    if (Settings.get().settingsObject.shaders && shaders) {
+      this.shadersEnabled = true;
+      this.createShaders(spotLight);
+    }
+    Engine.get().getScene().add(spotLight);
+    return spotLight;
+  }
+
+  /**
+   * Creates the shaders for a directional light.
+   */
+  createShaders(light) {
+    const cameraRange = 120;
+    light.castShadow = true;
+    light.shadow.camera.bottom = -cameraRange;
+    light.shadow.camera.left = -cameraRange;
+    light.shadow.camera.right = cameraRange;
+    light.shadow.camera.top = cameraRange;
+    light.shadow.camera.near = 1;
+    light.shadow.camera.far = 500;
+    light.shadow.bias = .0001;
+    light.shadow.radius = 4;
+    light.shadow.mapSize.width = 2048;
+    light.shadow.mapSize.height = 2048;
+  }
+  
+  /**
+   * Handles the settings change event.
+   */
+  handleSettingsChange(e) {
+    const settings = e.settings;
+    if (!!settings.shaders == !!this.shadersEnabled) {
+      return;
+    }
+    if (settings.shaders) {
+      this.enableShaders();
+    } else {
+      this.disableShaders();
+    }
+  }
+  
+  /**
+   * Enables shaders.
+   */
+  enableShaders() {
+    this.shadersEnabled = true;
+    this.directionalLights.forEach((light) => {
+      this.createShaders(light);
+    });
+    this.spotLights.forEach((light) => {
+      this.createShaders(light);
+    });
+  }
+  
+  /**
+   * Disables shaders.
+   */
+  disableShaders() {
+    this.shadersEnabled = false;
+    this.directionalLights.forEach((light) => {
+      light.castShadow = false;
+    });
+    this.spotLights.forEach((light) => {
+      light.castShadow = false;
+    });
+  }
+
+}
+
+export { Engine, Entity, Light, Models };

@@ -2,7 +2,6 @@ import Audio from './audio.js';
 import Controls from './controls.js';
 import EngineResetEvent from '../events/engine_reset_event.js';
 import Events from './events.js';
-import Light from './light.js';
 import Models from './models.js';
 import Network from './network.js';
 import Physics from './physics.js';
@@ -33,20 +32,12 @@ class Engine {
     this.ui = UI.get();
     this.network = Network.get();
     this.audio = Audio.get();
-    this.light = Light.get();
     this.controls = Controls.get();
     this.physics = Physics.get();
     this.models = Models.get();
     this.fpsEnabled = Settings.get().settingsObject.fps;
     this.started = false;
     this.rendering = false;
-    if (ENABLE_DEBUG) {
-      this.rendererStats = new THREEx.RendererStats();
-      this.rendererStats.domElement.style.position = 'absolute';
-      this.rendererStats.domElement.style.left = '0px';
-      this.rendererStats.domElement.style.bottom = '48px';
-      document.body.appendChild(this.rendererStats.domElement);
-    }
     this.registeredUpdates = new Map();
     this.settingsListener = Events.get().addListener(
       'settings', this.handleSettingsChange.bind(this)
@@ -118,7 +109,6 @@ class Engine {
       this.game = null;
     }
     new EngineResetEvent().fire();
-    this.light.reset();
     this.controls.reset();
     this.physics.terminate();
     if (this.rendering) {
@@ -144,7 +134,6 @@ class Engine {
     TWEEN.update(timeStamp);
     this.physics.update();
     if (this.rendererStats) {
-      console.log('render');
       this.rendererStats.update(this.renderer);
     }
     this.registeredUpdates.forEach((object) => object.update(timeStamp));
@@ -220,6 +209,19 @@ class Engine {
     }
     parent.removeChild(this.stats.dom);
     this.stats = null;
+  }
+
+  enableRenderStats() {
+    this.rendererStats = new THREEx.RendererStats();
+    this.rendererStats.domElement.style.position = 'absolute';
+    this.rendererStats.domElement.style.right = '0';
+    this.rendererStats.domElement.style.bottom = '0';
+    document.body.appendChild(this.rendererStats.domElement);
+  }
+
+  disableRenderStats() {
+    document.body.removeChild(this.rendererStats.domElement);
+    this.rendererStats = null;
   }
 
   /**
