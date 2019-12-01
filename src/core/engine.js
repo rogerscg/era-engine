@@ -29,8 +29,14 @@ class Engine {
   }
 
   constructor() {
+    // Lazy-load all important components.
     this.ui = UI.get();
     this.network = Network.get();
+    this.audio = Audio.get();
+    this.light = Light.get();
+    this.controls = Controls.get();
+    this.physics = Physics.get();
+    this.models = Models.get();
     this.fpsEnabled = Settings.get().settingsObject.fps;
     this.started = false;
     this.rendering = false;
@@ -49,6 +55,10 @@ class Engine {
 
   getScene() {
     return this.scene;
+  }
+
+  getCamera() {
+    return this.camera;
   }
 
   /**
@@ -70,13 +80,6 @@ class Engine {
     }
     this.camera = this.createCamera();
 
-    this.audio = Audio.get();
-    this.light = Light.get();
-    this.controls = Controls.get();
-    this.physics = Physics.get();
-    this.models = Models.get();
-
-    await this.models.loadInitial();
     this.started = true;
     this.rendering = true;
     requestAnimationFrame(() => {
@@ -88,8 +91,6 @@ class Engine {
    * Resets the game engine to its initial state.
    */
   reset() {
-    this.light = Light.get();
-    this.physics = Physics.get();
     this.camera = this.createCamera();
     if (this.fpsEnabled) {
       this.enableFpsCounter();

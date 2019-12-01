@@ -135,12 +135,30 @@ function lerp(a, b, factor) {
   return a + (b - a) * factor;
 }
 
+/**
+ * Loads a JSON from the given file path.
+ * @param {string} path 
+ * @return {Promise<Object>} Parsed JSON object.
+ * @async
+ */
+async function loadJsonFromFile(path) {
+  return new Promise((resolve, reject) => {
+    const loader = new THREE.FileLoader();
+    loader.load(path, (data) => {
+      resolve(JSON.parse(data));
+    }, () => {}, (err) => {
+      reject(err);
+    });
+  });
+}
+
 export {
   createUUID,
   disableShadows,
   dispose,
   extractMeshes,
   extractMeshesByName,
+  loadJsonFromFile,
   shuffleArray,
   toDegrees,
   toRadians,

@@ -1,3 +1,4 @@
+import Engine from './engine.js';
 import Events from './events.js';
 import Settings from './settings.js';
 
@@ -42,7 +43,7 @@ class Light {
     const ambientLight =
           new THREE.AmbientLight(parseInt(ambientConfig.color, 16));
     ambientLight.intensity = ambientConfig.intensity;
-    engine.getScene().add(ambientLight);
+    Engine.get().getScene().add(ambientLight);
     return ambientLight;
   }
 
@@ -78,7 +79,7 @@ class Light {
       this.shadersEnabled = true;
       this.createShaders(directionalLight);
     }
-    engine.getScene().add(directionalLight);
+    Engine.get().getScene().add(directionalLight);
     return directionalLight;
   }
   
@@ -119,8 +120,7 @@ class Light {
       this.shadersEnabled = true;
       this.createShaders(spotLight);
     }
-    window.spotLight = spotLight;
-    engine.getScene().add(spotLight);
+    Engine.get().getScene().add(spotLight);
     return spotLight;
   }
 
