@@ -1,7 +1,8 @@
 import DEFAULT_SETTINGS from '../data/settings.js';
 import SOUND_DATA from '../data/sounds.js';
-import Events from './events.js';
+import EngineResetEvent from '../events/engine_reset_event.js';
 import Settings from './settings.js';
+import SettingsEvent from '../events/settings_event.js';
 import {createUUID, shuffleArray} from './util.js';
 
 const CROSSFADE_TIME = 500;
@@ -38,12 +39,9 @@ class Audio {
     // A map of playing sounds in order to allow stopping mid-play.
     this.playingSounds = new Map();
 
-    this.masterVolume = Settings.get().settingsObject.volume;
-    this.defaultVolume = DEFAULT_SETTINGS.volume;
-    this.settingsListener = Events.get().addListener(
-      'settings', this.handleSettingsChange.bind(this)
-    );
-    Events.get().addListener('reset', this.handleEngineReset.bind(this));
+    this.loadSettings();
+    SettingsEvent.listen(this.loadSettings.bind(this));
+    EngineResetEvent.listen(this.handleEngineReset.bind(this));
   }
 
   /**
@@ -146,11 +144,11 @@ class Audio {
   }
 
   /**
-   * Handles the settings change event.
+   * Loads settings relevant to audio.
    */
-  handleSettingsChange(e) {
-    const settings = e.settings;
-    this.masterVolume = settings.volume;
+  loadSettings() {
+    this.masterVolume = Settings.get('volume');
+    this.defaultVolume = DEFAULT_SETTINGS.volume;
   }
 
   /**

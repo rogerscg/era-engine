@@ -20,7 +20,7 @@ class Engine {
   }
 
   constructor() {
-    this.fpsEnabled = Settings.get().settingsObject.fps;
+    this.fpsEnabled = Settings.get('fps');
     this.started = false;
     this.rendering = false;
     this.plugins = new Set();
@@ -211,12 +211,11 @@ class Engine {
   }
 
   /**
-   * Handles the settings change event.
+   * Loads settings relevant to the engine.
    */
-  handleSettingsChange(e) {
-    const settings = e.settings;
-    if (this.fpsEnabled != settings.fps) {
-      if (settings.fps) {
+  handleSettingsChange() {
+    if (this.fpsEnabled != Settings.get('fps')) {
+      if (Settings.get('fps')) {
         this.fpsEnabled = true;
         this.enableFpsCounter();
       } else {

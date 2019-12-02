@@ -2,6 +2,7 @@ import Bindings from '../data/bindings.js';
 import Events from './events.js';
 import Plugin from './plugin.js';
 import Settings from './settings.js';
+import SettingsEvent from '../events/settings_event.js';
 
 let instance = null;
 
@@ -26,8 +27,6 @@ class Controls extends Plugin {
     this.registeredEntities = new Map();
     this.controlsEnabled = true;
 
-    this.registerBindings()
-
     this.hasController = false;
     this.controllerListeners = [];
 
@@ -42,11 +41,9 @@ class Controls extends Plugin {
     window.addEventListener("gamepadconnected", this.startPollingController.bind(this));
     window.addEventListener("gamepaddisconnected", this.stopPollingController.bind(this));
 
-    this.movementDeadzone = Settings.get().settingsObject.movement_deadzone;
-    this.customControls = Settings.get().settingsObject.controls;
-    this.overrideControls = Settings.get().settingsObject.overrides;
-    this.settingsListener = Events.get().addListener(
-      'settings', this.handleSettingsChange.bind(this));
+    this.loadSettings();
+    
+    SettingsEvent.listen(this.handleSettingsChange.bind(this));
   }
 
   /** @override */
@@ -63,11 +60,9 @@ class Controls extends Plugin {
     // Stringify and parse so it's 100% certain a copy
     // Avoids editing the defaults
     this.bindings = JSON.parse(JSON.stringify(Bindings));
-
-    const customBindings = Settings.get().settingsObject.controls;
-    for(let customBindingName of Object.keys(customBindings)) {
-      for(let device of Object.keys(customBindings[customBindingName].keys)) {
-        const customKey = customBindings[customBindingName].keys[device]
+    for (let customBindingName of Object.keys(this.customControls)) {
+      for (let device of Object.keys(this.customControls[customBindingName].keys)) {
+        const customKey = this.customControls[customBindingName].keys[device]
         this.bindings[customBindingName].keys[device] = customKey
       }
     }
@@ -337,11 +332,12 @@ class Controls extends Plugin {
   }
 
   /**
-   * Handles the settings change event.
+   * Loads settings.
    */
-  handleSettingsChange(e) {
-    const settings = e.settings;
-    this.controls = settings.controls;
+  loadSettings() {
+    this.movementDeadzone = Settings.get('movement_deadzone');
+    this.customControls = Settings.get('controls');
+    this.overrideControls = Settings.get('overrides');
     this.registerBindings();
   }
 }

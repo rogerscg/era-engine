@@ -1,36 +1,22 @@
 import DEFAULT_SETTINGS from '../data/settings.js';
 import SettingsEvent from '../events/settings_event.js';
-import Bindings from '../data/bindings.js';
+
+const SETTINGS_KEY = 'era_settings';
 
 /**
  * Controls the client settings in a singleton model in local storage.
  */
-let settingsInstance = null;
-
-const SETTINGS_KEY = 'era_settings';
-
 class Settings {
-
-  /**
-   * Enforces singleton light instance.
-   */
-  static get() {
-    if (!settingsInstance) {
-      settingsInstance = new Settings();
-    }
-    return settingsInstance;
-  }
 
   constructor() {
     this.settingsObject = this.initSettings();
-    this.migrate();
     this.verifySettings();
   }
   
   /**
    * Gets the value of a key in the settings object.
    */
-  getValue(key) {
+  get(key) {
     return this.settingsObject[key];
   }
 
@@ -94,46 +80,6 @@ class Settings {
       this.apply();
     }
   }
-
-  /**
-   * Migrate old settings to new ones
-   * Should be executable every startup
-   */
-  migrate() {
-    this.migrateKeybinds()
-    this.apply();
-  }
-
-  /**
-   * If user still has the old control scheme
-   * Port it to the new one so they don't have to redo their keybinds
-   */
-  migrateKeybinds() {
-    if(this.settingsObject.controls && this.settingsObject.overrides) {
-      const oldOverrides = Object.assign({}, this.settingsObject.overrides);
-      const newControls = {}
-      for(let oldOverrideKey of Object.keys(oldOverrides)) {
-        // Find the keybind that was set
-        const belongsToBinding = Object.keys(Bindings).filter(binding => {
-          return Bindings[binding].keys.keyboard == oldOverrideKey
-        })
-        // If we found which it belongs to, set to what they have it set as
-        if(belongsToBinding.length === 1) {
-          const binding = belongsToBinding[0]
-          newControls[binding] = {
-            binding_id: Bindings[binding].binding_id,
-            keys: { 
-              keyboard: oldOverrides[oldOverrideKey],
-              controller: Bindings[binding].keys.controller
-            }
-          }
-        }
-      }
-      this.settingsObject.controls = newControls;
-      delete this.settingsObject.overrides;
-    }
-  }
-
 }
 
-export default Settings;
+export default new Settings();

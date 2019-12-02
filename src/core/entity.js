@@ -1,8 +1,8 @@
-import Events from './events.js';
 import Models from './models.js';
 import Physics from './physics.js';
 import Settings from './settings.js';
 import {createUUID} from './util.js';
+import SettingsEvent from '../events/settings_event.js';
 
 /**
  * Super class for all entities within the game, mostly those
@@ -25,11 +25,7 @@ class Entity extends THREE.Object3D {
       y: 0
     };
     this.mouseSensitivity = 50;
-    this.enableMouseY = Settings.get().settingsObject.mouse_y;
-    this.mouseSensitivity = Settings.get().settingsObject.mouse_sensitivity;
-    this.settingsListener = Events.get().addListener(
-      'settings', this.handleSettingsChange.bind(this)
-    );
+    SettingsEvent.listen(this.loadSettings.bind(this));
   }
 
   withPhysics() {
@@ -214,12 +210,11 @@ class Entity extends THREE.Object3D {
   }
 
   /**
-   * Handles the settings change event.
+   * Loads entity settings.
    */
-  handleSettingsChange(e) {
-    const settings = e.settings;
-    this.enableMouseY = settings.mouse_y;
-    this.mouseSensitivity = settings.mouse_sensitivity;
+  loadSettings() {
+    this.enableMouseY = Settings.get('mouse_y');
+    this.mouseSensitivity = Settings.get('mouse_sensitivity');
   }
 }
 

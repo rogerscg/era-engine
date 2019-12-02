@@ -75,7 +75,7 @@ class Light extends Plugin {
     const directionalLight = new THREE.DirectionalLight(color);
     directionalLight.position.set(x, y, z);
     directionalLight.intensity = intensity;
-    if (Settings.get().settingsObject.shaders) {
+    if (Settings.get('shaders')) {
       this.shadersEnabled = true;
       this.createShaders(directionalLight);
     }
@@ -116,7 +116,7 @@ class Light extends Plugin {
     spotLight.intensity = intensity;
     spotLight.angle = angle;
     spotLight.penumbra = penumbra;
-    if (Settings.get().settingsObject.shaders && shaders) {
+    if (Settings.get('shaders') && shaders) {
       this.shadersEnabled = true;
       this.createShaders(spotLight);
     }
@@ -145,12 +145,11 @@ class Light extends Plugin {
   /**
    * Handles the settings change event.
    */
-  handleSettingsChange(e) {
-    const settings = e.settings;
-    if (!!settings.shaders == !!this.shadersEnabled) {
+  handleSettingsChange() {
+    if (!!Settings.get('shaders') == !!this.shadersEnabled) {
       return;
     }
-    if (settings.shaders) {
+    if (Settings.get('shaders')) {
       this.enableShaders();
     } else {
       this.disableShaders();
