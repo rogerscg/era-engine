@@ -634,23 +634,419 @@ class Audio {
   }
 }
 
+const LABEL = 'reset';
+
+/**
+ * Engine reset event.
+ */
+class EngineResetEvent extends EraEvent {
+  constructor() {
+    super(LABEL, {});
+  }
+  
+  /** @override */
+  static listen(callback) {
+    EraEvent.listen(LABEL, callback);
+  }
+}
+
+const Types = {
+  GAME: 'game',
+  MINIMAP: 'minimap',
+  BACKGROUND: 'background',
+  STAGE: 'stage',
+  TILE: 'tile',
+};
+
+/**
+ * A pool of singleton, lazy-loaded WebGL renderers for specific uses.
+ */
+class RendererPool {
+  constructor() {
+    this.map = new Map();
+    EngineResetEvent.listen(this.handleEngineReset.bind(this));
+  }
+  
+  get(name) {
+    if (name == Types.TILE) {
+      return this.getOrCreateTileRenderer();
+    }
+    if (!this.map.has(name)) {
+      return this.createRenderer(name);
+    }
+    return this.map.get(name);
+  }
+
+  /**
+   * Creates a new renderer based on the name of the renderer.
+   */
+  createRenderer(name) {
+    let renderer = null;
+    switch (name) {
+      case Types.GAME:
+        renderer = this.createGameRenderer();
+        break;
+      case Types.STAGE:
+      case Types.MINIMAP:
+      case Types.BACKGROUND:
+        renderer = this.createGenericRenderer();
+        break;
+    }
+    this.map.set(name, renderer);
+    return renderer;
+  }
+  
+  /**
+   * Creates the main renderer for the game.
+   */
+  createGameRenderer() {
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: true,
+    });
+    renderer.gammaOutput = true;
+    renderer.gammaInput = true;
+    renderer.setClearColor(0x111111);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(width, height);
+    return renderer;
+  }
+  
+  /**
+   * Creates the renderer used for face tiles.
+   */
+  createGenericRenderer() {
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: true
+    });
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.gammaInput = true;
+    renderer.gammaOutput = true;
+    return renderer;
+  }
+  
+  /**
+   * Retrives a tile renderer from the pool if it exists. If not, creates a new
+   * one.
+   */
+  getOrCreateTileRenderer() {
+    if (!this.map.has(Types.TILE)) {
+      this.map.set(Types.TILE, new Set());
+    }
+    const pool = this.map.get(Types.TILE);
+    let found = null;
+    pool.forEach((renderer) => {
+      if (!renderer.inUse && !found) {
+        found = renderer;
+      }
+    });
+    if (!found) {
+      found = this.createGenericRenderer();
+      pool.add(found);
+    }
+    found.inUse = true;
+    return found;
+  }
+  
+  /**
+   * Handles an engine reset by marking all renderers as not in use.
+   */
+  handleEngineReset() {
+    const tilePool = this.map.get(Types.TILE);
+    if (!tilePool) {
+      return;
+    }
+    tilePool.forEach((renderer) => renderer.inUse = false);
+  }
+}
+
+const rendererPool = new RendererPool();
+const RendererTypes = Types;
+
+let instance = null;
+
+/**
+ * Engine core for the game.
+ */
+class Engine {
+  /**
+   * Enforces singleton engine instance.
+   */
+  static get() {
+    if (!instance) {
+      instance = new Engine();
+    }
+    return instance;
+  }
+
+  constructor() {
+    this.fpsEnabled = Settings.get().settingsObject.fps;
+    this.started = false;
+    this.rendering = false;
+    this.plugins = new Set();
+    SettingsEvent.listen(this.handleSettingsChange.bind(this));
+  }
+
+  getScene() {
+    return this.scene;
+  }
+
+  getCamera() {
+    return this.camera;
+  }
+
+  getRenderer() {
+    return this.renderer;
+  }
+
+  /**
+   * Starts the engine. This is separate from the constructor as it
+   * is asynchronous.
+   */
+  async start() {
+    if (this.started) {
+      this.reset();
+    }
+    this.clock = new THREE.Clock();
+    this.scene = new THREE.Scene();
+    if (!this.renderer) {
+      this.renderer = this.createRenderer();
+    }
+    if (this.fpsEnabled) {
+      this.enableFpsCounter();
+    }
+    this.camera = this.createCamera();
+
+    this.started = true;
+    this.rendering = true;
+    requestAnimationFrame(() => {
+      this.render();
+    });
+  }
+
+  /**
+   * Resets the game engine to its initial state.
+   */
+  reset() {
+    if (this.fpsEnabled) {
+      this.enableFpsCounter();
+    }
+    // Reset all plugins.
+    this.plugins.forEach((plugin) => plugin.update(timeStamp));
+    new EngineResetEvent().fire();
+    this.resetRender = true;
+    this.clearScene();
+    // TODO: Clean up reset rendering.
+    if (!this.rendering) {
+      this.rendering = true;
+      return this.render();
+    } else {
+      // If still rendering, prevent the reset and use the old loop.
+      this.resetRender = false;
+    }
+  }
+
+  /**
+   * Clears the scene.
+   */
+  clearScene() {
+    const scene = this.scene;
+    while (scene.children.length > 0) {
+      scene.remove(scene.children[0]);
+    }
+  }
+
+  /**
+   * The root for all tick updates in the game.
+   */
+  render(timeStamp) {
+    this.renderer.render(this.scene, this.camera);
+    TWEEN.update(timeStamp);
+    if (this.rendererStats) {
+      this.rendererStats.update(this.renderer);
+    }
+    // Update all plugins.
+    this.plugins.forEach((plugin) => plugin.update(timeStamp));
+
+    // Check if the render loop should be halted.
+    if (this.resetRender) {
+      this.resetRender = false;
+      this.rendering = false;
+      return;
+    }
+    // Continue the loop.
+    requestAnimationFrame((time) => {
+      this.render(time);
+    });
+  }
+
+  /**
+   * Creates the three.js renderer and sets options.
+   */
+  createRenderer() {
+    const renderer = rendererPool.get(RendererTypes.GAME);
+    const container = document.getElementById('container');
+    container.appendChild(renderer.domElement);
+    window.addEventListener('resize', this.onWindowResize.bind(this), false);
+    return renderer;
+  }
+
+  /**
+   * Adjusts the game container and camera for the new window size.
+   */
+  onWindowResize(e) {
+    this.camera.aspect = window.innerWidth / window.innerHeight;
+    this.camera.updateProjectionMatrix();
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+  }
+
+  /**
+   * Creates the scene camera.
+   */
+  createCamera() {
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    const viewAngle = 70;
+    const aspect = width / height;
+    const near = 1;
+    const far = 1000;
+    const camera = new THREE.PerspectiveCamera(viewAngle, aspect, near, far);
+    camera.rotation.order = 'YXZ';
+    return camera;
+  }
+
+  /**
+   * Enables both FPS and renderer stats.
+   */
+  enableDebug() {
+    this.enableFpsCounter();
+    this.enableRenderStats();
+  }
+
+  disableDebug() {
+    this.disableFpsCounter();
+    this.disableRenderStats();
+  }
+
+  /**
+   * FPS stats for development.
+   */
+  enableFpsCounter() {
+    if (this.stats) {
+      return;
+    }
+    this.fpsEnabled = true;
+    let stats = new Stats();
+    this.stats = stats;
+    document.body.appendChild(stats.dom);
+    let loop = () => {
+      stats.update();
+      if (this.fpsEnabled)
+        requestAnimationFrame(loop);
+    };
+    requestAnimationFrame(loop);
+  }
+
+  disableFpsCounter() {
+    this.fpsEnabled = false;
+    const parent = this.stats.dom.parentElement;
+    if (!parent) {
+      return;
+    }
+    parent.removeChild(this.stats.dom);
+    this.stats = null;
+  }
+
+  enableRenderStats() {
+    this.rendererStats = new THREEx.RendererStats();
+    this.rendererStats.domElement.style.position = 'absolute';
+    this.rendererStats.domElement.style.right = '0';
+    this.rendererStats.domElement.style.bottom = '0';
+    document.body.appendChild(this.rendererStats.domElement);
+  }
+
+  disableRenderStats() {
+    document.body.removeChild(this.rendererStats.domElement);
+    this.rendererStats = null;
+  }
+
+  /**
+   * Handles the settings change event.
+   */
+  handleSettingsChange(e) {
+    const settings = e.settings;
+    if (this.fpsEnabled != settings.fps) {
+      if (settings.fps) {
+        this.fpsEnabled = true;
+        this.enableFpsCounter();
+      } else {
+        this.fpsEnabled = false;
+        this.disableFpsCounter();
+      }
+    }
+  }
+  
+  /**
+   * Installs a plugin to receive updates on each engine loop as well as 
+   * resets.
+   * @param {Plugin} plugin
+   */
+  installPlugin(plugin) {
+    this.plugins.add(plugin);
+  }
+}
+
+/**
+ * Base class for plugins to the engine such as audio, light, etc that can be
+ * updated on each engine tick and reset gracefully.
+ */
+class Plugin {
+  constructor() {}
+
+  /**
+   * Installs the plugin into the engine. This method should be final.
+   */
+  install() {
+    Engine.get().installPlugin(this);
+    return this;
+  }
+
+  /**
+   * Resets the plugin.
+   */
+  reset() {
+    console.warn('Plugin reset function not implemented');
+  }
+
+  /**
+   * Updates the plugin at each engine tick.
+   * @param {number} timestamp
+   */
+  update(timestamp) {
+    console.warn('Plugin update function not implemented');
+  }
+}
+
+let instance$1 = null;
+
 /**
  * The controls core for the game. Input handlers are created here. Once the
  * input is received, the response is delegated to the entity in control.
  */
-
-let controlsInstance = null;
-
-class Controls {
-
+class Controls extends Plugin {
   /**
    * Enforces singleton controls instance.
    */
   static get() {
-    if (!controlsInstance) {
-      controlsInstance = new Controls();
+    if (!instance$1) {
+      instance$1 = new Controls();
     }
-    return controlsInstance;
+    return instance$1;
   }
 
   constructor() {
@@ -680,9 +1076,16 @@ class Controls {
     this.overrideControls = Settings.get().settingsObject.overrides;
     this.settingsListener = Events.get().addListener(
       'settings', this.handleSettingsChange.bind(this));
-    this.engineResetListener = Events.get().addListener(
-      'reset', this.handleEngineReset.bind(this));
   }
+
+  /** @override */
+  reset() {
+    this.registeredEntities = new Map();
+    this.forcePointerLockState(undefined);
+  }
+
+  /** @override */
+  update() {}
 
   registerBindings() {
     // Merge default bindings with custom controls
@@ -752,13 +1155,6 @@ class Controls {
     if (engine.getMainPlayer()) {
       engine.getMainPlayer().clearInput();
     }
-  }
-
-  /**
-   * Resets the controls for a new game.
-   */
-  reset() {
-    this.registeredEntities = new Map();
   }
 
   /**
@@ -975,29 +1371,9 @@ class Controls {
     this.controls = settings.controls;
     this.registerBindings();
   }
-  
-  handleEngineReset(e) {
-    this.forcePointerLockState(undefined);
-  }
 }
 
-const LABEL = 'reset';
-
-/**
- * Engine reset event.
- */
-class EngineResetEvent extends EraEvent {
-  constructor() {
-    super(LABEL, {});
-  }
-  
-  /** @override */
-  static listen(callback) {
-    EraEvent.listen(LABEL, callback);
-  }
-}
-
-let instance = null;
+let instance$2 = null;
 
 /**
  * Core implementation for loading 3D models for use in-game.
@@ -1009,10 +1385,10 @@ class Models {
    * @returns {Models}
    */
   static get() {
-    if (!instance) {
-      instance = new Models();
+    if (!instance$2) {
+      instance$2 = new Models();
     }
-    return instance;
+    return instance$2;
   }
 
   constructor() {
@@ -1087,6 +1463,601 @@ class Models {
     }
     return this.storage.get(name).clone();
   }
+}
+
+/**
+ * Class for creating contact listeners.
+ */
+class EraContactListener {
+  constructor() {
+    // A registry of shape and body contact callbacks.
+    this.contactCallbacks = new Map();
+  }
+
+  /** 
+   * Registers a new callback.
+   */
+  registerHandler(fixture, handler) {
+    this.contactCallbacks.set(fixture, handler);
+  }
+
+  /** @override */
+  BeginContact(contact) {
+    const event = {
+      type: 'begin',
+      contact
+    };
+    this.determineCallbacks(contact, event);
+    
+  }
+
+  /** @override */
+  EndContact(contact) {
+    const event = {
+      type: 'end',
+      contact
+    };
+    this.determineCallbacks(contact, event);
+  }
+
+  /** @override */
+  PreSolve(contact, oldManifold) {}
+
+  /** @override */
+  PostSolve(contact, contactImpulse) {
+    const event = {
+      type: 'postsolve',
+      contact,
+      contactImpulse
+    };
+    this.determineCallbacks(contact, event); 
+  }
+
+  /**
+   * Determines if any callbacks should be made.
+   */
+  determineCallbacks(contact, event) {
+    const callbackA = this.contactCallbacks.get(contact.GetFixtureA());
+    if (callbackA) {
+      callbackA(event);
+    }
+    const callbackB = this.contactCallbacks.get(contact.GetFixtureB());
+    if (callbackB) {
+      callbackB(event);
+    }
+  }
+}
+
+const velocityIterations = 8;
+const positionIterations = 3;
+
+let instance$3 = null;
+
+/**
+ * Core implementation for managing the game's physics. The
+ * actual physics engine is provided by box2d.
+ */
+class Physics extends Plugin {
+  /**
+   * Enforces singleton physics instance.
+   */
+  static get() {
+    if (!instance$3) {
+      instance$3 = new Physics();
+    }
+    return instance$3;
+  }
+
+  constructor() {
+    super();
+    this.registeredEntities = new Map();
+    this.world = this.createWorld();
+    this.lastTime = performance.now();
+    this.physicalMaterials = new Map();
+    this.contactMaterials = new Map();
+    this.stepsPerSecond = 120;
+
+    // A registry of shape and body contact callbacks.
+    this.pairCallbacks = new Map();
+  }
+
+  /** @override */
+  reset() {
+    this.terminate();
+    // TODO: Clean up physics bodies.
+  }
+
+  /** @override */
+  update(forcedTime) {
+    const currTime = performance.now();
+    let delta = (currTime - this.lastTime) / 1000;
+    this.lastTime = currTime;
+    if (delta <= 0) {
+      return;
+    }
+    this.world.Step(delta, velocityIterations, positionIterations);
+    this.updateEntities(delta);
+  }
+
+  getWorld() {
+    return this.world;
+  }
+
+  /**
+   * Instantiates the physics world.
+   */
+  createWorld() {
+    const world = new box2d.b2World(new box2d.b2Vec2(0.0, 0.0));
+    this.contactListener = new EraContactListener();
+    world.SetContactListener(this.contactListener);
+    return world;
+  }
+
+  /**
+   * Iterates through all registered entities and updates them.
+   */
+  updateEntities(delta) {
+    this.registeredEntities.forEach((entity) => {
+      entity.update(delta);
+    });
+  }
+
+  /**
+   * Registers a fixture for contact event handling.
+   */
+  registerContactHandler(fixture, handler) {
+    if (!this.contactListener) {
+      console.warn('No contact listener installed!');
+      return;
+    }
+    this.contactListener.registerHandler(fixture, handler);
+  }
+
+  /**
+   * Registers an entity to partake in physics simulations.
+   */
+  registerEntity(entity) {
+    if (!entity || !entity.physicsObject) {
+      console.error('Must pass in an entity');
+    }
+    this.registeredEntities.set(entity.uuid, entity);
+  }
+
+  /**
+   * Unregisters an entity from partaking in physics simulations.
+   */
+  unregisterEntity(entity) {
+    if (!entity || !entity.actions) {
+      console.error('Must pass in an entity');
+    }
+    this.registeredEntities.delete(entity.uuid);
+    this.world.DestroyBody(entity.physicsObject);
+  }
+
+  /**
+   * Registers a component to partake in physics simulations. This
+   * differs from an entity in that it is a single body unattached
+   * to a mesh.
+   */
+  registerComponent(body) {
+    // Does nothing at the moment.
+  }
+
+  /**
+   * Unregisters a component to partake in physics simulations.
+   */
+  unregisterComponent(body) {
+    this.world.DestroyBody(body);
+  }
+
+  /**
+   * Ends the physics simulation. Is only called client-side.
+   */
+  terminate() {
+    clearInterval(this.updateInterval);
+    instance$3 = null;
+  }
+}
+
+/**
+ * Super class for all entities within the game, mostly those
+ * that are updated by the physics engine.
+ */
+class Entity extends THREE.Object3D {
+
+  constructor(parentGame) {
+    super();
+    this.uuid = createUUID();
+    this.parentGame = parentGame;
+    this.mesh = null;
+    this.modelName = null;
+    this.physicsBody = null;
+    this.physicsEnabled = false;
+    this.actions = {}; // Map of action -> value (0 - 1)
+    this.inputDevice = 'keyboard';
+    this.mouseMovement = {
+      x: 0,
+      y: 0
+    };
+    this.mouseSensitivity = 50;
+    this.enableMouseY = Settings.get().settingsObject.mouse_y;
+    this.mouseSensitivity = Settings.get().settingsObject.mouse_sensitivity;
+    this.settingsListener = Events.get().addListener(
+      'settings', this.handleSettingsChange.bind(this)
+    );
+  }
+
+  withPhysics() {
+    this.physicsEnabled = true;
+    return this;
+  }
+
+  /**
+   * Creates the mesh and physics object.
+   */
+  build() {
+    if (this.modelName) {
+      this.generateMesh();
+    }
+    if (this.physicsEnabled) {
+      this.generatePhysicsBody();
+    }
+    return this;
+  }
+
+  /**
+   * Creates the mesh for the entity, using the entity name provided.
+   */
+  generateMesh() {
+    if (!this.modelName) {
+      return console.warn('Model name not provided');
+    }
+    const scene = Models.get().storage.get(this.modelName).clone();
+    this.mesh = scene;
+    this.add(this.mesh);
+    return this.mesh;
+  }
+
+  /**
+   * Creates the physics object for the entity. This should be defined by each
+   * entity.
+   */
+  generatePhysicsBody() {
+    if (this.physicsEnabled) {
+      return console.warn('generatePhysicsBody not implemented for entity');
+    }
+  }
+
+  /**
+   * Serializes the physics aspect of the entity.
+   */
+  serializePhysics() {
+    const body = this.physicsBody;
+    if (!body)
+      return null;
+    const precision = 4;
+    return [
+      [body.angularVelocity.toFixed(precision)],
+      body.interpolatedPosition.map((x) => x.toFixed(precision)),
+      body.velocity.map((x) => x.toFixed(precision)),
+      [body.angle.toFixed(precision)],
+    ];
+  }
+
+  getMesh() {
+    return this.mesh;
+  }
+
+  /**
+   * Clears all input registered to the entity. This is used in
+   * the case controller input is removed from the entity.
+   */
+  clearInput() {
+    this.actions = {};
+    this.mouseMovement = {
+      x: 0,
+      y: 0
+    };
+    this.parentGame.sendInput(this);
+  }
+
+  /**
+   * Sets an action to the specified value for the entity
+   */
+  setAction(action, value) {
+    if (this.actions[action] && this.actions[action] === value) {
+      return;
+    }
+    if (value !== 0) {
+      this.actions[action] = value;
+    } else {
+      delete this.actions[action];
+    }
+    this.parentGame.sendInput(this);
+  }
+
+  /**
+   * Returns if input bound to a specific function is present.
+   */
+  isKeyPressed(binding) {
+    return this.actions && this.actions[binding.binding_id];
+  }
+
+  /**
+   * Check the force a key is pressed with
+   * @param {String} binding 
+   */
+  getForce(binding) {
+    return this.actions[binding.binding_id] || 0;
+  }
+
+  /**
+   * Sets the mouse movement vector for the entity.
+   */
+  setMouseMovement(x, y) {
+    const ratio = this.mouseSensitivity / 50;
+    if (this.enableMouseY) {
+      this.mouseMovement.y = x * ratio;
+      this.mouseMovement.x = y * ratio;
+    } else {
+      this.mouseMovement.x = x * ratio;
+      this.mouseMovement.y = y * ratio;
+    }
+    this.parentGame.sendInput(this);
+    if (!this.parentGame.isOffline) {
+      this.mouseMovement.x = 0;
+      this.mouseMovement.y = 0;
+    }
+  }
+
+  /**
+   * Takes in data passed from the client to the server as input.
+   */
+  setInputFromData(data) {
+    this.mouseMovement = data.mouseMovement;
+    this.cameraRotation = data.cameraRotation;
+    this.actions = data.actions ? data.actions : {};
+    this.inputDevice = data.inputDevice;
+  }
+
+  /**
+   * Called every step of the physics engine to keep the mesh and physics object
+   * synchronized.
+   */
+  update() {
+    if (!this.mesh || !this.physicsBody) {
+      return;
+    }
+    this.mesh.position.x = this.physicsBody.interpolatedPosition[0];
+    this.mesh.position.z = this.physicsBody.interpolatedPosition[1];
+    this.mesh.rotation.y = -this.physicsBody.interpolatedAngle;
+  }
+
+  /** 
+   * Updates the entity based on data sent from the server.
+   */
+  consumeUpdate(physics) {
+    if (!physics)
+      return;
+    const [angVelo, pos, velo, rot] = physics;
+    this.physicsBody.angularVelocity = angVelo;
+    this.physicsBody.angle = rot;
+    p2.vec2.copy(this.physicsBody.position, pos);
+    p2.vec2.copy(this.physicsBody.velocity, velo);
+  }
+
+  /**
+   * Registers the entity to the physics engine.
+   */
+  registerToPhysics() {
+    Physics.get().registerEntity(this);
+  }
+
+  /**
+   * Registers a component of an entity to the physics engine. This
+   * is primarily used if there is a body separate from the entity's
+   * main physics body.
+   */
+  registerComponent(body) {
+    let physics;
+    if (this.parentGame && this.parentGame.physics) {
+      physics = this.parentGame.physics;
+    } else {
+      physics = Physics.get();
+    }
+    physics.registerComponent(body);
+  }
+
+  /**
+   * Handles the settings change event.
+   */
+  handleSettingsChange(e) {
+    const settings = e.settings;
+    this.enableMouseY = settings.mouse_y;
+    this.mouseSensitivity = settings.mouse_sensitivity;
+  }
+}
+
+let instance$4 = null;
+
+/**
+ * Light core for the game engine. Creates and manages light
+ * sources in-game. Should be used as a singleton.
+ */
+class Light extends Plugin {
+  /**
+   * Enforces singleton light instance.
+   */
+  static get() {
+    if (!instance$4) {
+      instance$4 = new Light();
+    }
+    return instance$4;
+  }
+
+  constructor() {
+    super();
+    this.ambientLight = null;
+    this.directionalLights = [];
+    SettingsEvent.listen(this.handleSettingsChange.bind(this));
+  }
+  
+  /** @override */
+  reset() {
+    instance$4 = null;
+    // TODO: Disponse of lighting objects correctly.
+  }
+
+  /** @override */
+  update() {}
+
+  /**
+   * Creates the ambient lighting. Use this for easing/darkening shadows.
+   */
+  createAmbientLight(ambientConfig) {
+    const ambientLight =
+          new THREE.AmbientLight(parseInt(ambientConfig.color, 16));
+    ambientLight.intensity = ambientConfig.intensity;
+    Engine.get().getScene().add(ambientLight);
+    return ambientLight;
+  }
+
+  /**
+   * Creates the entire set of directional lights.
+   */
+  createDirectionalLights(directionalConfig) {
+    const directionalLights = [];
+    if (!directionalConfig || !directionalConfig.length) {
+      return directionalLights;
+    }
+    for (let i = 0; i < directionalConfig.length; i++) {
+      const light = directionalConfig[i];
+      const x = light.x;
+      const y = light.y;
+      const z = light.z;
+      const color = parseInt(light.color, 16);
+      const intensity = light.intensity;
+      directionalLights.push(
+        this.createDirectionalLight(x, y, z, color, intensity));
+    }
+    return directionalLights;
+  }
+
+  /**
+   * Creates the directional lighting. Use this for generating shadows.
+   */
+  createDirectionalLight(x, y, z, color, intensity) {
+    const directionalLight = new THREE.DirectionalLight(color);
+    directionalLight.position.set(x, y, z);
+    directionalLight.intensity = intensity;
+    if (Settings.get().settingsObject.shaders) {
+      this.shadersEnabled = true;
+      this.createShaders(directionalLight);
+    }
+    Engine.get().getScene().add(directionalLight);
+    return directionalLight;
+  }
+  
+  /**
+   * Creates the entire set of directional lights.
+   */
+  createSpotLights(spotConfig) {
+    const spotLights = new Array();
+    if (!spotConfig || !spotConfig.length) {
+      return spotLights;
+    }
+    for (let i = 0; i < spotConfig.length; i++) {
+      const light = spotConfig[i];
+      const x = light.x;
+      const y = light.y;
+      const z = light.z;
+      const color = parseInt(light.color, 16);
+      const intensity = light.intensity;
+      const angle = light.angle;
+      const penumbra = light.penumbra;
+      const shaders = light.shaders;
+      spotLights.push(this.createSpotLight(
+        x, y, z, color, intensity, angle, penumbra, shaders));
+    }
+    return spotLights;
+  }
+  
+  /**
+   * Creates a spot light. Use this for generating shadows.
+   */
+  createSpotLight(x, y, z, color, intensity, angle, penumbra, shaders) {
+    const spotLight = new THREE.SpotLight(color);
+    spotLight.position.set(x, y, z);
+    spotLight.intensity = intensity;
+    spotLight.angle = angle;
+    spotLight.penumbra = penumbra;
+    if (Settings.get().settingsObject.shaders && shaders) {
+      this.shadersEnabled = true;
+      this.createShaders(spotLight);
+    }
+    Engine.get().getScene().add(spotLight);
+    return spotLight;
+  }
+
+  /**
+   * Creates the shaders for a directional light.
+   */
+  createShaders(light) {
+    const cameraRange = 120;
+    light.castShadow = true;
+    light.shadow.camera.bottom = -cameraRange;
+    light.shadow.camera.left = -cameraRange;
+    light.shadow.camera.right = cameraRange;
+    light.shadow.camera.top = cameraRange;
+    light.shadow.camera.near = 1;
+    light.shadow.camera.far = 500;
+    light.shadow.bias = .0001;
+    light.shadow.radius = 4;
+    light.shadow.mapSize.width = 2048;
+    light.shadow.mapSize.height = 2048;
+  }
+  
+  /**
+   * Handles the settings change event.
+   */
+  handleSettingsChange(e) {
+    const settings = e.settings;
+    if (!!settings.shaders == !!this.shadersEnabled) {
+      return;
+    }
+    if (settings.shaders) {
+      this.enableShaders();
+    } else {
+      this.disableShaders();
+    }
+  }
+  
+  /**
+   * Enables shaders.
+   */
+  enableShaders() {
+    this.shadersEnabled = true;
+    this.directionalLights.forEach((light) => {
+      this.createShaders(light);
+    });
+    this.spotLights.forEach((light) => {
+      this.createShaders(light);
+    });
+  }
+  
+  /**
+   * Disables shaders.
+   */
+  disableShaders() {
+    this.shadersEnabled = false;
+    this.directionalLights.forEach((light) => {
+      light.castShadow = false;
+    });
+    this.spotLights.forEach((light) => {
+      light.castShadow = false;
+    });
+  }
+
 }
 
 /**
@@ -1389,974 +2360,4 @@ class Network {
   }
 }
 
-/**
- * Class for creating contact listeners.
- */
-class EraContactListener {
-  constructor() {
-    // A registry of shape and body contact callbacks.
-    this.contactCallbacks = new Map();
-  }
-
-  /** 
-   * Registers a new callback.
-   */
-  registerHandler(fixture, handler) {
-    this.contactCallbacks.set(fixture, handler);
-  }
-
-  /** @override */
-  BeginContact(contact) {
-    const event = {
-      type: 'begin',
-      contact
-    };
-    this.determineCallbacks(contact, event);
-    
-  }
-
-  /** @override */
-  EndContact(contact) {
-    const event = {
-      type: 'end',
-      contact
-    };
-    this.determineCallbacks(contact, event);
-  }
-
-  /** @override */
-  PreSolve(contact, oldManifold) {}
-
-  /** @override */
-  PostSolve(contact, contactImpulse) {
-    const event = {
-      type: 'postsolve',
-      contact,
-      contactImpulse
-    };
-    this.determineCallbacks(contact, event); 
-  }
-
-  /**
-   * Determines if any callbacks should be made.
-   */
-  determineCallbacks(contact, event) {
-    const callbackA = this.contactCallbacks.get(contact.GetFixtureA());
-    if (callbackA) {
-      callbackA(event);
-    }
-    const callbackB = this.contactCallbacks.get(contact.GetFixtureB());
-    if (callbackB) {
-      callbackB(event);
-    }
-  }
-}
-
-const velocityIterations = 8;
-const positionIterations = 3;
-
-/**
- * Core implementation for managing the game's physics. The
- * actual physics engine is provided by box2d.
- */
-let physicsInstance = null;
-
-class Physics {
-
-  /**
-   * Enforces singleton physics instance.
-   */
-  static get() {
-    if (!physicsInstance) {
-      physicsInstance = new Physics();
-    }
-    return physicsInstance;
-  }
-
-  constructor() {
-    this.registeredEntities = new Map();
-    this.world = this.createWorld();
-    this.lastTime = performance.now();
-    this.physicalMaterials = new Map();
-    this.contactMaterials = new Map();
-    this.stepsPerSecond = 120;
-
-    // A registry of shape and body contact callbacks.
-    this.pairCallbacks = new Map();
-  }
-
-  /**
-   * Starts the physics world. Only used on the client.
-   */
-  start() {
-    // No-op.
-  }
-
-  getWorld() {
-    return this.world;
-  }
-
-  /**
-   * Instantiates the physics world.
-   */
-  createWorld() {
-    const world = new box2d.b2World(new box2d.b2Vec2(0.0, 0.0));
-    this.contactListener = new EraContactListener();
-    world.SetContactListener(this.contactListener);
-    return world;
-  }
-
-  /**
-   * Updates the physics world and the entities within it every tick.
-   */
-  update(forcedTime) {
-    const currTime = performance.now();
-    let delta = (currTime - this.lastTime) / 1000;
-    this.lastTime = currTime;
-
-    if (this.loggingEnabled) {
-      if (this.lastLogTime) {
-        this.eventCounter.updates++;
-        const diff = process.hrtime(this.lastLogTime);
-        this.logArray.push(diff[1] / 1000000);
-      }
-      this.lastLogTime = process.hrtime();
-    }
-    
-    if (delta <= 0) {
-      if (this.loggingEnabled) {
-        this.eventCounter.subzero++;
-      }
-      return;
-    }
-
-    const timePerStep = 1 / this.stepsPerSecond;
-    if (this.loggingEnabled) {
-      let worldt0 = process.hrtime();
-      this.world.Step(delta, velocityIterations, positionIterations);
-      let diff = process.hrtime(worldt0);
-      if (this.loggingEnabled) {
-        this.worldArray.push(diff[1] / 1000000);
-      }
-      worldt0 = process.hrtime();
-      this.updateEntities(delta);
-      diff = process.hrtime(worldt0);
-      if (this.loggingEnabled) {
-        this.updateArray.push(diff[1] / 1000000);
-      }
-    } else {
-      this.world.Step(delta, velocityIterations, positionIterations);
-      this.updateEntities(delta);
-    }
-  }
-
-  /**
-   * Iterates through all registered entities and updates them.
-   */
-  updateEntities(delta) {
-    this.registeredEntities.forEach((entity) => {
-      entity.update(delta);
-    });
-  }
-
-  /**
-   * Registers a fixture for contact event handling.
-   */
-  registerContactHandler(fixture, handler) {
-    if (!this.contactListener) {
-      console.warn('No contact listener installed!');
-      return;
-    }
-    this.contactListener.registerHandler(fixture, handler);
-  }
-
-  /**
-   * Registers an entity to partake in physics simulations.
-   */
-  registerEntity(entity) {
-    if (!entity || !entity.physicsObject) {
-      console.error('Must pass in an entity');
-    }
-    this.registeredEntities.set(entity.uuid, entity);
-  }
-
-  /**
-   * Unregisters an entity from partaking in physics simulations.
-   */
-  unregisterEntity(entity) {
-    if (!entity || !entity.actions) {
-      console.error('Must pass in an entity');
-    }
-    this.registeredEntities.delete(entity.uuid);
-    this.world.DestroyBody(entity.physicsObject);
-  }
-
-  /**
-   * Registers a component to partake in physics simulations. This
-   * differs from an entity in that it is a single body unattached
-   * to a mesh.
-   */
-  registerComponent(body) {
-    // Does nothing at the moment.
-  }
-
-  /**
-   * Unregisters a component to partake in physics simulations.
-   */
-  unregisterComponent(body) {
-    this.world.DestroyBody(body);
-  }
-
-  /**
-   * Ends the physics simulation. Is only called client-side.
-   */
-  terminate() {
-    clearInterval(this.updateInterval);
-    physicsInstance = null;
-  }
-}
-
-/**
- * The UI core for the game engine. The initial components are
- * created here, then most control is passed to individual controllers.
- */
-
-let uiInstance = null;
-
-class UI {
-  
-  /**
-   * Enforces a singleton instance of UI.
-   */
-  static get() {
-    if (!uiInstance) {
-      uiInstance = new UI();
-    }
-    return uiInstance;
-  }
-  
-  constructor() {
-    this.currentScreen = null;
-    this.hud = true;
-  }
-  
-  showScreen(screen) {
-    if (screen == this.currentScreen) {
-      return;
-    }
-    if (this.currentScreen) {
-      this.currentScreen.hide();
-    }
-    this.currentScreen = screen;
-    if (!screen.root) {
-      // Fetch the screen template if it doesn't exist yet, append to document.
-      return screen.getTemplate().then((root) => {
-        document.body.appendChild(root);
-        screen.show();
-      });
-    }
-    screen.show();
-  }
-}
-
-const Types = {
-  GAME: 'game',
-  MINIMAP: 'minimap',
-  BACKGROUND: 'background',
-  STAGE: 'stage',
-  TILE: 'tile',
-};
-
-/**
- * A pool of singleton, lazy-loaded WebGL renderers for specific uses.
- */
-class RendererPool {
-  constructor() {
-    this.map = new Map();
-    EngineResetEvent.listen(this.handleEngineReset.bind(this));
-  }
-  
-  get(name) {
-    if (name == Types.TILE) {
-      return this.getOrCreateTileRenderer();
-    }
-    if (!this.map.has(name)) {
-      return this.createRenderer(name);
-    }
-    return this.map.get(name);
-  }
-
-  /**
-   * Creates a new renderer based on the name of the renderer.
-   */
-  createRenderer(name) {
-    let renderer = null;
-    switch (name) {
-      case Types.GAME:
-        renderer = this.createGameRenderer();
-        break;
-      case Types.STAGE:
-      case Types.MINIMAP:
-      case Types.BACKGROUND:
-        renderer = this.createGenericRenderer();
-        break;
-    }
-    this.map.set(name, renderer);
-    return renderer;
-  }
-  
-  /**
-   * Creates the main renderer for the game.
-   */
-  createGameRenderer() {
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-    const renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      alpha: true,
-    });
-    renderer.gammaOutput = true;
-    renderer.gammaInput = true;
-    renderer.setClearColor(0xaaaaaa);
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setSize(width, height);
-    return renderer;
-  }
-  
-  /**
-   * Creates the renderer used for face tiles.
-   */
-  createGenericRenderer() {
-    const renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      alpha: true
-    });
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.gammaInput = true;
-    renderer.gammaOutput = true;
-    return renderer;
-  }
-  
-  /**
-   * Retrives a tile renderer from the pool if it exists. If not, creates a new
-   * one.
-   */
-  getOrCreateTileRenderer() {
-    if (!this.map.has(Types.TILE)) {
-      this.map.set(Types.TILE, new Set());
-    }
-    const pool = this.map.get(Types.TILE);
-    let found = null;
-    pool.forEach((renderer) => {
-      if (!renderer.inUse && !found) {
-        found = renderer;
-      }
-    });
-    if (!found) {
-      found = this.createGenericRenderer();
-      pool.add(found);
-    }
-    found.inUse = true;
-    return found;
-  }
-  
-  /**
-   * Handles an engine reset by marking all renderers as not in use.
-   */
-  handleEngineReset() {
-    const tilePool = this.map.get(Types.TILE);
-    if (!tilePool) {
-      return;
-    }
-    tilePool.forEach((renderer) => renderer.inUse = false);
-  }
-}
-
-const rendererPool = new RendererPool();
-const RendererTypes = Types;
-
-let instance$1 = null;
-
-/**
- * Engine core for the game.
- */
-class Engine {
-  /**
-   * Enforces singleton engine instance.
-   */
-  static get() {
-    if (!instance$1) {
-      instance$1 = new Engine();
-    }
-    return instance$1;
-  }
-
-  constructor() {
-    // Lazy-load all important components.
-    this.ui = UI.get();
-    this.network = Network.get();
-    this.audio = Audio.get();
-    this.controls = Controls.get();
-    this.physics = Physics.get();
-    this.models = Models.get();
-    this.fpsEnabled = Settings.get().settingsObject.fps;
-    this.started = false;
-    this.rendering = false;
-    this.registeredUpdates = new Map();
-    this.settingsListener = Events.get().addListener(
-      'settings', this.handleSettingsChange.bind(this)
-    );
-  }
-
-  getScene() {
-    return this.scene;
-  }
-
-  getCamera() {
-    return this.camera;
-  }
-
-  /**
-   * Starts the engine. This is separate from the constructor as it
-   * is asynchronous.
-   */
-  async start() {
-    if (this.started) {
-      this.reset();
-      return;
-    }
-    this.clock = new THREE.Clock();
-    this.scene = new THREE.Scene();
-    if (!this.renderer) {
-      this.renderer = this.createRenderer();
-    }
-    if (this.fpsEnabled) {
-      this.enableFpsCounter();
-    }
-    this.camera = this.createCamera();
-
-    this.started = true;
-    this.rendering = true;
-    requestAnimationFrame(() => {
-      this.render();
-    });
-  }
-
-  /**
-   * Resets the game engine to its initial state.
-   */
-  reset() {
-    this.camera = this.createCamera();
-    if (this.fpsEnabled) {
-      this.enableFpsCounter();
-    }
-    this.started = true;
-    if (!this.rendering) {
-      this.rendering = true;
-      return this.render();
-    } else {
-      // If still rendering, prevent the reset and use the old loop.
-      this.resetRender = false;
-    }
-  }
-
-  /**
-   * Clears the engine to prepare for a reset.
-   */
-  clear(fromLeave = true) {
-    if (!this.scene) {
-      return;
-    }
-    this.clearScene();
-    if (this.game) {
-      this.game.clear();
-      this.game = null;
-    }
-    new EngineResetEvent().fire();
-    this.controls.reset();
-    this.physics.terminate();
-    if (this.rendering) {
-      this.resetRender = true;
-    }
-  }
-
-  /**
-   * Clears the scene.
-   */
-  clearScene() {
-    const scene = this.scene;
-    while (scene.children.length > 0) {
-      scene.remove(scene.children[0]);
-    }
-  }
-
-  /**
-   * The root for all tick updates in the game.
-   */
-  render(timeStamp) {
-    this.renderer.render(this.scene, this.camera);
-    TWEEN.update(timeStamp);
-    this.physics.update();
-    if (this.rendererStats) {
-      console.log('render');
-      this.rendererStats.update(this.renderer);
-    }
-    this.registeredUpdates.forEach((object) => object.update(timeStamp));
-    if (this.resetRender) {
-      this.resetRender = false;
-      this.rendering = false;
-      return;
-    }
-    requestAnimationFrame((time) => {
-      this.render(time);
-    });
-  }
-
-  /**
-   * Creates the three.js renderer and sets options.
-   */
-  createRenderer() {
-    const renderer = rendererPool.get(RendererTypes.GAME);
-    const container = document.getElementById('container');
-    container.appendChild(renderer.domElement);
-    window.addEventListener('resize', this.onWindowResize.bind(this), false);
-    return renderer;
-  }
-
-  /**
-   * Adjusts the game container and camera for the new window size.
-   */
-  onWindowResize(e) {
-    this.camera.aspect = window.innerWidth / window.innerHeight;
-    this.camera.updateProjectionMatrix();
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
-  }
-
-  /**
-   * Creates the scene camera.
-   */
-  createCamera() {
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-    const viewAngle = 70;
-    const aspect = width / height;
-    const near = 1;
-    const far = 1000;
-    const camera = new THREE.PerspectiveCamera(viewAngle, aspect, near, far);
-    camera.rotation.order = 'YXZ';
-    return camera;
-  }
-
-  /**
-   * FPS stats for development.
-   */
-  enableFpsCounter() {
-    if (this.stats) {
-      return;
-    }
-    this.fpsEnabled = true;
-    let stats = new Stats();
-    this.stats = stats;
-    document.body.appendChild(stats.dom);
-    let loop = () => {
-      stats.update();
-      if (this.fpsEnabled)
-        requestAnimationFrame(loop);
-    };
-    requestAnimationFrame(loop);
-  }
-
-  disableFpsCounter() {
-    this.fpsEnabled = false;
-    const parent = this.stats.dom.parentElement;
-    if (!parent) {
-      return;
-    }
-    parent.removeChild(this.stats.dom);
-    this.stats = null;
-  }
-
-  /**
-   * Handles the settings change event.
-   */
-  handleSettingsChange(e) {
-    const settings = e.settings;
-    if (this.fpsEnabled != settings.fps) {
-      if (settings.fps) {
-        this.fpsEnabled = true;
-        this.enableFpsCounter();
-      } else {
-        this.fpsEnabled = false;
-        this.disableFpsCounter();
-      }
-    }
-  }
-  
-  /**
-   * Registers an object for updates on each engine loop.
-   */
-  registerUpdate(object) {
-    this.registeredUpdates.set(object.uuid, object);
-  }
-}
-
-/**
- * Super class for all entities within the game, mostly those
- * that are updated by the physics engine.
- */
-class Entity {
-
-  constructor(parentGame) {
-    this.uuid = createUUID();
-    this.parentGame = parentGame;
-    this.mesh = null;
-    this.physicsObject = null;
-    this.actions = {}; // Map of action -> value (0 - 1)
-    this.inputDevice = 'keyboard';
-    this.mouseMovement = {
-      x: 0,
-      y: 0
-    };
-    this.mouseSensitivity = 50;
-
-    if (!forServer) {
-      this.enableMouseY = Settings.get().settingsObject.mouse_y;
-      this.mouseSensitivity = Settings.get().settingsObject.mouse_sensitivity;
-      this.settingsListener = Events.get().addListener(
-        'settings', this.handleSettingsChange.bind(this)
-      );
-    }
-  }
-
-  /**
-   * Serializes the physics aspect of the entity.
-   */
-  serializePhysics() {
-    const body = this.physicsObject;
-    if (!body)
-      return null;
-    const precision = 4;
-    return [
-      [body.angularVelocity.toFixed(precision)],
-      body.interpolatedPosition.map((x) => x.toFixed(precision)),
-      body.velocity.map((x) => x.toFixed(precision)),
-      [body.angle.toFixed(precision)],
-    ];
-  }
-
-  /**
-   * Clears all input registered to the entity. This is used in
-   * the case controller input is removed from the entity.
-   */
-  clearInput() {
-    this.actions = {};
-    this.mouseMovement = {
-      x: 0,
-      y: 0
-    };
-    this.parentGame.sendInput(this);
-  }
-
-  /**
-   * Sets an action to the specified value for the entity
-   */
-  setAction(action, value) {
-    if (this.actions[action] && this.actions[action] === value) {
-      return;
-    }
-    if (value !== 0) {
-      this.actions[action] = value;
-    } else {
-      delete this.actions[action];
-    }
-    this.parentGame.sendInput(this);
-  }
-
-  /**
-   * Returns if input bound to a specific function is present.
-   */
-  isKeyPressed(binding) {
-    return this.actions && this.actions[binding.binding_id];
-  }
-
-  /**
-   * Check the force a key is pressed with
-   * @param {String} binding 
-   */
-  getForce(binding) {
-    return this.actions[binding.binding_id] || 0;
-  }
-
-  /**
-   * Sets the mouse movement vector for the entity.
-   */
-  setMouseMovement(x, y) {
-    const ratio = this.mouseSensitivity / 50;
-    if (this.enableMouseY) {
-      this.mouseMovement.y = x * ratio;
-      this.mouseMovement.x = y * ratio;
-    } else {
-      this.mouseMovement.x = x * ratio;
-      this.mouseMovement.y = y * ratio;
-    }
-    this.parentGame.sendInput(this);
-    if (!this.parentGame.isOffline) {
-      this.mouseMovement.x = 0;
-      this.mouseMovement.y = 0;
-    }
-  }
-
-  /**
-   * Takes in data passed from the client to the server as input.
-   */
-  setInputFromData(data) {
-    this.mouseMovement = data.mouseMovement;
-    this.cameraRotation = data.cameraRotation;
-    this.actions = data.actions ? data.actions : {};
-    this.inputDevice = data.inputDevice;
-  }
-
-  /**
-   * Called every step of the physics engine to keep the mesh and physics object
-   * synchronized.
-   */
-  update() {
-    if (!this.mesh || !this.physicsObject) {
-      return;
-    }
-    this.mesh.position.x = this.physicsObject.interpolatedPosition[0];
-    this.mesh.position.z = this.physicsObject.interpolatedPosition[1];
-    this.mesh.rotation.y = -this.physicsObject.interpolatedAngle;
-  }
-
-  /** 
-   * Updates the entity based on data sent from the server.
-   */
-  consumeUpdate(physics) {
-    if (!physics)
-      return;
-    const [angVelo, pos, velo, rot] = physics;
-    this.physicsObject.angularVelocity = angVelo;
-    this.physicsObject.angle = rot;
-    p2.vec2.copy(this.physicsObject.position, pos);
-    p2.vec2.copy(this.physicsObject.velocity, velo);
-  }
-
-  /**
-   * Registers the entity to the physics engine.
-   */
-  registerToPhysics() {
-    Physics.get().registerEntity(this);
-  }
-
-  /**
-   * Registers a component of an entity to the physics engine. This
-   * is primarily used if there is a body separate from the entity's
-   * main physics body.
-   */
-  registerComponent(body) {
-    let physics;
-    if (this.parentGame && this.parentGame.physics) {
-      physics = this.parentGame.physics;
-    } else {
-      physics = Physics.get();
-    }
-    physics.registerComponent(body);
-  }
-
-  /**
-   * Handles the settings change event.
-   */
-  handleSettingsChange(e) {
-    const settings = e.settings;
-    this.enableMouseY = settings.mouse_y;
-    this.mouseSensitivity = settings.mouse_sensitivity;
-  }
-}
-
-/**
- * Light core for the game engine. Creates and manages light
- * sources in-game. Should be used as a singleton.
- */
-
-let lightInstance = null;
-
-class Light {
-
-  /**
-   * Enforces singleton light instance.
-   */
-  static get() {
-    if (!lightInstance) {
-      lightInstance = new Light();
-    }
-    return lightInstance;
-  }
-
-  constructor() {
-    this.ambientLight = null;
-    this.directionalLights = [];
-    this.settingsListener = Events.get().addListener(
-      'settings', this.handleSettingsChange.bind(this)
-    );
-  }
-  
-  /**
-   * Resets the lighting.
-   */
-  reset() {
-    lightInstance = null;
-  }
-
-  /**
-   * Creates the ambient lighting. Use this for easing/darkening shadows.
-   */
-  createAmbientLight(ambientConfig) {
-    const ambientLight =
-          new THREE.AmbientLight(parseInt(ambientConfig.color, 16));
-    ambientLight.intensity = ambientConfig.intensity;
-    Engine.get().getScene().add(ambientLight);
-    return ambientLight;
-  }
-
-  /**
-   * Creates the entire set of directional lights.
-   */
-  createDirectionalLights(directionalConfig) {
-    const directionalLights = [];
-    if (!directionalConfig || !directionalConfig.length) {
-      return directionalLights;
-    }
-    for (let i = 0; i < directionalConfig.length; i++) {
-      const light = directionalConfig[i];
-      const x = light.x;
-      const y = light.y;
-      const z = light.z;
-      const color = parseInt(light.color, 16);
-      const intensity = light.intensity;
-      directionalLights.push(
-        this.createDirectionalLight(x, y, z, color, intensity));
-    }
-    return directionalLights;
-  }
-
-  /**
-   * Creates the directional lighting. Use this for generating shadows.
-   */
-  createDirectionalLight(x, y, z, color, intensity) {
-    const directionalLight = new THREE.DirectionalLight(color);
-    directionalLight.position.set(x, y, z);
-    directionalLight.intensity = intensity;
-    if (Settings.get().settingsObject.shaders) {
-      this.shadersEnabled = true;
-      this.createShaders(directionalLight);
-    }
-    Engine.get().getScene().add(directionalLight);
-    return directionalLight;
-  }
-  
-  /**
-   * Creates the entire set of directional lights.
-   */
-  createSpotLights(spotConfig) {
-    const spotLights = new Array();
-    if (!spotConfig || !spotConfig.length) {
-      return spotLights;
-    }
-    for (let i = 0; i < spotConfig.length; i++) {
-      const light = spotConfig[i];
-      const x = light.x;
-      const y = light.y;
-      const z = light.z;
-      const color = parseInt(light.color, 16);
-      const intensity = light.intensity;
-      const angle = light.angle;
-      const penumbra = light.penumbra;
-      const shaders = light.shaders;
-      spotLights.push(this.createSpotLight(
-        x, y, z, color, intensity, angle, penumbra, shaders));
-    }
-    return spotLights;
-  }
-  
-  /**
-   * Creates a spot light. Use this for generating shadows.
-   */
-  createSpotLight(x, y, z, color, intensity, angle, penumbra, shaders) {
-    const spotLight = new THREE.SpotLight(color);
-    spotLight.position.set(x, y, z);
-    spotLight.intensity = intensity;
-    spotLight.angle = angle;
-    spotLight.penumbra = penumbra;
-    if (Settings.get().settingsObject.shaders && shaders) {
-      this.shadersEnabled = true;
-      this.createShaders(spotLight);
-    }
-    Engine.get().getScene().add(spotLight);
-    return spotLight;
-  }
-
-  /**
-   * Creates the shaders for a directional light.
-   */
-  createShaders(light) {
-    const cameraRange = 120;
-    light.castShadow = true;
-    light.shadow.camera.bottom = -cameraRange;
-    light.shadow.camera.left = -cameraRange;
-    light.shadow.camera.right = cameraRange;
-    light.shadow.camera.top = cameraRange;
-    light.shadow.camera.near = 1;
-    light.shadow.camera.far = 500;
-    light.shadow.bias = .0001;
-    light.shadow.radius = 4;
-    light.shadow.mapSize.width = 2048;
-    light.shadow.mapSize.height = 2048;
-  }
-  
-  /**
-   * Handles the settings change event.
-   */
-  handleSettingsChange(e) {
-    const settings = e.settings;
-    if (!!settings.shaders == !!this.shadersEnabled) {
-      return;
-    }
-    if (settings.shaders) {
-      this.enableShaders();
-    } else {
-      this.disableShaders();
-    }
-  }
-  
-  /**
-   * Enables shaders.
-   */
-  enableShaders() {
-    this.shadersEnabled = true;
-    this.directionalLights.forEach((light) => {
-      this.createShaders(light);
-    });
-    this.spotLights.forEach((light) => {
-      this.createShaders(light);
-    });
-  }
-  
-  /**
-   * Disables shaders.
-   */
-  disableShaders() {
-    this.shadersEnabled = false;
-    this.directionalLights.forEach((light) => {
-      light.castShadow = false;
-    });
-    this.spotLights.forEach((light) => {
-      light.castShadow = false;
-    });
-  }
-
-}
-
-export { Engine, Entity, Light, Models };
+export { Audio, Controls, Engine, EngineResetEvent, Entity, EraEvent, Events, Light, Models, Network, Physics, Plugin, Settings, SettingsEvent };

@@ -1,24 +1,23 @@
 import Bindings from '../data/bindings.js';
 import Events from './events.js';
+import Plugin from './plugin.js';
 import Settings from './settings.js';
+
+let instance = null;
 
 /**
  * The controls core for the game. Input handlers are created here. Once the
  * input is received, the response is delegated to the entity in control.
  */
-
-let controlsInstance = null;
-
-class Controls {
-
+class Controls extends Plugin {
   /**
    * Enforces singleton controls instance.
    */
   static get() {
-    if (!controlsInstance) {
-      controlsInstance = new Controls();
+    if (!instance) {
+      instance = new Controls();
     }
-    return controlsInstance;
+    return instance;
   }
 
   constructor() {
@@ -48,9 +47,16 @@ class Controls {
     this.overrideControls = Settings.get().settingsObject.overrides;
     this.settingsListener = Events.get().addListener(
       'settings', this.handleSettingsChange.bind(this));
-    this.engineResetListener = Events.get().addListener(
-      'reset', this.handleEngineReset.bind(this));
   }
+
+  /** @override */
+  reset() {
+    this.registeredEntities = new Map();
+    this.forcePointerLockState(undefined);
+  }
+
+  /** @override */
+  update() {}
 
   registerBindings() {
     // Merge default bindings with custom controls
@@ -120,13 +126,6 @@ class Controls {
     if (engine.getMainPlayer()) {
       engine.getMainPlayer().clearInput();
     }
-  }
-
-  /**
-   * Resets the controls for a new game.
-   */
-  reset() {
-    this.registeredEntities = new Map();
   }
 
   /**
@@ -344,10 +343,6 @@ class Controls {
     const settings = e.settings;
     this.controls = settings.controls;
     this.registerBindings();
-  }
-  
-  handleEngineReset(e) {
-    this.forcePointerLockState(undefined);
   }
 }
 

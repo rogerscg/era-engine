@@ -1,12 +1,6 @@
-import Audio from './audio.js';
-import Controls from './controls.js';
 import EngineResetEvent from '../events/engine_reset_event.js';
-import Events from './events.js';
-import Models from './models.js';
-import Network from './network.js';
-import Physics from './physics.js';
 import Settings from './settings.js';
-import UI from './ui.js';
+import SettingsEvent from '../events/settings_event.js';
 import {RendererTypes, rendererPool} from './renderer_pool.js';
 
 let instance = null;
@@ -26,21 +20,11 @@ class Engine {
   }
 
   constructor() {
-    // Lazy-load all important components.
-    // TODO: Remove these and register as components.
-    this.ui = UI.get();
-    this.network = Network.get();
-    this.audio = Audio.get();
-    this.controls = Controls.get();
-    this.physics = Physics.get();
-    this.models = Models.get();
     this.fpsEnabled = Settings.get().settingsObject.fps;
     this.started = false;
     this.rendering = false;
-    this.registeredUpdates = new Map();
-    this.settingsListener = Events.get().addListener(
-      'settings', this.handleSettingsChange.bind(this)
-    );
+    this.plugins = new Set();
+    SettingsEvent.listen(this.handleSettingsChange.bind(this));
   }
 
   getScene() {
@@ -62,7 +46,6 @@ class Engine {
   async start() {
     if (this.started) {
       this.reset();
-      return;
     }
     this.clock = new THREE.Clock();
     this.scene = new THREE.Scene();
@@ -85,37 +68,21 @@ class Engine {
    * Resets the game engine to its initial state.
    */
   reset() {
-    this.camera = this.createCamera();
     if (this.fpsEnabled) {
       this.enableFpsCounter();
     }
-    this.started = true;
+    // Reset all plugins.
+    this.plugins.forEach((plugin) => plugin.update(timeStamp));
+    new EngineResetEvent().fire();
+    this.resetRender = true;
+    this.clearScene();
+    // TODO: Clean up reset rendering.
     if (!this.rendering) {
       this.rendering = true;
       return this.render();
     } else {
       // If still rendering, prevent the reset and use the old loop.
       this.resetRender = false;
-    }
-  }
-
-  /**
-   * Clears the engine to prepare for a reset.
-   */
-  clear(fromLeave = true) {
-    if (!this.scene) {
-      return;
-    }
-    this.clearScene();
-    if (this.game) {
-      this.game.clear();
-      this.game = null;
-    }
-    new EngineResetEvent().fire();
-    this.controls.reset();
-    this.physics.terminate();
-    if (this.rendering) {
-      this.resetRender = true;
     }
   }
 
@@ -135,16 +102,19 @@ class Engine {
   render(timeStamp) {
     this.renderer.render(this.scene, this.camera);
     TWEEN.update(timeStamp);
-    this.physics.update();
     if (this.rendererStats) {
       this.rendererStats.update(this.renderer);
     }
-    this.registeredUpdates.forEach((object) => object.update(timeStamp));
+    // Update all plugins.
+    this.plugins.forEach((plugin) => plugin.update(timeStamp));
+
+    // Check if the render loop should be halted.
     if (this.resetRender) {
       this.resetRender = false;
       this.rendering = false;
       return;
     }
+    // Continue the loop.
     requestAnimationFrame((time) => {
       this.render(time);
     });
@@ -257,10 +227,12 @@ class Engine {
   }
   
   /**
-   * Registers an object for updates on each engine loop.
+   * Installs a plugin to receive updates on each engine loop as well as 
+   * resets.
+   * @param {Plugin} plugin
    */
-  registerUpdate(object) {
-    this.registeredUpdates.set(object.uuid, object);
+  installPlugin(plugin) {
+    this.plugins.add(plugin);
   }
 }
 

@@ -1,29 +1,30 @@
 import EraContactListener from './era_contact_listener.js';
+import Plugin from './plugin.js';
 
 const ALL_MASK = 1 | 2 | 4 | 8;
 
 const velocityIterations = 8;
 const positionIterations = 3;
 
+let instance = null;
+
 /**
  * Core implementation for managing the game's physics. The
  * actual physics engine is provided by box2d.
  */
-let physicsInstance = null;
-
-class Physics {
-
+class Physics extends Plugin {
   /**
    * Enforces singleton physics instance.
    */
   static get() {
-    if (!physicsInstance) {
-      physicsInstance = new Physics();
+    if (!instance) {
+      instance = new Physics();
     }
-    return physicsInstance;
+    return instance;
   }
 
   constructor() {
+    super();
     this.registeredEntities = new Map();
     this.world = this.createWorld();
     this.lastTime = performance.now();
@@ -35,11 +36,22 @@ class Physics {
     this.pairCallbacks = new Map();
   }
 
-  /**
-   * Starts the physics world. Only used on the client.
-   */
-  start() {
-    // No-op.
+  /** @override */
+  reset() {
+    this.terminate();
+    // TODO: Clean up physics bodies.
+  }
+
+  /** @override */
+  update(forcedTime) {
+    const currTime = performance.now();
+    let delta = (currTime - this.lastTime) / 1000;
+    this.lastTime = currTime;
+    if (delta <= 0) {
+      return;
+    }
+    this.world.Step(delta, velocityIterations, positionIterations);
+    this.updateEntities(delta);
   }
 
   getWorld() {
@@ -54,50 +66,6 @@ class Physics {
     this.contactListener = new EraContactListener();
     world.SetContactListener(this.contactListener);
     return world;
-  }
-
-  /**
-   * Updates the physics world and the entities within it every tick.
-   */
-  update(forcedTime) {
-    const currTime = performance.now();
-    let delta = (currTime - this.lastTime) / 1000;
-    this.lastTime = currTime;
-
-    if (this.loggingEnabled) {
-      if (this.lastLogTime) {
-        this.eventCounter.updates++;
-        const diff = process.hrtime(this.lastLogTime);
-        this.logArray.push(diff[1] / 1000000);
-      }
-      this.lastLogTime = process.hrtime();
-    }
-    
-    if (delta <= 0) {
-      if (this.loggingEnabled) {
-        this.eventCounter.subzero++;
-      }
-      return;
-    }
-
-    const timePerStep = 1 / this.stepsPerSecond;
-    if (this.loggingEnabled) {
-      let worldt0 = process.hrtime();
-      this.world.Step(delta, velocityIterations, positionIterations);
-      let diff = process.hrtime(worldt0);
-      if (this.loggingEnabled) {
-        this.worldArray.push(diff[1] / 1000000);
-      }
-      worldt0 = process.hrtime();
-      this.updateEntities(delta);
-      diff = process.hrtime(worldt0);
-      if (this.loggingEnabled) {
-        this.updateArray.push(diff[1] / 1000000);
-      }
-    } else {
-      this.world.Step(delta, velocityIterations, positionIterations);
-      this.updateEntities(delta);
-    }
   }
 
   /**
@@ -162,7 +130,7 @@ class Physics {
    */
   terminate() {
     clearInterval(this.updateInterval);
-    physicsInstance = null;
+    instance = null;
   }
 }
 

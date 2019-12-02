@@ -34,6 +34,7 @@ class Entity extends THREE.Object3D {
 
   withPhysics() {
     this.physicsEnabled = true;
+    return this;
   }
 
   /**

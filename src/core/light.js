@@ -1,40 +1,40 @@
 import Engine from './engine.js';
-import Events from './events.js';
+import Plugin from './plugin.js';
 import Settings from './settings.js';
+import SettingsEvent from '../events/settings_event.js';
+
+let instance = null;
 
 /**
  * Light core for the game engine. Creates and manages light
  * sources in-game. Should be used as a singleton.
  */
-
-let lightInstance = null;
-
-class Light {
-
+class Light extends Plugin {
   /**
    * Enforces singleton light instance.
    */
   static get() {
-    if (!lightInstance) {
-      lightInstance = new Light();
+    if (!instance) {
+      instance = new Light();
     }
-    return lightInstance;
+    return instance;
   }
 
   constructor() {
+    super();
     this.ambientLight = null;
     this.directionalLights = [];
-    this.settingsListener = Events.get().addListener(
-      'settings', this.handleSettingsChange.bind(this)
-    );
+    SettingsEvent.listen(this.handleSettingsChange.bind(this));
   }
   
-  /**
-   * Resets the lighting.
-   */
+  /** @override */
   reset() {
-    lightInstance = null;
+    instance = null;
+    // TODO: Disponse of lighting objects correctly.
   }
+
+  /** @override */
+  update() {}
 
   /**
    * Creates the ambient lighting. Use this for easing/darkening shadows.
