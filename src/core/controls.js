@@ -1,4 +1,5 @@
 import Bindings from '../data/bindings.js';
+import Engine from './engine.js';
 import Events from './events.js';
 import Plugin from './plugin.js';
 import Settings from './settings.js';
@@ -22,6 +23,7 @@ class Controls extends Plugin {
   }
 
   constructor() {
+    super();
     this.previousInput = {};
 
     this.registeredEntities = new Map();
@@ -43,7 +45,7 @@ class Controls extends Plugin {
 
     this.loadSettings();
     
-    SettingsEvent.listen(this.handleSettingsChange.bind(this));
+    SettingsEvent.listen(this.loadSettings.bind(this));
   }
 
   /** @override */
@@ -144,8 +146,7 @@ class Controls extends Plugin {
    * Check status, send to server
    * Loop through all axes and buttons, send those with a value to the server
    * If none have a value, don't send anything.
-   */
-  controllerTick() {
+   */controllerTick() {
     if(this.hasController) {
       const rawControllerInput = this.getRawControllerInput();
 
@@ -339,6 +340,14 @@ class Controls extends Plugin {
     this.customControls = Settings.get('controls');
     this.overrideControls = Settings.get('overrides');
     this.registerBindings();
+  }
+
+  /**
+   * Creates orbit controls on the camera, if they exist.
+   */
+  useOrbitControls() {
+    new THREE.OrbitControls(
+      Engine.get().getCamera(), Engine.get().getRenderer().domElement);
   }
 }
 

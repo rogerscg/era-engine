@@ -194,6 +194,22 @@ class EraEvent {
   
 }
 
+const LABEL = 'reset';
+
+/**
+ * Engine reset event.
+ */
+class EngineResetEvent extends EraEvent {
+  constructor() {
+    super(LABEL, {});
+  }
+  
+  /** @override */
+  static listen(callback) {
+    EraEvent.listen(LABEL, callback);
+  }
+}
+
 /**
  * Settings changed event. Fired when settings are applied.
  */
@@ -201,14 +217,10 @@ class SettingsEvent extends EraEvent {
   
   /**
    * Takes in the new settings object.
-   * TODO: Don't actually propagate the settings object. Rely on Settings
-   * instance.
    */
-  constructor(settings) {
+  constructor() {
     const label = 'settings';
-    const data = {
-      settings: settings
-    };
+    const data = {};
     super(label, data);
   }
   
@@ -218,77 +230,22 @@ class SettingsEvent extends EraEvent {
   }
 }
 
-/**
- * Defines the default input bindings per device. Binding id is sent over the
- * network.
- */
-const Bindings = {
-  BACKWARD: {
-    binding_id: 0,
-    keys: {
-      keyboard: 83,
-      controller: 'axes1',
-    }
-  },
-  FORWARD: {
-    binding_id: 5,
-    keys: {
-      keyboard: 87,
-      controller: 'axes1',
-    }
-  },
-  LEFT: {
-    binding_id: 6,
-    keys: {
-      keyboard: 65,
-      controller: 'axes0',
-    }
-  },
-  RIGHT: {
-    binding_id: 7,
-    keys: {
-      keyboard: 68,
-      controller: 'axes0',
-    }
-  },
-  SPRINT: {
-    binding_id: 8,
-    keys: {
-      keyboard: 16,
-      controller: 'button5',
-    }
-  },
-};
+const SETTINGS_KEY = 'era_settings';
 
 /**
  * Controls the client settings in a singleton model in local storage.
  */
-let settingsInstance = null;
-
-const SETTINGS_KEY = 'era_settings';
-
 class Settings {
-
-  /**
-   * Enforces singleton light instance.
-   */
-  static get() {
-    if (!settingsInstance) {
-      settingsInstance = new Settings();
-    }
-    return settingsInstance;
-  }
 
   constructor() {
     this.settingsObject = this.initSettings();
-    this.migrate();
     this.verifySettings();
   }
   
   /**
    * Gets the value of a key in the settings object.
    */
-  getValue(key) {
+  get(key) {
     return this.settingsObject[key];
   }
 
@@ -352,47 +309,9 @@ class Settings {
       this.apply();
     }
   }
-
-  /**
-   * Migrate old settings to new ones
-   * Should be executable every startup
-   */
-  migrate() {
-    this.migrateKeybinds();
-    this.apply();
-  }
-
-  /**
-   * If user still has the old control scheme
-   * Port it to the new one so they don't have to redo their keybinds
-   */
-  migrateKeybinds() {
-    if(this.settingsObject.controls && this.settingsObject.overrides) {
-      const oldOverrides = Object.assign({}, this.settingsObject.overrides);
-      const newControls = {};
-      for(let oldOverrideKey of Object.keys(oldOverrides)) {
-        // Find the keybind that was set
-        const belongsToBinding = Object.keys(Bindings).filter(binding => {
-          return Bindings[binding].keys.keyboard == oldOverrideKey
-        });
-        // If we found which it belongs to, set to what they have it set as
-        if(belongsToBinding.length === 1) {
-          const binding = belongsToBinding[0];
-          newControls[binding] = {
-            binding_id: Bindings[binding].binding_id,
-            keys: { 
-              keyboard: oldOverrides[oldOverrideKey],
-              controller: Bindings[binding].keys.controller
-            }
-          };
-        }
-      }
-      this.settingsObject.controls = newControls;
-      delete this.settingsObject.overrides;
-    }
-  }
-
 }
+
+var Settings$1 = new Settings();
 
 const CROSSFADE_TIME = 500;
 
@@ -428,12 +347,9 @@ class Audio {
     // A map of playing sounds in order to allow stopping mid-play.
     this.playingSounds = new Map();
 
-    this.masterVolume = Settings.get().settingsObject.volume;
-    this.defaultVolume = DEFAULT_SETTINGS.volume;
-    this.settingsListener = Events.get().addListener(
-      'settings', this.handleSettingsChange.bind(this)
-    );
-    Events.get().addListener('reset', this.handleEngineReset.bind(this));
+    this.loadSettings();
+    SettingsEvent.listen(this.loadSettings.bind(this));
+    EngineResetEvent.listen(this.handleEngineReset.bind(this));
   }
 
   /**
@@ -536,11 +452,11 @@ class Audio {
   }
 
   /**
-   * Handles the settings change event.
+   * Loads settings relevant to audio.
    */
-  handleSettingsChange(e) {
-    const settings = e.settings;
-    this.masterVolume = settings.volume;
+  loadSettings() {
+    this.masterVolume = Settings$1.get('volume');
+    this.defaultVolume = DEFAULT_SETTINGS.volume;
   }
 
   /**
@@ -634,21 +550,47 @@ class Audio {
   }
 }
 
-const LABEL = 'reset';
-
 /**
- * Engine reset event.
+ * Defines the default input bindings per device. Binding id is sent over the
+ * network.
  */
-class EngineResetEvent extends EraEvent {
-  constructor() {
-    super(LABEL, {});
-  }
-  
-  /** @override */
-  static listen(callback) {
-    EraEvent.listen(LABEL, callback);
-  }
-}
+const Bindings = {
+  BACKWARD: {
+    binding_id: 0,
+    keys: {
+      keyboard: 83,
+      controller: 'axes1',
+    }
+  },
+  FORWARD: {
+    binding_id: 5,
+    keys: {
+      keyboard: 87,
+      controller: 'axes1',
+    }
+  },
+  LEFT: {
+    binding_id: 6,
+    keys: {
+      keyboard: 65,
+      controller: 'axes0',
+    }
+  },
+  RIGHT: {
+    binding_id: 7,
+    keys: {
+      keyboard: 68,
+      controller: 'axes0',
+    }
+  },
+  SPRINT: {
+    binding_id: 8,
+    keys: {
+      keyboard: 16,
+      controller: 'button5',
+    }
+  },
+};
 
 const Types = {
   GAME: 'game',
@@ -785,7 +727,7 @@ class Engine {
   }
 
   constructor() {
-    this.fpsEnabled = Settings.get().settingsObject.fps;
+    this.fpsEnabled = Settings$1.get('fps');
     this.started = false;
     this.rendering = false;
     this.plugins = new Set();
@@ -976,12 +918,11 @@ class Engine {
   }
 
   /**
-   * Handles the settings change event.
+   * Loads settings relevant to the engine.
    */
-  handleSettingsChange(e) {
-    const settings = e.settings;
-    if (this.fpsEnabled != settings.fps) {
-      if (settings.fps) {
+  handleSettingsChange() {
+    if (this.fpsEnabled != Settings$1.get('fps')) {
+      if (Settings$1.get('fps')) {
         this.fpsEnabled = true;
         this.enableFpsCounter();
       } else {
@@ -1055,8 +996,6 @@ class Controls extends Plugin {
     this.registeredEntities = new Map();
     this.controlsEnabled = true;
 
-    this.registerBindings();
-
     this.hasController = false;
     this.controllerListeners = [];
 
@@ -1071,11 +1010,9 @@ class Controls extends Plugin {
     window.addEventListener("gamepadconnected", this.startPollingController.bind(this));
     window.addEventListener("gamepaddisconnected", this.stopPollingController.bind(this));
 
-    this.movementDeadzone = Settings.get().settingsObject.movement_deadzone;
-    this.customControls = Settings.get().settingsObject.controls;
-    this.overrideControls = Settings.get().settingsObject.overrides;
-    this.settingsListener = Events.get().addListener(
-      'settings', this.handleSettingsChange.bind(this));
+    this.loadSettings();
+    
+    SettingsEvent.listen(this.handleSettingsChange.bind(this));
   }
 
   /** @override */
@@ -1092,11 +1029,9 @@ class Controls extends Plugin {
     // Stringify and parse so it's 100% certain a copy
     // Avoids editing the defaults
     this.bindings = JSON.parse(JSON.stringify(Bindings));
-
-    const customBindings = Settings.get().settingsObject.controls;
-    for(let customBindingName of Object.keys(customBindings)) {
-      for(let device of Object.keys(customBindings[customBindingName].keys)) {
-        const customKey = customBindings[customBindingName].keys[device];
+    for (let customBindingName of Object.keys(this.customControls)) {
+      for (let device of Object.keys(this.customControls[customBindingName].keys)) {
+        const customKey = this.customControls[customBindingName].keys[device];
         this.bindings[customBindingName].keys[device] = customKey;
       }
     }
@@ -1364,11 +1299,12 @@ class Controls extends Plugin {
   }
 
   /**
-   * Handles the settings change event.
+   * Loads settings.
    */
-  handleSettingsChange(e) {
-    const settings = e.settings;
-    this.controls = settings.controls;
+  loadSettings() {
+    this.movementDeadzone = Settings$1.get('movement_deadzone');
+    this.customControls = Settings$1.get('controls');
+    this.overrideControls = Settings$1.get('overrides');
     this.registerBindings();
   }
 }
@@ -1680,11 +1616,7 @@ class Entity extends THREE.Object3D {
       y: 0
     };
     this.mouseSensitivity = 50;
-    this.enableMouseY = Settings.get().settingsObject.mouse_y;
-    this.mouseSensitivity = Settings.get().settingsObject.mouse_sensitivity;
-    this.settingsListener = Events.get().addListener(
-      'settings', this.handleSettingsChange.bind(this)
-    );
+    SettingsEvent.listen(this.loadSettings.bind(this));
   }
 
   withPhysics() {
@@ -1869,12 +1801,11 @@ class Entity extends THREE.Object3D {
   }
 
   /**
-   * Handles the settings change event.
+   * Loads entity settings.
    */
-  handleSettingsChange(e) {
-    const settings = e.settings;
-    this.enableMouseY = settings.mouse_y;
-    this.mouseSensitivity = settings.mouse_sensitivity;
+  loadSettings() {
+    this.enableMouseY = Settings$1.get('mouse_y');
+    this.mouseSensitivity = Settings$1.get('mouse_sensitivity');
   }
 }
 
@@ -1950,7 +1881,7 @@ class Light extends Plugin {
     const directionalLight = new THREE.DirectionalLight(color);
     directionalLight.position.set(x, y, z);
     directionalLight.intensity = intensity;
-    if (Settings.get().settingsObject.shaders) {
+    if (Settings$1.get('shaders')) {
       this.shadersEnabled = true;
       this.createShaders(directionalLight);
     }
@@ -1991,7 +1922,7 @@ class Light extends Plugin {
     spotLight.intensity = intensity;
     spotLight.angle = angle;
     spotLight.penumbra = penumbra;
-    if (Settings.get().settingsObject.shaders && shaders) {
+    if (Settings$1.get('shaders') && shaders) {
       this.shadersEnabled = true;
       this.createShaders(spotLight);
     }
@@ -2020,12 +1951,11 @@ class Light extends Plugin {
   /**
    * Handles the settings change event.
    */
-  handleSettingsChange(e) {
-    const settings = e.settings;
-    if (!!settings.shaders == !!this.shadersEnabled) {
+  handleSettingsChange() {
+    if (!!Settings$1.get('shaders') == !!this.shadersEnabled) {
       return;
     }
-    if (settings.shaders) {
+    if (Settings$1.get('shaders')) {
       this.enableShaders();
     } else {
       this.disableShaders();
@@ -2360,4 +2290,4 @@ class Network {
   }
 }
 
-export { Audio, Controls, Engine, EngineResetEvent, Entity, EraEvent, Events, Light, Models, Network, Physics, Plugin, Settings, SettingsEvent };
+export { Audio, Controls, Engine, EngineResetEvent, Entity, EraEvent, Events, Light, Models, Network, Physics, Plugin, Settings$1 as Settings, SettingsEvent };
