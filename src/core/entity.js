@@ -3,6 +3,7 @@ import Physics from './physics.js';
 import Settings from './settings.js';
 import {createUUID} from './util.js';
 import SettingsEvent from '../events/settings_event.js';
+import Engine from './engine.js';
 
 /**
  * Super class for all entities within the game, mostly those
@@ -15,11 +16,13 @@ class Entity extends THREE.Object3D {
     this.uuid = createUUID();
     this.parentGame = parentGame;
     this.mesh = null;
+    this.cameraArm;
     this.modelName = null;
     this.physicsBody = null;
     this.physicsEnabled = false;
     this.actions = {}; // Map of action -> value (0 - 1)
     this.inputDevice = 'keyboard';
+    this.registeredCameras = new Set();
     this.mouseMovement = {
       x: 0,
       y: 0
@@ -56,7 +59,55 @@ class Entity extends THREE.Object3D {
     const scene = Models.get().storage.get(this.modelName).clone();
     this.mesh = scene;
     this.add(this.mesh);
+    this.cameraArm = this.createCameraArm();
     return this.mesh;
+  }
+
+  /**
+   * Creates a camera arm for the entity. All cameras will be automatically
+   * added to this arm by default.
+   */
+  createCameraArm() {
+    const obj = new THREE.Object3D();
+    this.add(obj);
+    return obj;
+  }
+
+  /**
+   * Attaches a camera to the entity. It can be assumed that the camera has been
+   * properly detached from other entities and is ready for spatial mutations.
+   * @param {THREE.Camera} camera
+   */
+  attachCamera(camera) {
+    if (this.registeredCameras.has(camera)) {
+      return console.warn('Camera already registered on entity');
+    }
+    this.registeredCameras.add(camera);
+    this.positionCamera(camera);
+  }
+
+  /**
+   * Positions the camera when attaching. This should be overriden by custom
+   * entities, not the attachCamera function.
+   * @param {THREE.Camera} camera 
+   */
+  positionCamera(camera) {
+    camera.position.set(0, 0, 0);
+    camera.rotation.set(0, 0, 0);
+    this.cameraArm.add(camera);
+  }
+
+  /**
+   * Detaches a camera from the entity.
+   * @param {THREE.Camera} camera
+   */
+  detachCamera(camera) {
+    if (!this.registeredCameras.has(camera)) {
+      return console.warn('Camera not registered on entity');
+    }
+    camera.parent.remove(camera);
+    add(camera);
+    this.registeredCameras.delete(camera);
   }
 
   /**

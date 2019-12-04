@@ -1,5 +1,5 @@
 import XWing from './xwing.js';
-import {Controls, Engine, Light, Models} from '/src/era.js';
+import {Engine, Light, Models} from '/src/era.js';
 
 async function start() {
   // Create engine and load models.
@@ -20,11 +20,9 @@ async function start() {
   const scene = engine.getScene();
   const xwing = new XWing().build();
   scene.add(xwing);
-  engine.getCamera().position.set(5, 10, 20);
-  engine.getCamera().lookAt(xwing.position);
 
-  // TODO: Add camera controls.
-  Controls.get().useOrbitControls();
+  // Attach camera to XWing.
+  engine.attachCamera(xwing);
 }
 
 document.addEventListener('DOMContentLoaded', start);

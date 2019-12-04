@@ -24,6 +24,8 @@ class Engine {
     this.started = false;
     this.rendering = false;
     this.plugins = new Set();
+    // A map of cameras to the entities on which they are attached.
+    this.cameras = new Map();
     SettingsEvent.listen(this.handleSettingsChange.bind(this));
   }
 
@@ -233,6 +235,24 @@ class Engine {
   installPlugin(plugin) {
     this.plugins.add(plugin);
   }
+
+  /**
+   * Attaches the main camera to the given entity.
+   * @param {Entity} entity
+   */
+  attachCamera(entity) {
+    if (!entity) {
+      return console.warn('No entity provided to attachCamera');
+    }
+    const camera = this.getCamera();
+    const prevEntity = this.cameras.get(camera);
+    if (prevEntity) {
+      prevEntity.detachCamera(camera);
+    }
+    entity.attachCamera(camera);
+    this.cameras.set(camera, entity);
+  }
+
 }
 
 export default Engine;
