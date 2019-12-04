@@ -1,8 +1,8 @@
 import Models from './models.js';
 import Physics from './physics.js';
 import Settings from './settings.js';
-import {createUUID} from './util.js';
 import SettingsEvent from '../events/settings_event.js';
+import {createUUID} from './util.js';
 import Engine from './engine.js';
 
 /**
@@ -11,16 +11,15 @@ import Engine from './engine.js';
  */
 class Entity extends THREE.Object3D {
 
-  constructor(parentGame) {
+  constructor() {
     super();
     this.uuid = createUUID();
-    this.parentGame = parentGame;
     this.mesh = null;
     this.cameraArm;
     this.modelName = null;
     this.physicsBody = null;
     this.physicsEnabled = false;
-    this.actions = {}; // Map of action -> value (0 - 1)
+    this.actions = new Map(); // Map of action -> value (0 - 1)
     this.inputDevice = 'keyboard';
     this.registeredCameras = new Set();
     this.mouseMovement = {
@@ -46,7 +45,16 @@ class Entity extends THREE.Object3D {
     if (this.physicsEnabled) {
       this.generatePhysicsBody();
     }
+    Engine.get().registerEntity(this);
     return this;
+  }
+
+  /**
+   * Destroys the entity by unregistering from all core components and disposing
+   * of all objects in memory.
+   */
+  destroy() {
+    Engine.get().unregisterEntity(this);
   }
 
   /**
@@ -145,34 +153,32 @@ class Entity extends THREE.Object3D {
    * the case controller input is removed from the entity.
    */
   clearInput() {
-    this.actions = {};
+    this.actions.clear();
     this.mouseMovement = {
       x: 0,
       y: 0
     };
-    this.parentGame.sendInput(this);
   }
 
   /**
    * Sets an action to the specified value for the entity
    */
   setAction(action, value) {
-    if (this.actions[action] && this.actions[action] === value) {
+    if (this.actions.has(action) && this.actions.get(action) === value) {
       return;
     }
     if (value !== 0) {
-      this.actions[action] = value;
+      this.actions.set(action, value);
     } else {
-      delete this.actions[action];
+      this.actions.delete(action);
     }
-    this.parentGame.sendInput(this);
   }
 
   /**
    * Returns if input bound to a specific function is present.
    */
   isKeyPressed(binding) {
-    return this.actions && this.actions[binding.binding_id];
+    return this.actions && this.actions.get(binding.binding_id);
   }
 
   /**
@@ -180,13 +186,14 @@ class Entity extends THREE.Object3D {
    * @param {String} binding 
    */
   getForce(binding) {
-    return this.actions[binding.binding_id] || 0;
+    return this.actions.get(binding.binding_id) || 0;
   }
 
   /**
    * Sets the mouse movement vector for the entity.
    */
   setMouseMovement(x, y) {
+    // TODO: Don't have controls settings in the entity base.
     const ratio = this.mouseSensitivity / 50;
     if (this.enableMouseY) {
       this.mouseMovement.y = x * ratio;
@@ -195,11 +202,8 @@ class Entity extends THREE.Object3D {
       this.mouseMovement.x = x * ratio;
       this.mouseMovement.y = y * ratio;
     }
-    this.parentGame.sendInput(this);
-    if (!this.parentGame.isOffline) {
-      this.mouseMovement.x = 0;
-      this.mouseMovement.y = 0;
-    }
+    this.mouseMovement.x = 0;
+    this.mouseMovement.y = 0;
   }
 
   /**
@@ -251,13 +255,7 @@ class Entity extends THREE.Object3D {
    * main physics body.
    */
   registerComponent(body) {
-    let physics;
-    if (this.parentGame && this.parentGame.physics) {
-      physics = this.parentGame.physics;
-    } else {
-      physics = Physics.get();
-    }
-    physics.registerComponent(body);
+    Physics.get().registerComponent(body);
   }
 
   /**

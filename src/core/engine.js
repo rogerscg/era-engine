@@ -24,6 +24,7 @@ class Engine {
     this.started = false;
     this.rendering = false;
     this.plugins = new Set();
+    this.entities = new Set();
     // A map of cameras to the entities on which they are attached.
     this.cameras = new Map();
     SettingsEvent.listen(this.handleSettingsChange.bind(this));
@@ -109,6 +110,8 @@ class Engine {
     }
     // Update all plugins.
     this.plugins.forEach((plugin) => plugin.update(timeStamp));
+    // Update all entities.
+    this.entities.forEach((entity) => entity.update());
 
     // Check if the render loop should be halted.
     if (this.resetRender) {
@@ -234,6 +237,22 @@ class Engine {
    */
   installPlugin(plugin) {
     this.plugins.add(plugin);
+  }
+
+  /**
+   * Registers an entity for engine updates.
+   * @param {Entity} entity 
+   */
+  registerEntity(entity) {
+    this.entities.add(entity);
+  }
+
+  /**
+   * Unregisters an entity for engine updates.
+   * @param {Entity} entity 
+   */
+  unregisterEntity(entity) {
+    this.entities.delete(entity);
   }
 
   /**

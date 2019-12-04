@@ -146,7 +146,8 @@ class Controls extends Plugin {
    * Check status, send to server
    * Loop through all axes and buttons, send those with a value to the server
    * If none have a value, don't send anything.
-   */controllerTick() {
+   */
+  controllerTick() {
     if(this.hasController) {
       const rawControllerInput = this.getRawControllerInput();
 
