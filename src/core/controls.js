@@ -307,8 +307,9 @@ class Controls extends Plugin {
     if (!this.controlsEnabled) {
       return;
     }
+    const ratio = this.mouseSensitivity / 50;
     this.registeredEntities.forEach((entity) => {
-      entity.setMouseMovement(e.movementX, e.movementY);
+      entity.setMouseMovement(e.movementX * ratio, e.movementY * ratio);
     });
   }
 
@@ -340,6 +341,7 @@ class Controls extends Plugin {
     this.movementDeadzone = Settings.get('movement_deadzone');
     this.customControls = Settings.get('controls');
     this.overrideControls = Settings.get('overrides');
+    this.mouseSensitivity = Settings.get('mouse_sensitivity');
     this.registerBindings();
   }
 

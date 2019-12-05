@@ -1,9 +1,7 @@
+import Engine from './engine.js';
 import Models from './models.js';
 import Physics from './physics.js';
-import Settings from './settings.js';
-import SettingsEvent from '../events/settings_event.js';
 import {createUUID} from './util.js';
-import Engine from './engine.js';
 
 /**
  * Super class for all entities within the game, mostly those
@@ -26,8 +24,6 @@ class Entity extends THREE.Object3D {
       x: 0,
       y: 0
     };
-    this.mouseSensitivity = 50;
-    SettingsEvent.listen(this.loadSettings.bind(this));
   }
 
   withPhysics() {
@@ -193,17 +189,9 @@ class Entity extends THREE.Object3D {
    * Sets the mouse movement vector for the entity.
    */
   setMouseMovement(x, y) {
-    // TODO: Don't have controls settings in the entity base.
-    const ratio = this.mouseSensitivity / 50;
-    if (this.enableMouseY) {
-      this.mouseMovement.y = x * ratio;
-      this.mouseMovement.x = y * ratio;
-    } else {
-      this.mouseMovement.x = x * ratio;
-      this.mouseMovement.y = y * ratio;
-    }
-    this.mouseMovement.x = 0;
-    this.mouseMovement.y = 0;
+    this.mouseMovement.x = x;
+    this.mouseMovement.y = y;
+    // TODO: Clear somehow.
   }
 
   /**
@@ -224,6 +212,7 @@ class Entity extends THREE.Object3D {
     if (!this.mesh || !this.physicsBody) {
       return;
     }
+    // TODO: Don't make this so physics-engine-dependent.
     this.mesh.position.x = this.physicsBody.interpolatedPosition[0];
     this.mesh.position.z = this.physicsBody.interpolatedPosition[1];
     this.mesh.rotation.y = -this.physicsBody.interpolatedAngle;
@@ -256,14 +245,6 @@ class Entity extends THREE.Object3D {
    */
   registerComponent(body) {
     Physics.get().registerComponent(body);
-  }
-
-  /**
-   * Loads entity settings.
-   */
-  loadSettings() {
-    this.enableMouseY = Settings.get('mouse_y');
-    this.mouseSensitivity = Settings.get('mouse_sensitivity');
   }
 }
 
