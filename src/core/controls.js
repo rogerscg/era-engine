@@ -1,9 +1,11 @@
-import Bindings from '../data/bindings.js';
 import Engine from './engine.js';
 import Events from './events.js';
 import Plugin from './plugin.js';
 import Settings from './settings.js';
 import SettingsEvent from '../events/settings_event.js';
+import {Action, Bindings} from './bindings.js';
+
+const CONTROLS_KEY = 'era_bindings';
 
 let instance = null;
 
@@ -32,6 +34,9 @@ class Controls extends Plugin {
     this.hasController = false;
     this.controllerListeners = [];
 
+    // Registered bindings for a given entity.
+    this.registeredBindings = new Map();
+
     document.addEventListener('keydown', e => this.setActions(e.keyCode, 1));
     document.addEventListener('keyup', e => this.setActions(e.keyCode, 0));
     document.addEventListener('mousedown', e => this.setActions(e.button, 1));
@@ -44,6 +49,7 @@ class Controls extends Plugin {
     window.addEventListener("gamepaddisconnected", this.stopPollingController.bind(this));
 
     this.loadSettings();
+    this.registerCustomBindings();
     
     SettingsEvent.listen(this.loadSettings.bind(this));
   }
@@ -57,36 +63,86 @@ class Controls extends Plugin {
   /** @override */
   update() {}
 
-  registerBindings() {
-    // Merge default bindings with custom controls
-    // Stringify and parse so it's 100% certain a copy
-    // Avoids editing the defaults
-    this.bindings = JSON.parse(JSON.stringify(Bindings));
-    for (let customBindingName of Object.keys(this.customControls)) {
-      for (let device of Object.keys(this.customControls[customBindingName].keys)) {
-        const customKey = this.customControls[customBindingName].keys[device]
-        this.bindings[customBindingName].keys[device] = customKey
-      }
+  /**
+   * Loads custom controls bindings from local storage.
+   * @returns {Map<string, Bindings}
+   */
+  loadCustomBindingsFromStorage() {
+    // Load bindings from localStorage.
+    if (!localStorage.getItem(CONTROLS_KEY)) {
+      return new Map();
     }
-
-    // Generate a map of keys -> actions to trigger
-    this.boundActions = this.generateBoundActions(this.bindings);
+    let customObj;
+    try {
+      customObj = JSON.parse(localStorage.getItem(CONTROLS_KEY));
+    } catch (e) {
+      console.error(e);
+      return new Map();
+    }
+    const bindingsMap = new Map()
+    // Iterate over all controls IDs.
+    for (let controlsId of Object.keys(customObj)) {
+      // Create bindings from the given object.
+      const bindings = new Bindings(controlsId).load(customObj[controlsId]);
+      bindingsMap.set(controlsId, bindings);
+    }
+    return bindingsMap;
   }
 
   /**
-   * Generate a map of key codes and the actions they trigger
-   * Used to send the actions over the network when the key is pressed
+   * Registers custom bindings defined by the user.
    */
-  generateBoundActions(bindings) {
-    let boundActions = {}
-    for(let bindingName of Object.keys(bindings)) {
-      for(let key of Object.values(bindings[bindingName].keys)) {
-        const actionList = boundActions[key] || [];
-        actionList.push(Bindings[bindingName].binding_id)
-        boundActions[key] = actionList;
-      }
+  registerCustomBindings() {
+    const customBindings = this.loadCustomBindingsFromStorage();
+    if (!customBindings) {
+      return;
     }
-    return boundActions;
+    customBindings.forEach((bindings) => {
+      this.registerCustomBindingsForId(bindings)
+    });
+  }
+
+  /**
+   * Sets a custom binding for a given controls ID, action, and input type.
+   * @param {string} controlsId
+   * @param {string} action
+   * @param {string} inputType
+   * @param {?} key
+   */
+  setCustomBinding(controlsId, action, inputType, key) {
+    // Load custom bindings from storage.
+    const allCustomBindings = this.loadCustomBindingsFromStorage();
+
+    // Attach custom bindings for this ID if they don't exist.
+    let idBindings = allCustomBindings.get(controlsId);
+    if (!idBindings) {
+      idBindings = new Bindings(controlsId);
+      allCustomBindings.set(controlsId, idBindings);
+    }
+    // Check if the action exists for the given ID.
+    let idAction = idBindings.getActions().get(action);
+    if (!idAction) {
+      idAction = new Action(action);
+      idBindings.addAction(idAction);
+    }
+    idAction.addKey(inputType, key);
+
+    // Export.
+    this.writeBindingsToStorage(allCustomBindings);
+    // Reload bindings.
+    this.registerCustomBindings();
+  }
+
+  /**
+   * Writes a map of bindings to local storage.
+   * @param {Map<string, Bindings} bindingsMap
+   */
+  writeBindingsToStorage(bindingsMap) {
+    const exportObj = {};
+    bindingsMap.forEach((bindings) => {
+      exportObj[bindings.getId()] = bindings.toObject();
+    });
+    localStorage.setItem(CONTROLS_KEY, JSON.stringify(exportObj));
   }
 
   /**
@@ -272,15 +328,6 @@ class Controls extends Plugin {
   }
 
   /**
-   * Get the actions that should be performed if the 
-   * following key is pressed
-   * @param {Number | String} key 
-   */
-  getActionList(key) {
-    return this.boundActions[key] || []
-  }
-
-  /**
    * Set the actions values controlled by the specified key
    * @param {String | Number} key 
    * @param {Number} value
@@ -290,14 +337,16 @@ class Controls extends Plugin {
     if (!this.controlsEnabled) {
       return;
     }
-    // Set all actions for all registered entities
-    const actionList = this.getActionList(key)
-    for(let action of actionList) {
-      this.registeredEntities.forEach((entity) => {
-        entity.inputDevice = inputDevice;
-        entity.setAction(action, value);
-      });
-    }
+    this.registeredEntities.forEach((entity) => {
+      // Get the bindings for the entity.
+      const bindings = this.registeredBindings.get(entity.getControlsId());
+      const actions = bindings.getActionsForKey(key);
+      if (!actions) {
+        return;
+      }
+      actions.forEach((action) => entity.setAction(action, value));
+      entity.inputDevice = inputDevice;
+    });
   }
 
   /**
@@ -339,10 +388,8 @@ class Controls extends Plugin {
    */
   loadSettings() {
     this.movementDeadzone = Settings.get('movement_deadzone');
-    this.customControls = Settings.get('controls');
     this.overrideControls = Settings.get('overrides');
     this.mouseSensitivity = Settings.get('mouse_sensitivity');
-    this.registerBindings();
   }
 
   /**
@@ -351,6 +398,49 @@ class Controls extends Plugin {
   useOrbitControls() {
     new THREE.OrbitControls(
       Engine.get().getCamera(), Engine.get().getRenderer().domElement);
+  }
+
+  /**
+   * Registers a bindings set to the controls for a given entity. The provided
+   * entity should be the static class, not an instance.
+   * @param {Entity} entity
+   * @returns {Bindings}
+   */
+  registerBindings(entity) {
+    const bindings = entity.GetBindings();
+    // Check if custom bindings have already been set.
+    const customBindings = this.registeredBindings.get(bindings.getId());
+    if (customBindings) {
+      return customBindings.merge(bindings);
+    }
+    this.registeredBindings.set(bindings.getId(), bindings);
+    return bindings;
+  }
+
+  /**
+   * Registers bindings for a provided ID. This should only be used internally.
+   * @param {string} controlsId 
+   * @param {Bindings} bindings
+   */
+  registerCustomBindingsForId(bindings) {
+    const defaultBindings = this.registeredBindings.get(bindings.getId());
+    if (defaultBindings) {
+      bindings.merge(defaultBindings);
+    }
+    this.registeredBindings.set(bindings.getId(), bindings);
+  }
+
+  /**
+   * Retrieves the bindings for a given ID.
+   * @param {string} controlsId
+   * @returns {Bindings}
+   */
+  getBindings(controlsId) {
+    const bindings = this.registeredBindings.get(controlsId);
+    if (!bindings) {
+      console.warn('No bindings provided for id', controlsId);
+    }
+    return bindings;
   }
 }
 

@@ -6,7 +6,6 @@ const DEFAULT_SETTINGS = {
   mouse_sensitivity: 50,
   shaders: true,
   volume: 50,
-  controls: {},
   movement_deadzone: 0.15,
 };
 

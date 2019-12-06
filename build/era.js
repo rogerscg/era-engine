@@ -6,7 +6,6 @@ const DEFAULT_SETTINGS = {
   mouse_sensitivity: 50,
   shaders: true,
   volume: 50,
-  controls: {},
   movement_deadzone: 0.15,
 };
 
@@ -551,46 +550,191 @@ class Audio {
 }
 
 /**
- * Defines the default input bindings per device. Binding id is sent over the
- * network.
+ * A bindings object, used for better control of custom bindings.
  */
-const Bindings = {
-  BACKWARD: {
-    binding_id: 0,
-    keys: {
-      keyboard: 83,
-      controller: 'axes1',
+class Bindings {
+  constructor(id) {
+    this.id = id;
+    this.actions = new Map();
+    this.keysToActions = new Map();
+    this.staticProperties = new Set();
+  }
+
+  getId() {
+    return this.id;
+  }
+
+  getActions() {
+    return this.actions;
+  }
+
+  /**
+   * Returns all actions associated with a given key.
+   * @param {?} key
+   * @returns {Array<Action>}
+   */
+  getActionsForKey(key) {
+    return this.keysToActions.get(key);
+  }
+
+  /**
+   * Adds an action to the bindings with the given name.
+   * @param {Action} action
+   */
+  addAction(action) {
+    this.actions.set(action.getName(), action);
+    this.loadKeysToActions();
+    this.loadStaticProperties();
+    return this;
+  }
+
+  /**
+   * Loads an object into the bindings, considering custom bindings.
+   * @param {Object} bindingsObj
+   */
+  load(bindingsObj) {
+    for (let actionName in bindingsObj) {
+      const actionObj = bindingsObj[actionName];
+      const action = new Action(actionName).load(actionObj);
+      this.actions.set(actionName, action);
     }
-  },
-  FORWARD: {
-    binding_id: 5,
-    keys: {
-      keyboard: 87,
-      controller: 'axes1',
+    this.loadKeysToActions();
+    this.loadStaticProperties();
+    return this;
+  }
+
+  /**
+   * Loads all keys into a map to their respective actions for fast lookups in
+   * controls updates.
+   */
+  loadKeysToActions() {
+    // Clear beforehand in case we're reloading.
+    this.keysToActions.clear();
+    this.actions.forEach((action) => {
+      const keys = action.getKeys();
+      keys.forEach((key) => {
+        if (!this.keysToActions.has(key)) {
+          this.keysToActions.set(key, new Array());
+        }
+        this.keysToActions.get(key).push(action);
+      });
+    });
+  }
+
+  /**
+   * Takes all action names and sets their names as "static" fields of the
+   * bindings instance. This is to ease development for the user, so they can
+   * call `entity.getActionValue(bindings.SPRINT)` as opposed to passing in a
+   * string literal `entity.getActionValue('SPRINT')`.
+   */
+  loadStaticProperties() {
+    // Clear old static properties, based on a set created from earlier.
+    this.staticProperties.forEach((propName) => {
+      delete this[propName];
+    });
+    this.staticProperties.clear();
+    // Set new static properties based on actions.
+    this.actions.forEach((ignore, actionName) => {
+      this[actionName] = actionName;
+      this.staticProperties.add(actionName);
+    });
+  }
+
+  /**
+   * Merges the given bindings into the existing bindings.
+   * @param {Bindings} other
+   */
+  merge(other) {
+    other.getActions().forEach((action) => {
+      if (!this.actions.has(action.getName())) {
+        this.actions.set(action.getName(), action);
+      } else {
+        this.actions.get(action.getName()).merge(action);
+      }
+    });
+    this.loadKeysToActions();
+    this.loadStaticProperties();
+    return this;
+  }
+
+  /**
+   * Converts the bindings instance to an object.
+   * @returns {Object}
+   */
+  toObject() {
+    const exportObj = {};
+    this.actions.forEach((action) => {
+      exportObj[action.getName()] = action.toObject();
+    });
+    return exportObj;
+  }
+}
+
+/**
+ * Represents an action an entity can take as well as the inputs that are used
+ * to trigger this action.
+ */
+class Action {
+  constructor(name) {
+    this.name = name;
+    this.id = null;
+    this.keys = new Map();
+  }
+
+  getName() {
+    return this.name;
+  }
+
+  getKeys() {
+    return this.keys;
+  }
+
+  /**
+   * Adds a key that can trigger the action.
+   * @param {string} inputType
+   * @param {?} key 
+   */
+  addKey(inputType, key) {
+    this.keys.set(inputType, key);
+    return this;
+  }
+
+  /**
+   * Loads the action from an arbitrary object.
+   */
+  load(actionObj) {
+    this.id = actionObj.binding_id;
+    for (let inputType in actionObj.keys) {
+      this.keys.set(inputType, actionObj.keys[inputType]);
     }
-  },
-  LEFT: {
-    binding_id: 6,
-    keys: {
-      keyboard: 65,
-      controller: 'axes0',
-    }
-  },
-  RIGHT: {
-    binding_id: 7,
-    keys: {
-      keyboard: 68,
-      controller: 'axes0',
-    }
-  },
-  SPRINT: {
-    binding_id: 8,
-    keys: {
-      keyboard: 16,
-      controller: 'button5',
-    }
-  },
-};
+    return this;
+  }
+
+  /**
+   * Merges an existing action with this action.
+   * @param {Action} other
+   */
+  merge(other) {
+    other.getKeys().forEach((key, inputType) => {
+      if (!this.keys.has(inputType)) {
+        this.keys.set(inputType, key);
+      }
+    });
+    return this
+  }
+
+  /**
+   * Converts the action instance to an object.
+   * @returns {Object}
+   */
+  toObject() {
+    const exportObj = {};
+    exportObj.binding_id = this.id;
+    exportObj.keys = {};
+    this.keys.forEach((key, inputType) => exportObj.keys[inputType] = key);
+    return exportObj;
+  }
+}
 
 const Types = {
   GAME: 'game',
@@ -731,6 +875,9 @@ class Engine {
     this.started = false;
     this.rendering = false;
     this.plugins = new Set();
+    this.entities = new Set();
+    // A map of cameras to the entities on which they are attached.
+    this.cameras = new Map();
     SettingsEvent.listen(this.handleSettingsChange.bind(this));
   }
 
@@ -814,6 +961,8 @@ class Engine {
     }
     // Update all plugins.
     this.plugins.forEach((plugin) => plugin.update(timeStamp));
+    // Update all entities.
+    this.entities.forEach((entity) => entity.update());
 
     // Check if the render loop should be halted.
     if (this.resetRender) {
@@ -940,6 +1089,40 @@ class Engine {
   installPlugin(plugin) {
     this.plugins.add(plugin);
   }
+
+  /**
+   * Registers an entity for engine updates.
+   * @param {Entity} entity 
+   */
+  registerEntity(entity) {
+    this.entities.add(entity);
+  }
+
+  /**
+   * Unregisters an entity for engine updates.
+   * @param {Entity} entity 
+   */
+  unregisterEntity(entity) {
+    this.entities.delete(entity);
+  }
+
+  /**
+   * Attaches the main camera to the given entity.
+   * @param {Entity} entity
+   */
+  attachCamera(entity) {
+    if (!entity) {
+      return console.warn('No entity provided to attachCamera');
+    }
+    const camera = this.getCamera();
+    const prevEntity = this.cameras.get(camera);
+    if (prevEntity) {
+      prevEntity.detachCamera(camera);
+    }
+    entity.attachCamera(camera);
+    this.cameras.set(camera, entity);
+  }
+
 }
 
 /**
@@ -973,6 +1156,8 @@ class Plugin {
   }
 }
 
+const CONTROLS_KEY = 'era_bindings';
+
 let instance$1 = null;
 
 /**
@@ -991,6 +1176,7 @@ class Controls extends Plugin {
   }
 
   constructor() {
+    super();
     this.previousInput = {};
 
     this.registeredEntities = new Map();
@@ -998,6 +1184,9 @@ class Controls extends Plugin {
 
     this.hasController = false;
     this.controllerListeners = [];
+
+    // Registered bindings for a given entity.
+    this.registeredBindings = new Map();
 
     document.addEventListener('keydown', e => this.setActions(e.keyCode, 1));
     document.addEventListener('keyup', e => this.setActions(e.keyCode, 0));
@@ -1011,8 +1200,9 @@ class Controls extends Plugin {
     window.addEventListener("gamepaddisconnected", this.stopPollingController.bind(this));
 
     this.loadSettings();
+    this.registerCustomBindings();
     
-    SettingsEvent.listen(this.handleSettingsChange.bind(this));
+    SettingsEvent.listen(this.loadSettings.bind(this));
   }
 
   /** @override */
@@ -1024,36 +1214,86 @@ class Controls extends Plugin {
   /** @override */
   update() {}
 
-  registerBindings() {
-    // Merge default bindings with custom controls
-    // Stringify and parse so it's 100% certain a copy
-    // Avoids editing the defaults
-    this.bindings = JSON.parse(JSON.stringify(Bindings));
-    for (let customBindingName of Object.keys(this.customControls)) {
-      for (let device of Object.keys(this.customControls[customBindingName].keys)) {
-        const customKey = this.customControls[customBindingName].keys[device];
-        this.bindings[customBindingName].keys[device] = customKey;
-      }
+  /**
+   * Loads custom controls bindings from local storage.
+   * @returns {Map<string, Bindings}
+   */
+  loadCustomBindingsFromStorage() {
+    // Load bindings from localStorage.
+    if (!localStorage.getItem(CONTROLS_KEY)) {
+      return new Map();
     }
-
-    // Generate a map of keys -> actions to trigger
-    this.boundActions = this.generateBoundActions(this.bindings);
+    let customObj;
+    try {
+      customObj = JSON.parse(localStorage.getItem(CONTROLS_KEY));
+    } catch (e) {
+      console.error(e);
+      return new Map();
+    }
+    const bindingsMap = new Map();
+    // Iterate over all controls IDs.
+    for (let controlsId of Object.keys(customObj)) {
+      // Create bindings from the given object.
+      const bindings = new Bindings(controlsId).load(customObj[controlsId]);
+      bindingsMap.set(controlsId, bindings);
+    }
+    return bindingsMap;
   }
 
   /**
-   * Generate a map of key codes and the actions they trigger
-   * Used to send the actions over the network when the key is pressed
+   * Registers custom bindings defined by the user.
    */
-  generateBoundActions(bindings) {
-    let boundActions = {};
-    for(let bindingName of Object.keys(bindings)) {
-      for(let key of Object.values(bindings[bindingName].keys)) {
-        const actionList = boundActions[key] || [];
-        actionList.push(Bindings[bindingName].binding_id);
-        boundActions[key] = actionList;
-      }
+  registerCustomBindings() {
+    const customBindings = this.loadCustomBindingsFromStorage();
+    if (!customBindings) {
+      return;
     }
-    return boundActions;
+    customBindings.forEach((bindings) => {
+      this.registerCustomBindingsForId(bindings);
+    });
+  }
+
+  /**
+   * Sets a custom binding for a given controls ID, action, and input type.
+   * @param {string} controlsId
+   * @param {string} action
+   * @param {string} inputType
+   * @param {?} key
+   */
+  setCustomBinding(controlsId, action, inputType, key) {
+    // Load custom bindings from storage.
+    const allCustomBindings = this.loadCustomBindingsFromStorage();
+
+    // Attach custom bindings for this ID if they don't exist.
+    let idBindings = allCustomBindings.get(controlsId);
+    if (!idBindings) {
+      idBindings = new Bindings(controlsId);
+      allCustomBindings.set(controlsId, idBindings);
+    }
+    // Check if the action exists for the given ID.
+    let idAction = idBindings.getActions().get(action);
+    if (!idAction) {
+      idAction = new Action(action);
+      idBindings.addAction(idAction);
+    }
+    idAction.addKey(inputType, key);
+
+    // Export.
+    this.writeBindingsToStorage(allCustomBindings);
+    // Reload bindings.
+    this.registerCustomBindings();
+  }
+
+  /**
+   * Writes a map of bindings to local storage.
+   * @param {Map<string, Bindings} bindingsMap
+   */
+  writeBindingsToStorage(bindingsMap) {
+    const exportObj = {};
+    bindingsMap.forEach((bindings) => {
+      exportObj[bindings.getId()] = bindings.toObject();
+    });
+    localStorage.setItem(CONTROLS_KEY, JSON.stringify(exportObj));
   }
 
   /**
@@ -1237,15 +1477,6 @@ class Controls extends Plugin {
   }
 
   /**
-   * Get the actions that should be performed if the 
-   * following key is pressed
-   * @param {Number | String} key 
-   */
-  getActionList(key) {
-    return this.boundActions[key] || []
-  }
-
-  /**
    * Set the actions values controlled by the specified key
    * @param {String | Number} key 
    * @param {Number} value
@@ -1255,14 +1486,16 @@ class Controls extends Plugin {
     if (!this.controlsEnabled) {
       return;
     }
-    // Set all actions for all registered entities
-    const actionList = this.getActionList(key);
-    for(let action of actionList) {
-      this.registeredEntities.forEach((entity) => {
-        entity.inputDevice = inputDevice;
-        entity.setAction(action, value);
-      });
-    }
+    this.registeredEntities.forEach((entity) => {
+      // Get the bindings for the entity.
+      const bindings = this.registeredBindings.get(entity.getControlsId());
+      const actions = bindings.getActionsForKey(key);
+      if (!actions) {
+        return;
+      }
+      actions.forEach((action) => entity.setAction(action, value));
+      entity.inputDevice = inputDevice;
+    });
   }
 
   /**
@@ -1272,8 +1505,9 @@ class Controls extends Plugin {
     if (!this.controlsEnabled) {
       return;
     }
+    const ratio = this.mouseSensitivity / 50;
     this.registeredEntities.forEach((entity) => {
-      entity.setMouseMovement(e.movementX, e.movementY);
+      entity.setMouseMovement(e.movementX * ratio, e.movementY * ratio);
     });
   }
 
@@ -1303,9 +1537,59 @@ class Controls extends Plugin {
    */
   loadSettings() {
     this.movementDeadzone = Settings$1.get('movement_deadzone');
-    this.customControls = Settings$1.get('controls');
     this.overrideControls = Settings$1.get('overrides');
-    this.registerBindings();
+    this.mouseSensitivity = Settings$1.get('mouse_sensitivity');
+  }
+
+  /**
+   * Creates orbit controls on the camera, if they exist.
+   */
+  useOrbitControls() {
+    new THREE.OrbitControls(
+      Engine.get().getCamera(), Engine.get().getRenderer().domElement);
+  }
+
+  /**
+   * Registers a bindings set to the controls for a given entity. The provided
+   * entity should be the static class, not an instance.
+   * @param {Entity} entity
+   * @returns {Bindings}
+   */
+  registerBindings(entity) {
+    const bindings = entity.GetBindings();
+    // Check if custom bindings have already been set.
+    const customBindings = this.registeredBindings.get(bindings.getId());
+    if (customBindings) {
+      return customBindings.merge(bindings);
+    }
+    this.registeredBindings.set(bindings.getId(), bindings);
+    return bindings;
+  }
+
+  /**
+   * Registers bindings for a provided ID. This should only be used internally.
+   * @param {string} controlsId 
+   * @param {Bindings} bindings
+   */
+  registerCustomBindingsForId(bindings) {
+    const defaultBindings = this.registeredBindings.get(bindings.getId());
+    if (defaultBindings) {
+      bindings.merge(defaultBindings);
+    }
+    this.registeredBindings.set(bindings.getId(), bindings);
+  }
+
+  /**
+   * Retrieves the bindings for a given ID.
+   * @param {string} controlsId
+   * @returns {Bindings}
+   */
+  getBindings(controlsId) {
+    const bindings = this.registeredBindings.get(controlsId);
+    if (!bindings) {
+      console.warn('No bindings provided for id', controlsId);
+    }
+    return bindings;
   }
 }
 
@@ -1595,33 +1879,77 @@ class Physics extends Plugin {
   }
 }
 
+const ENTITY_BINDINGS = {
+  BACKWARD: {
+    binding_id: 0,
+    keys: {
+      keyboard: 83,
+      controller: 'axes1',
+    }
+  },
+  FORWARD: {
+    binding_id: 5,
+    keys: {
+      keyboard: 87,
+      controller: 'axes1',
+    }
+  },
+  LEFT: {
+    binding_id: 6,
+    keys: {
+      keyboard: 65,
+      controller: 'axes0',
+    }
+  },
+  RIGHT: {
+    binding_id: 7,
+    keys: {
+      keyboard: 68,
+      controller: 'axes0',
+    }
+  },
+};
+
+const CONTROLS_ID = 'Entity';
+
 /**
  * Super class for all entities within the game, mostly those
  * that are updated by the physics engine.
  */
 class Entity extends THREE.Object3D {
+  static GetBindings() {
+    return new Bindings(CONTROLS_ID).load(ENTITY_BINDINGS);
+  }
 
-  constructor(parentGame) {
+  constructor() {
     super();
     this.uuid = createUUID();
-    this.parentGame = parentGame;
     this.mesh = null;
+    this.cameraArm;
     this.modelName = null;
     this.physicsBody = null;
     this.physicsEnabled = false;
-    this.actions = {}; // Map of action -> value (0 - 1)
+    this.actions = new Map(); // Map of action -> value (0 - 1)
+    this.bindings = Controls.get().getBindings(this.getControlsId());
     this.inputDevice = 'keyboard';
+    this.registeredCameras = new Set();
     this.mouseMovement = {
       x: 0,
       y: 0
     };
-    this.mouseSensitivity = 50;
-    SettingsEvent.listen(this.loadSettings.bind(this));
   }
 
   withPhysics() {
     this.physicsEnabled = true;
     return this;
+  }
+
+  /**
+   * Returns the static controls ID for the entity. Needs to be defined for
+   * each entity with unique controls.
+   */
+  getControlsId() {
+    return CONTROLS_ID;
   }
 
   /**
@@ -1634,7 +1962,16 @@ class Entity extends THREE.Object3D {
     if (this.physicsEnabled) {
       this.generatePhysicsBody();
     }
+    Engine.get().registerEntity(this);
     return this;
+  }
+
+  /**
+   * Destroys the entity by unregistering from all core components and disposing
+   * of all objects in memory.
+   */
+  destroy() {
+    Engine.get().unregisterEntity(this);
   }
 
   /**
@@ -1647,7 +1984,55 @@ class Entity extends THREE.Object3D {
     const scene = Models.get().storage.get(this.modelName).clone();
     this.mesh = scene;
     this.add(this.mesh);
+    this.cameraArm = this.createCameraArm();
     return this.mesh;
+  }
+
+  /**
+   * Creates a camera arm for the entity. All cameras will be automatically
+   * added to this arm by default.
+   */
+  createCameraArm() {
+    const obj = new THREE.Object3D();
+    this.add(obj);
+    return obj;
+  }
+
+  /**
+   * Attaches a camera to the entity. It can be assumed that the camera has been
+   * properly detached from other entities and is ready for spatial mutations.
+   * @param {THREE.Camera} camera
+   */
+  attachCamera(camera) {
+    if (this.registeredCameras.has(camera)) {
+      return console.warn('Camera already registered on entity');
+    }
+    this.registeredCameras.add(camera);
+    this.positionCamera(camera);
+  }
+
+  /**
+   * Positions the camera when attaching. This should be overriden by custom
+   * entities, not the attachCamera function.
+   * @param {THREE.Camera} camera 
+   */
+  positionCamera(camera) {
+    camera.position.set(0, 0, 0);
+    camera.rotation.set(0, 0, 0);
+    this.cameraArm.add(camera);
+  }
+
+  /**
+   * Detaches a camera from the entity.
+   * @param {THREE.Camera} camera
+   */
+  detachCamera(camera) {
+    if (!this.registeredCameras.has(camera)) {
+      return console.warn('Camera not registered on entity');
+    }
+    camera.parent.remove(camera);
+    add(camera);
+    this.registeredCameras.delete(camera);
   }
 
   /**
@@ -1685,61 +2070,44 @@ class Entity extends THREE.Object3D {
    * the case controller input is removed from the entity.
    */
   clearInput() {
-    this.actions = {};
+    this.actions.clear();
     this.mouseMovement = {
       x: 0,
       y: 0
     };
-    this.parentGame.sendInput(this);
   }
 
   /**
    * Sets an action to the specified value for the entity
    */
   setAction(action, value) {
-    if (this.actions[action] && this.actions[action] === value) {
+    if (this.actions.has(action.getName()) &&
+        this.actions.get(action.getName()) === value) {
       return;
     }
     if (value !== 0) {
-      this.actions[action] = value;
+      this.actions.set(action.getName(), value);
     } else {
-      delete this.actions[action];
+      this.actions.delete(action.getName());
     }
-    this.parentGame.sendInput(this);
   }
 
   /**
-   * Returns if input bound to a specific function is present.
+   * Check the force a registered action is pressed with.
+   * @param {string} binding 
+   * @returns {number}
    */
-  isKeyPressed(binding) {
-    return this.actions && this.actions[binding.binding_id];
-  }
-
-  /**
-   * Check the force a key is pressed with
-   * @param {String} binding 
-   */
-  getForce(binding) {
-    return this.actions[binding.binding_id] || 0;
+  getActionValue(actionName) {
+    return this.actions.get(actionName) || 0;
   }
 
   /**
    * Sets the mouse movement vector for the entity.
    */
   setMouseMovement(x, y) {
-    const ratio = this.mouseSensitivity / 50;
-    if (this.enableMouseY) {
-      this.mouseMovement.y = x * ratio;
-      this.mouseMovement.x = y * ratio;
-    } else {
-      this.mouseMovement.x = x * ratio;
-      this.mouseMovement.y = y * ratio;
-    }
-    this.parentGame.sendInput(this);
-    if (!this.parentGame.isOffline) {
-      this.mouseMovement.x = 0;
-      this.mouseMovement.y = 0;
-    }
+    this.mouseMovement.x = x;
+    this.mouseMovement.y = y;
+    // TODO: Clear somehow.
   }
 
   /**
@@ -1760,6 +2128,7 @@ class Entity extends THREE.Object3D {
     if (!this.mesh || !this.physicsBody) {
       return;
     }
+    // TODO: Don't make this so physics-engine-dependent.
     this.mesh.position.x = this.physicsBody.interpolatedPosition[0];
     this.mesh.position.z = this.physicsBody.interpolatedPosition[1];
     this.mesh.rotation.y = -this.physicsBody.interpolatedAngle;
@@ -1791,21 +2160,7 @@ class Entity extends THREE.Object3D {
    * main physics body.
    */
   registerComponent(body) {
-    let physics;
-    if (this.parentGame && this.parentGame.physics) {
-      physics = this.parentGame.physics;
-    } else {
-      physics = Physics.get();
-    }
-    physics.registerComponent(body);
-  }
-
-  /**
-   * Loads entity settings.
-   */
-  loadSettings() {
-    this.enableMouseY = Settings$1.get('mouse_y');
-    this.mouseSensitivity = Settings$1.get('mouse_sensitivity');
+    Physics.get().registerComponent(body);
   }
 }
 
@@ -2290,4 +2645,4 @@ class Network {
   }
 }
 
-export { Audio, Controls, Engine, EngineResetEvent, Entity, EraEvent, Events, Light, Models, Network, Physics, Plugin, Settings$1 as Settings, SettingsEvent };
+export { Action, Audio, Bindings, Controls, Engine, EngineResetEvent, Entity, EraEvent, Events, Light, Models, Network, Physics, Plugin, Settings$1 as Settings, SettingsEvent };

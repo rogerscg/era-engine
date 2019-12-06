@@ -3,8 +3,7 @@
  */
 
 export {default as Audio} from './core/audio.js';
-// TODO: Make bindings user-defined.
-export {default as Bindings} from './data/bindings.js';
+export {Action, Bindings} from './core/bindings.js';
 export {default as Controls} from './core/controls.js';
 export {default as Engine} from './core/engine.js';
 export {default as EngineResetEvent} from './events/engine_reset_event.js';

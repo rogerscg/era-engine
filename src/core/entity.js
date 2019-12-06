@@ -1,13 +1,51 @@
+import Controls from './controls.js';
 import Engine from './engine.js';
 import Models from './models.js';
 import Physics from './physics.js';
+import {Bindings} from './bindings.js';
 import {createUUID} from './util.js';
+
+const ENTITY_BINDINGS = {
+  BACKWARD: {
+    binding_id: 0,
+    keys: {
+      keyboard: 83,
+      controller: 'axes1',
+    }
+  },
+  FORWARD: {
+    binding_id: 5,
+    keys: {
+      keyboard: 87,
+      controller: 'axes1',
+    }
+  },
+  LEFT: {
+    binding_id: 6,
+    keys: {
+      keyboard: 65,
+      controller: 'axes0',
+    }
+  },
+  RIGHT: {
+    binding_id: 7,
+    keys: {
+      keyboard: 68,
+      controller: 'axes0',
+    }
+  },
+};
+
+const CONTROLS_ID = 'Entity';
 
 /**
  * Super class for all entities within the game, mostly those
  * that are updated by the physics engine.
  */
 class Entity extends THREE.Object3D {
+  static GetBindings() {
+    return new Bindings(CONTROLS_ID).load(ENTITY_BINDINGS);
+  }
 
   constructor() {
     super();
@@ -18,6 +56,7 @@ class Entity extends THREE.Object3D {
     this.physicsBody = null;
     this.physicsEnabled = false;
     this.actions = new Map(); // Map of action -> value (0 - 1)
+    this.bindings = Controls.get().getBindings(this.getControlsId());
     this.inputDevice = 'keyboard';
     this.registeredCameras = new Set();
     this.mouseMovement = {
@@ -29,6 +68,14 @@ class Entity extends THREE.Object3D {
   withPhysics() {
     this.physicsEnabled = true;
     return this;
+  }
+
+  /**
+   * Returns the static controls ID for the entity. Needs to be defined for
+   * each entity with unique controls.
+   */
+  getControlsId() {
+    return CONTROLS_ID;
   }
 
   /**
@@ -160,29 +207,24 @@ class Entity extends THREE.Object3D {
    * Sets an action to the specified value for the entity
    */
   setAction(action, value) {
-    if (this.actions.has(action) && this.actions.get(action) === value) {
+    if (this.actions.has(action.getName()) &&
+        this.actions.get(action.getName()) === value) {
       return;
     }
     if (value !== 0) {
-      this.actions.set(action, value);
+      this.actions.set(action.getName(), value);
     } else {
-      this.actions.delete(action);
+      this.actions.delete(action.getName());
     }
   }
 
   /**
-   * Returns if input bound to a specific function is present.
+   * Check the force a registered action is pressed with.
+   * @param {string} binding 
+   * @returns {number}
    */
-  isKeyPressed(binding) {
-    return this.actions && this.actions.get(binding.binding_id);
-  }
-
-  /**
-   * Check the force a key is pressed with
-   * @param {String} binding 
-   */
-  getForce(binding) {
-    return this.actions.get(binding.binding_id) || 0;
+  getActionValue(actionName) {
+    return this.actions.get(actionName) || 0;
   }
 
   /**
