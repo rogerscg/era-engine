@@ -17,3 +17,4 @@ export {default as Physics} from './core/physics.js';
 export {default as Plugin} from './core/plugin.js';
 export {default as Settings} from './core/settings.js';
 export {default as SettingsEvent} from './events/settings_event.js';
+export {default as Skybox} from './core/skybox.js';
