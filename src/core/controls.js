@@ -36,6 +36,8 @@ class Controls extends Plugin {
 
     // Registered bindings for a given entity.
     this.registeredBindings = new Map();
+    // Map of controls IDs to entity classes.
+    this.controlIds = new Map();
 
     document.addEventListener('keydown', e => this.setActions(e.keyCode, 1));
     document.addEventListener('keyup', e => this.setActions(e.keyCode, 0));
@@ -131,6 +133,80 @@ class Controls extends Plugin {
     this.writeBindingsToStorage(allCustomBindings);
     // Reload bindings.
     this.registerCustomBindings();
+  }
+
+  /**
+   * Clears all custom bindings. Use this with caution, as there is not way to
+   * restore them.
+   * @param 
+   */
+  clearAllCustomBindings() {
+    // Export an empty map.
+    this.writeBindingsToStorage(new Map());
+    // Reload bindings.
+    this.reloadDefaultBindings();
+    this.registerCustomBindings();
+  }
+
+  /**
+   * Clears all custom bindings for a given entity.
+   * @param {string} controlsId
+   */
+  clearCustomBindingsForEntity(controlsId) {
+    // Load custom bindings from storage.
+    const allCustomBindings = this.loadCustomBindingsFromStorage();
+    // Clear entity.
+    allCustomBindings.delete(controlsId);
+    // Export.
+    this.writeBindingsToStorage(allCustomBindings);
+    // Reload bindings.
+    this.reloadDefaultBindings();
+    this.registerCustomBindings();
+  }
+
+  /**
+   * Clears all custom bindings for a given entity. If no input type is given,
+   * all input types will be cleared.
+   * @param {string} controlsId
+   * @param {string} actionName
+   * @param {string} inputType
+   */
+  clearCustomBindingsForAction(controlsId, actionName, inputType) {
+    // Load custom bindings from storage.
+    const allCustomBindings = this.loadCustomBindingsFromStorage();
+    const entityBindings = allCustomBindings.get(controlsId);
+    const action = entityBindings.getAction(actionName);
+    if (!action) {
+      return;
+    }
+    // Modify the action for the given input type.
+    if (inputType) {
+      action.clearInputType(inputType);
+    }
+    // Check if the action is empty or if no input type is provided. If so,
+    // remove.
+    if (action.isEmpty() || inputType === undefined) {
+      entityBindings.removeAction(action);
+    }
+    // Check if entity bindings are empty. If so, remove from storage.
+    if (entityBindings.isEmpty()) {
+      allCustomBindings.delete(controlsId);
+    }
+    // Export.
+    this.writeBindingsToStorage(allCustomBindings);
+    // Reload bindings.
+    this.reloadDefaultBindings();
+    this.registerCustomBindings();
+  }
+
+  /**
+   * Reloads all default bindings for registered bindings.
+   */
+  reloadDefaultBindings() {
+    this.controlIds.forEach((staticEntity, id) => {
+      const defaultBindings = staticEntity.GetBindings();
+      this.registeredBindings.set(id, defaultBindings);
+    });
   }
 
   /**
@@ -408,6 +484,8 @@ class Controls extends Plugin {
    */
   registerBindings(entity) {
     const bindings = entity.GetBindings();
+    // Register the entity controls for later use when reloading defaults.
+    this.controlIds.set(bindings.getId(), entity);
     // Check if custom bindings have already been set.
     const customBindings = this.registeredBindings.get(bindings.getId());
     if (customBindings) {

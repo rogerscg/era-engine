@@ -27,7 +27,7 @@ class Bindings {
   }
 
   /**
-   * Adds an action to the bindings with the given name.
+   * Adds an action to the bindings.
    * @param {Action} action
    */
   addAction(action) {
@@ -35,6 +35,25 @@ class Bindings {
     this.loadKeysToActions();
     this.loadStaticProperties();
     return this;
+  }
+
+  /**
+   * Removes an action from the bindings.
+   * @param {Action} action
+   */
+  removeAction(action) {
+    this.actions.delete(action.getName());
+    this.loadKeysToActions();
+    this.loadStaticProperties();
+    return this;
+  }
+
+  /**
+   * Gets the action for a given name.
+   * @param {string} actionName 
+   */
+  getAction(actionName) {
+    return this.actions.get(actionName);
   }
 
   /**
@@ -117,6 +136,18 @@ class Bindings {
     });
     return exportObj;
   }
+
+  /**
+   * Returns if there are no actions associated with the bindings.
+   * @returns {boolean}
+   */
+  isEmpty() {
+    // Get all non-empty actions.
+    const nonEmptyActions = [...this.actions.values()].filter((action) => {
+      return !action.isEmpty();
+    })
+    return nonEmptyActions.length == 0;
+  }
 }
 
 /**
@@ -146,6 +177,14 @@ class Action {
   addKey(inputType, key) {
     this.keys.set(inputType, key);
     return this;
+  }
+
+  /**
+   * Clears the key for the given input type.
+   * @param {string} inputType 
+   */
+  clearInputType(inputType) {
+    this.keys.delete(inputType);
   }
 
   /**
@@ -182,6 +221,14 @@ class Action {
     exportObj.keys = {};
     this.keys.forEach((key, inputType) => exportObj.keys[inputType] = key);
     return exportObj;
+  }
+
+  /**
+   * Detects if the action is empty.
+   * @returns {boolean}
+   */
+  isEmpty() {
+    return this.keys.size == 0;
   }
 }
 

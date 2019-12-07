@@ -23,7 +23,16 @@ async function start() {
 
   // Attach camera to XWing.
   engine.attachCamera(xwing);
+  window.xwing = xwing;
   Controls.get().registerEntity(xwing);
+}
+
+window.setControls = function() {
+  Controls.get().setCustomBinding(xwing.getControlsId(), xwing.bindings.RIGHT, 'keyboard', 84);
+}
+
+window.clearControls = function () {
+  Controls.get().clearCustomBindingsForAction(xwing.getControlsId(), xwing.bindings.RIGHT, 'keyboard');
 }
 
 document.addEventListener('DOMContentLoaded', start);

@@ -85,6 +85,4 @@ class XWing extends Entity {
 }
 
 Controls.get().registerBindings(XWing);
-window.controls = Controls.get()
-
 export default XWing;

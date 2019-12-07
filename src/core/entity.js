@@ -79,6 +79,14 @@ class Entity extends THREE.Object3D {
   }
 
   /**
+   * Returns the default set of bindings for the entity.
+   * @returns {Bindings}
+   */
+  getDefaultBindings() {
+    return this.constructor.GetBindings();
+  }
+
+  /**
    * Creates the mesh and physics object.
    */
   build() {
