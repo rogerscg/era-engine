@@ -26,16 +26,6 @@ class Laser extends Entity {
       this.destroy();
     }
   }
-
-  /**
-   * Destroy the laser, removing it from its parent and properly disposing
-   * of meshes and textures.
-   */
-  destroy() {
-    if (this.parent) {
-      this.parent.remove(this);
-    }
-  }
 }
 
 export default Laser;

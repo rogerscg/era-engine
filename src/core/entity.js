@@ -103,6 +103,9 @@ class Entity extends THREE.Object3D {
    * of all objects in memory.
    */
   destroy() {
+    if (this.parent) {
+      this.parent.remove(this);
+    }
     Engine.get().unregisterEntity(this);
   }
 
