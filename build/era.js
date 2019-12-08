@@ -2,7 +2,7 @@
  * The default settings for the ERA engine.
  */
 const DEFAULT_SETTINGS = {
-  fps: false,
+  debug: false,
   mouse_sensitivity: 50,
   shaders: true,
   volume: 50,
@@ -26,6 +26,32 @@ function createUUID() {
       v = c == 'x' ? r : (r & 0x3 | 0x8);
     return v.toString(16);
   });
+}
+
+/** 
+ * Disables all shadows for an object and its children.
+ */
+function disableShadows(object, name, force = false) {
+  if (!name || object.name.toLowerCase().indexOf(name) > -1 || force) {
+    object.castShadow = false;
+    force = true;
+  }
+  object.children.forEach((child) => {
+    disableShadows(child, name, force);
+  });
+}
+
+/** 
+ * Disposes all geometries and materials for an object and its children.
+ */
+function dispose(object) {
+  if (object.material) {
+    object.material.dispose();
+  }
+  if (object.geometry) {
+    object.geometry.dispose();
+  }
+  object.children.forEach((child) => dispose(child));
 }
 
 
@@ -54,11 +80,82 @@ function extractMeshes(object, materialFilter, filterOut = true) {
   return meshes;
 }
 
+/**
+ * Extracts an array of meshes with a certain name within an object hierarchy.
+ * The provided name can be a substring of the mesh name.
+ * @param {THREE.Object3D} object
+ * @param {string} meshName
+ * @returns {Array<THREE.Mesh>}
+ */
+function extractMeshesByName(object, meshName = '') {
+  let meshes = new Array();
+  if (object.type == 'Mesh') {
+    if (object.name.indexOf(meshName) >= 0) {
+      meshes.push(object);
+    }
+  }
+  object.children.forEach((child) => {
+    const childrenMeshes = extractMeshesByName(child, meshName);
+    meshes = meshes.concat(childrenMeshes);
+  });
+  return meshes;
+}
+
 function shuffleArray(array) {
   for (let i = array.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [array[i], array[j]] = [array[j], array[i]];
   }
+}
+
+function toDegrees (angle) {
+  return angle * (180 / Math.PI);
+}
+
+function toRadians (angle) {
+  return angle * (Math.PI / 180);
+}
+
+/**
+ * Computes the angle in radians with respect to the positive x-axis
+ * @param {Number} x 
+ * @param {Number} y 
+ */
+function vectorToAngle(x, y) {
+		let angle = Math.atan2(y, x);
+		if(angle < 0) angle += 2 * Math.PI;
+    return angle;
+}
+
+/*
+ * Get the hex color ratio between two colors
+ * Ratio 0 = Col1
+ * Ratio 1 = Col2
+ */
+function getHexColorRatio(col1, col2, ratio) {
+	var r = Math.ceil(parseInt(col1.substring(0,2), 16) * ratio + parseInt(col2.substring(0,2), 16) * (1-ratio));
+	var g = Math.ceil(parseInt(col1.substring(2,4), 16) * ratio + parseInt(col2.substring(2,4), 16) * (1-ratio));
+	var b = Math.ceil(parseInt(col1.substring(4,6), 16) * ratio + parseInt(col2.substring(4,6), 16) * (1-ratio));
+	return hex(r) + hex(g) + hex(b);
+}
+
+/**
+ * Used in getHexColorRatio
+ */
+function hex(x) {
+	x = x.toString(16);
+  return (x.length == 1) ? '0' + x : x;
+}
+
+/**
+ * Interpolates between two numbers.
+ * @param {number} a
+ * @param {number} b
+ * @param {number} factor
+ * @return {number}
+ */
+function lerp(a, b, factor) {
+  return a + (b - a) * factor;
 }
 
 /**
@@ -578,7 +675,7 @@ class Bindings {
   }
 
   /**
-   * Adds an action to the bindings with the given name.
+   * Adds an action to the bindings.
    * @param {Action} action
    */
   addAction(action) {
@@ -586,6 +683,25 @@ class Bindings {
     this.loadKeysToActions();
     this.loadStaticProperties();
     return this;
+  }
+
+  /**
+   * Removes an action from the bindings.
+   * @param {Action} action
+   */
+  removeAction(action) {
+    this.actions.delete(action.getName());
+    this.loadKeysToActions();
+    this.loadStaticProperties();
+    return this;
+  }
+
+  /**
+   * Gets the action for a given name.
+   * @param {string} actionName 
+   */
+  getAction(actionName) {
+    return this.actions.get(actionName);
   }
 
   /**
@@ -668,6 +784,18 @@ class Bindings {
     });
     return exportObj;
   }
+
+  /**
+   * Returns if there are no actions associated with the bindings.
+   * @returns {boolean}
+   */
+  isEmpty() {
+    // Get all non-empty actions.
+    const nonEmptyActions = [...this.actions.values()].filter((action) => {
+      return !action.isEmpty();
+    });
+    return nonEmptyActions.length == 0;
+  }
 }
 
 /**
@@ -700,10 +828,17 @@ class Action {
   }
 
   /**
+   * Clears the key for the given input type.
+   * @param {string} inputType 
+   */
+  clearInputType(inputType) {
+    this.keys.delete(inputType);
+  }
+
+  /**
    * Loads the action from an arbitrary object.
    */
   load(actionObj) {
-    this.id = actionObj.binding_id;
     for (let inputType in actionObj.keys) {
       this.keys.set(inputType, actionObj.keys[inputType]);
     }
@@ -729,10 +864,17 @@ class Action {
    */
   toObject() {
     const exportObj = {};
-    exportObj.binding_id = this.id;
     exportObj.keys = {};
     this.keys.forEach((key, inputType) => exportObj.keys[inputType] = key);
     return exportObj;
+  }
+
+  /**
+   * Detects if the action is empty.
+   * @returns {boolean}
+   */
+  isEmpty() {
+    return this.keys.size == 0;
   }
 }
 
@@ -871,14 +1013,12 @@ class Engine {
   }
 
   constructor() {
-    this.fpsEnabled = Settings$1.get('fps');
     this.started = false;
     this.rendering = false;
     this.plugins = new Set();
     this.entities = new Set();
     // A map of cameras to the entities on which they are attached.
     this.cameras = new Map();
-    SettingsEvent.listen(this.handleSettingsChange.bind(this));
   }
 
   getScene() {
@@ -906,9 +1046,6 @@ class Engine {
     if (!this.renderer) {
       this.renderer = this.createRenderer();
     }
-    if (this.fpsEnabled) {
-      this.enableFpsCounter();
-    }
     this.camera = this.createCamera();
 
     this.started = true;
@@ -922,11 +1059,8 @@ class Engine {
    * Resets the game engine to its initial state.
    */
   reset() {
-    if (this.fpsEnabled) {
-      this.enableFpsCounter();
-    }
     // Reset all plugins.
-    this.plugins.forEach((plugin) => plugin.update(timeStamp));
+    this.plugins.forEach((plugin) => plugin.reset(timeStamp));
     new EngineResetEvent().fire();
     this.resetRender = true;
     this.clearScene();
@@ -956,9 +1090,6 @@ class Engine {
   render(timeStamp) {
     this.renderer.render(this.scene, this.camera);
     TWEEN.update(timeStamp);
-    if (this.rendererStats) {
-      this.rendererStats.update(this.renderer);
-    }
     // Update all plugins.
     this.plugins.forEach((plugin) => plugin.update(timeStamp));
     // Update all entities.
@@ -1011,74 +1142,13 @@ class Engine {
     return camera;
   }
 
-  /**
-   * Enables both FPS and renderer stats.
-   */
-  enableDebug() {
-    this.enableFpsCounter();
-    this.enableRenderStats();
-  }
-
-  disableDebug() {
-    this.disableFpsCounter();
-    this.disableRenderStats();
-  }
-
-  /**
-   * FPS stats for development.
-   */
-  enableFpsCounter() {
-    if (this.stats) {
-      return;
-    }
-    this.fpsEnabled = true;
-    let stats = new Stats();
-    this.stats = stats;
-    document.body.appendChild(stats.dom);
-    let loop = () => {
-      stats.update();
-      if (this.fpsEnabled)
-        requestAnimationFrame(loop);
-    };
-    requestAnimationFrame(loop);
-  }
-
-  disableFpsCounter() {
-    this.fpsEnabled = false;
-    const parent = this.stats.dom.parentElement;
-    if (!parent) {
-      return;
-    }
-    parent.removeChild(this.stats.dom);
-    this.stats = null;
-  }
-
   enableRenderStats() {
-    this.rendererStats = new THREEx.RendererStats();
-    this.rendererStats.domElement.style.position = 'absolute';
-    this.rendererStats.domElement.style.right = '0';
-    this.rendererStats.domElement.style.bottom = '0';
-    document.body.appendChild(this.rendererStats.domElement);
+    this.rendererStats = new RendererStats(this.renderer);
   }
 
   disableRenderStats() {
     document.body.removeChild(this.rendererStats.domElement);
     this.rendererStats = null;
-  }
-
-  /**
-   * Loads settings relevant to the engine.
-   */
-  handleSettingsChange() {
-    if (this.fpsEnabled != Settings$1.get('fps')) {
-      if (Settings$1.get('fps')) {
-        this.fpsEnabled = true;
-        this.enableFpsCounter();
-      } else {
-        this.fpsEnabled = false;
-        this.disableFpsCounter();
-      }
-    }
   }
   
   /**
@@ -1130,7 +1200,10 @@ class Engine {
  * updated on each engine tick and reset gracefully.
  */
 class Plugin {
-  constructor() {}
+  constructor() {
+    this.install();
+    SettingsEvent.listen(this.handleSettingsChange.bind(this));
+  }
 
   /**
    * Installs the plugin into the engine. This method should be final.
@@ -1154,6 +1227,11 @@ class Plugin {
   update(timestamp) {
     console.warn('Plugin update function not implemented');
   }
+
+  /**
+   * Handles a settings change event.
+   */
+  handleSettingsChange() {}
 }
 
 const CONTROLS_KEY = 'era_bindings';
@@ -1187,6 +1265,8 @@ class Controls extends Plugin {
 
     // Registered bindings for a given entity.
     this.registeredBindings = new Map();
+    // Map of controls IDs to entity classes.
+    this.controlIds = new Map();
 
     document.addEventListener('keydown', e => this.setActions(e.keyCode, 1));
     document.addEventListener('keyup', e => this.setActions(e.keyCode, 0));
@@ -1282,6 +1362,80 @@ class Controls extends Plugin {
     this.writeBindingsToStorage(allCustomBindings);
     // Reload bindings.
     this.registerCustomBindings();
+  }
+
+  /**
+   * Clears all custom bindings. Use this with caution, as there is not way to
+   * restore them.
+   * @param 
+   */
+  clearAllCustomBindings() {
+    // Export an empty map.
+    this.writeBindingsToStorage(new Map());
+    // Reload bindings.
+    this.reloadDefaultBindings();
+    this.registerCustomBindings();
+  }
+
+  /**
+   * Clears all custom bindings for a given entity.
+   * @param {string} controlsId
+   */
+  clearCustomBindingsForEntity(controlsId) {
+    // Load custom bindings from storage.
+    const allCustomBindings = this.loadCustomBindingsFromStorage();
+    // Clear entity.
+    allCustomBindings.delete(controlsId);
+    // Export.
+    this.writeBindingsToStorage(allCustomBindings);
+    // Reload bindings.
+    this.reloadDefaultBindings();
+    this.registerCustomBindings();
+  }
+
+  /**
+   * Clears all custom bindings for a given entity. If no input type is given,
+   * all input types will be cleared.
+   * @param {string} controlsId
+   * @param {string} actionName
+   * @param {string} inputType
+   */
+  clearCustomBindingsForAction(controlsId, actionName, inputType) {
+    // Load custom bindings from storage.
+    const allCustomBindings = this.loadCustomBindingsFromStorage();
+    const entityBindings = allCustomBindings.get(controlsId);
+    const action = entityBindings.getAction(actionName);
+    if (!action) {
+      return;
+    }
+    // Modify the action for the given input type.
+    if (inputType) {
+      action.clearInputType(inputType);
+    }
+    // Check if the action is empty or if no input type is provided. If so,
+    // remove.
+    if (action.isEmpty() || inputType === undefined) {
+      entityBindings.removeAction(action);
+    }
+    // Check if entity bindings are empty. If so, remove from storage.
+    if (entityBindings.isEmpty()) {
+      allCustomBindings.delete(controlsId);
+    }
+    // Export.
+    this.writeBindingsToStorage(allCustomBindings);
+    // Reload bindings.
+    this.reloadDefaultBindings();
+    this.registerCustomBindings();
+  }
+
+  /**
+   * Reloads all default bindings for registered bindings.
+   */
+  reloadDefaultBindings() {
+    this.controlIds.forEach((staticEntity, id) => {
+      const defaultBindings = staticEntity.GetBindings();
+      this.registeredBindings.set(id, defaultBindings);
+    });
   }
 
   /**
@@ -1557,6 +1711,8 @@ class Controls extends Plugin {
    */
   registerBindings(entity) {
     const bindings = entity.GetBindings();
+    // Register the entity controls for later use when reloading defaults.
+    this.controlIds.set(bindings.getId(), entity);
     // Check if custom bindings have already been set.
     const customBindings = this.registeredBindings.get(bindings.getId());
     if (customBindings) {
@@ -1587,7 +1743,7 @@ class Controls extends Plugin {
   getBindings(controlsId) {
     const bindings = this.registeredBindings.get(controlsId);
     if (!bindings) {
-      console.warn('No bindings provided for id', controlsId);
+      return;
     }
     return bindings;
   }
@@ -1881,28 +2037,24 @@ class Physics extends Plugin {
 
 const ENTITY_BINDINGS = {
   BACKWARD: {
-    binding_id: 0,
     keys: {
       keyboard: 83,
       controller: 'axes1',
     }
   },
   FORWARD: {
-    binding_id: 5,
     keys: {
       keyboard: 87,
       controller: 'axes1',
     }
   },
   LEFT: {
-    binding_id: 6,
     keys: {
       keyboard: 65,
       controller: 'axes0',
     }
   },
   RIGHT: {
-    binding_id: 7,
     keys: {
       keyboard: 68,
       controller: 'axes0',
@@ -1953,12 +2105,22 @@ class Entity extends THREE.Object3D {
   }
 
   /**
+   * Returns the default set of bindings for the entity.
+   * @returns {Bindings}
+   */
+  getDefaultBindings() {
+    return this.constructor.GetBindings();
+  }
+
+  /**
    * Creates the mesh and physics object.
    */
   build() {
-    if (this.modelName) {
-      this.generateMesh();
+    this.mesh = this.generateMesh();
+    if (this.mesh) {
+      this.add(this.mesh);
     }
+    this.cameraArm = this.createCameraArm();
     if (this.physicsEnabled) {
       this.generatePhysicsBody();
     }
@@ -1971,6 +2133,9 @@ class Entity extends THREE.Object3D {
    * of all objects in memory.
    */
   destroy() {
+    if (this.parent) {
+      this.parent.remove(this);
+    }
     Engine.get().unregisterEntity(this);
   }
 
@@ -1982,10 +2147,7 @@ class Entity extends THREE.Object3D {
       return console.warn('Model name not provided');
     }
     const scene = Models.get().storage.get(this.modelName).clone();
-    this.mesh = scene;
-    this.add(this.mesh);
-    this.cameraArm = this.createCameraArm();
-    return this.mesh;
+    return scene;
   }
 
   /**
@@ -2185,13 +2347,12 @@ class Light extends Plugin {
     super();
     this.ambientLight = null;
     this.directionalLights = [];
-    SettingsEvent.listen(this.handleSettingsChange.bind(this));
   }
   
   /** @override */
   reset() {
     instance$4 = null;
-    // TODO: Disponse of lighting objects correctly.
+    // TODO: Dispose of lighting objects correctly.
   }
 
   /** @override */
@@ -2303,9 +2464,7 @@ class Light extends Plugin {
     light.shadow.mapSize.height = 2048;
   }
   
-  /**
-   * Handles the settings change event.
-   */
+  /** @override */
   handleSettingsChange() {
     if (!!Settings$1.get('shaders') == !!this.shadersEnabled) {
       return;
@@ -2645,4 +2804,390 @@ class Network {
   }
 }
 
-export { Action, Audio, Bindings, Controls, Engine, EngineResetEvent, Entity, EraEvent, Events, Light, Models, Network, Physics, Plugin, Settings$1 as Settings, SettingsEvent };
+/**
+ * @author mrdoob / http://mrdoob.com/
+ * @author jetienne / http://jetienne.com/
+ * @author rogerscg / https://github.com/rogerscg
+ */
+
+const STATS_CONTAINER_CSS = `
+  bottom: 0;
+  position: fixed;
+  left: 0;
+`;
+
+const WEBGL_CONTAINER_CSS = `
+  background-color: #002;
+  color: #0ff;
+  cursor: pointer;
+  font-family: Helvetica,Arial,sans-serif;
+  font-size: 9px;
+  font-weight: bold;
+  line-height: 15px;
+  opacity: 0.9;
+  padding: 0 0 3px 3px;
+  text-align: left;
+  width: 80px;
+`;
+
+const FPS_CONTAINER_CSS = `
+  cursor: pointer;
+  opacity: 0.9;
+`;
+
+ /**
+  * A plugin wrapper for WebGL renderer stats and FPS in Three.js.
+  */
+class RendererStats$1 extends Plugin {
+  /**
+   * @param {THREE.WebGLRenderer} renderer
+   */
+  constructor(renderer) {
+    super();
+    this.webGLStats = new WebGLStats(renderer);
+    this.fpsStats = new FpsStats();
+    this.dom = this.createDom();
+    this.dom.appendChild(this.webGLStats.dom);
+    this.dom.appendChild(this.fpsStats.dom);
+    renderer.domElement.parentElement.appendChild(this.dom);
+  }
+
+  /**
+   * Creates the container DOM.
+   */
+  createDom() {
+    const container = document.createElement('div');
+    container.style.cssText = STATS_CONTAINER_CSS;
+    return container;
+  }
+
+  
+  /** @override */
+  update() {
+    this.fpsStats.update();
+    this.webGLStats.update();
+  }
+
+  /** @override */
+  handleSettingsChange() {
+    
+  }
+}
+
+/**
+ * Interface for a stats component.
+ */
+class Stats {
+  constructor() {
+    this.dom = this.createDom();
+  }
+
+  /**
+   * Updates the stats DOM.
+   */
+  update() {
+    return console.warn('Stats update function not defined');
+  }
+
+  /**
+   * Enables the stats DOM.
+   */
+  enable() {
+    return console.warn('Stats enable function not defined');
+  }
+
+  /**
+   * Disables the stats DOM.
+   */
+  disable() {
+    return console.warn('Stats disable function not defined');
+  }
+}
+
+class WebGLStats extends Stats {
+  constructor(renderer) {
+    super();
+    this.renderer = renderer;
+  }
+
+  /** @override */
+  createDom() {
+    const container	= document.createElement('div');
+    container.setAttribute('class', 'render-stats');
+	  container.style.cssText = WEBGL_CONTAINER_CSS;
+
+	  const msText= document.createElement('div');
+	  msText.innerHTML= 'WebGLRenderer';
+	  container.appendChild(msText);
+	
+    const msTexts	= [];
+    const nLines	= 9;
+    for (let i = 0; i < nLines; i++){
+      msTexts[i]	= document.createElement('div');
+      msTexts[i].style.backgroundColor = '#001632';
+      container.appendChild(msTexts[i]);		
+    }
+    this.msTexts = msTexts;
+    return container;
+  }
+
+
+  /** @override */
+  update() {
+    if (!this.msTexts) {
+      return;
+    }
+    const msTexts = this.msTexts;
+    let i	= 0;
+    msTexts[i++].textContent = '=== Memory ===';
+    msTexts[i++].textContent = 'Programs: '	+ this.renderer.info.programs.length;
+    msTexts[i++].textContent = 'Geometries: '+ this.renderer.info.memory.geometries;
+    msTexts[i++].textContent = 'Textures: ' + this.renderer.info.memory.textures;
+
+    msTexts[i++].textContent = '=== Render ===';
+    msTexts[i++].textContent = 'Calls: ' + this.renderer.info.render.calls;
+    msTexts[i++].textContent = 'Triangles: ' + this.renderer.info.render.triangles;
+    msTexts[i++].textContent = 'Lines: ' + this.renderer.info.render.lines;
+    msTexts[i++].textContent = 'Points: '	+ this.renderer.info.render.points;
+  }
+}
+
+
+
+class FpsStats extends Stats {
+  constructor() {
+    super();
+    this.mode = 0;
+    this.fps = 0;
+    this.beginTime = (performance || Date).now();
+    this.prevTime = this.beginTime;
+    this.frames = 0;
+  }
+
+  /** @override */
+  createDom() {
+    // Create root.
+    const container = document.createElement('div');
+    this.dom = container;
+    container.classList.add('render-stats');
+    container.style.cssText = FPS_CONTAINER_CSS;
+
+    // Switch panels on click.
+    container.addEventListener('click', (event) => {
+      event.preventDefault();
+      this.showPanel(++ this.mode % container.children.length);
+    }, false);
+    
+
+    this.fpsPanel = this.addPanel(new Panel('FPS', '#0ff', '#002'));
+    this.msPanel = this.addPanel(new Panel('MS', '#0f0', '#020'));
+    if (self.performance && self.performance.memory) {
+      this.memPanel = this.addPanel(new Panel('MB', '#f08', '#201'));
+    }
+    this.showPanel(0);
+    return container;
+  }
+
+	addPanel(panel) {
+		this.dom.appendChild(panel.dom);
+		return panel;
+	}
+  
+	showPanel(id) {
+		for (let i = 0; i < this.dom.children.length; i++) {
+			this.dom.children[i].style.display = i === id ? 'block' : 'none';
+		}
+		this.mode = id;
+  }
+  
+	begin() {
+		this.beginTime = (performance || Date).now();
+  }
+    
+  getFPS(){
+    return this.fps;
+  }
+
+  end() {
+    this.frames++;
+    const time = (performance || Date).now();
+    this.msPanel.update(time - this.beginTime, 200);
+    if (time >= this.prevTime + 1000) {
+      this.fps = (this.frames * 1000) / (time - this.prevTime);
+      this.fpsPanel.update(this.fps, 100);
+      this.prevTime = time;
+      this.frames = 0;
+      if (this.memPanel) {
+        const memory = performance.memory;
+        this.memPanel.update(memory.usedJSHeapSize / 1048576,
+                             memory.jsHeapSizeLimit / 1048576);
+      }
+    }
+    return time;
+  }
+
+  update() {
+    this.beginTime = this.end();
+  }
+}
+
+// Panel constants.
+const PR = Math.round(window.devicePixelRatio || 1);
+const WIDTH = 83 * PR;
+const HEIGHT = 48 * PR;
+const TEXT_X = 3 * PR;
+const TEXT_Y = 2 * PR;
+const GRAPH_X = 3 * PR;
+const GRAPH_Y = 15 * PR;
+const GRAPH_WIDTH = 74 * PR;
+const GRAPH_HEIGHT = 30 * PR;
+
+/**
+ * An individual panel on the FPS stats component.
+ */
+class Panel {
+  constructor(name, fg, bg) {
+    this.name = name;
+    this.fg = fg;
+    this.bg = bg;
+    this.createDom();
+  }
+
+  createDom() {
+    const canvas = document.createElement('canvas');
+    canvas.width = WIDTH;
+    canvas.height = HEIGHT;
+    canvas.style.cssText = 'width:83px;height:48px';
+    
+    const context = canvas.getContext('2d');
+    context.font = 'bold ' + (9 * PR) + 'px Helvetica,Arial,sans-serif';
+    context.textBaseline = 'top';
+    
+    context.fillStyle = this.bg;
+    context.fillRect(0, 0, WIDTH, HEIGHT);
+    
+    context.fillStyle = this.fg;
+    context.fillText(name, TEXT_X, TEXT_Y);
+    context.fillRect(GRAPH_X, GRAPH_Y, GRAPH_WIDTH, GRAPH_HEIGHT);
+    
+    context.fillStyle = this.bg;
+    context.globalAlpha = 0.9;
+    context.fillRect(GRAPH_X, GRAPH_Y, GRAPH_WIDTH, GRAPH_HEIGHT);
+    this.dom = canvas;
+    this.canvas = canvas;
+    this.context = context;
+  }
+
+  update(value, maxValue) {
+    const canvas = this.canvas;
+    const context = this.context;
+    const min = Math.min(Infinity, value);
+    const max = Math.max(0, value);
+
+    context.fillStyle = this.bg;
+    context.globalAlpha = 1;
+    context.fillRect(0, 0, WIDTH, GRAPH_Y);
+    context.fillStyle = this.fg;
+    context.fillText(`${Math.round(value)} ${this.name} (${Math.round(min)}-${Math.round(max)})`, TEXT_X, TEXT_Y);
+
+    context.drawImage(canvas, GRAPH_X + PR, GRAPH_Y, GRAPH_WIDTH - PR, GRAPH_HEIGHT, GRAPH_X, GRAPH_Y, GRAPH_WIDTH - PR, GRAPH_HEIGHT);
+
+    context.fillRect(GRAPH_X + GRAPH_WIDTH - PR, GRAPH_Y, PR, GRAPH_HEIGHT);
+
+    context.fillStyle = this.bg;
+    context.globalAlpha = 0.9;
+    context.fillRect(GRAPH_X + GRAPH_WIDTH - PR, GRAPH_Y, PR, Math.round((1 - (value / maxValue)) * GRAPH_HEIGHT));
+  }
+}
+
+const WIDTH$1 = 250;
+
+const SUFFIXES = ['ft', 'bk', 'up', 'dn', 'rt', 'lf'];
+
+/**
+ * Wrapper class for a cube geometry, representing a skybox.
+ */
+class Skybox extends THREE.Object3D {
+  constructor() {
+    super();
+    this.cube = null;
+  }
+
+  /**
+   * Loads the skybox with a given texture. Requires that the 
+   * @param {string} directory
+   * @param {string} filename
+   * @param {string} extension
+   * @async
+   */
+  async load(directory, filename, extension) {
+    if (!directory || !filename || !extension) {
+      return console.warn('Not all params present for skybox load');
+    }
+    // Append a trailing slash to the directory if it doesn't exist.
+    if (!directory.endsWith('/')) {
+      directory += '/';
+    }
+    // Insert a period if the extension doesn't have one.
+    if (!extension.startsWith('.')) {
+      extension = '.' + extension;
+    }
+    // Load each texture for the cube.
+    const cubeMaterials =
+      await this.createCubeMaterials(directory, filename, extension);
+    
+    const geometry = new THREE.CubeGeometry(WIDTH$1, WIDTH$1, WIDTH$1);
+    const cube = new THREE.Mesh(geometry, cubeMaterials);
+    this.cube = cube;
+    this.add(cube);
+  }
+
+  /**
+   * Loads each cube face material.
+   * @param {string} directory
+   * @param {string} filename
+   * @param {string} extension
+   * @returns {Array<THREE.Material>}
+   * @async
+   */
+  async createCubeMaterials(directory, filename, extension) {
+    // Load all textures first.
+    const loader = extension == '.tga' ?
+      new THREE.TGALoader() :
+      new THREE.TextureLoader();
+    const texturePromises = new Array();
+    for (let i = 0; i < SUFFIXES.length; ++i) {
+      const suffix = SUFFIXES[i];
+      const path = `${directory}${filename}_${suffix}${extension}`;
+      texturePromises.push(this.loadTexture(loader, path));
+    }
+    const textures = await Promise.all(texturePromises);
+    // Create all materials from textures.
+    const cubeMaterials = new Array();
+    for (let i = 0; i < textures.length; ++i) {
+      const mat = new THREE.MeshBasicMaterial({
+        map: textures[i],
+        side: THREE.DoubleSide,
+      });
+      cubeMaterials.push(mat);
+    }
+    return cubeMaterials;
+  }
+
+  /**
+   * Wrapper for loading a texture.
+   * @param {THREE.Loader} loader
+   * @param {string} path
+   * @returns {THREE.Texture}
+   * @async
+   */
+  async loadTexture(loader, path) {
+    return new Promise((resolve) => {
+      loader.load(path, (texture) => {
+        resolve(texture);
+      });
+    });
+  }
+}
+
+export { Action, Audio, Bindings, Controls, Engine, EngineResetEvent, Entity, EraEvent, Events, Light, Models, Network, Physics, Plugin, RendererStats$1 as RendererStats, Settings$1 as Settings, SettingsEvent, Skybox, createUUID, disableShadows, dispose, extractMeshes, extractMeshesByName, getHexColorRatio, lerp, loadJsonFromFile, shuffleArray, toDegrees, toRadians, vectorToAngle };

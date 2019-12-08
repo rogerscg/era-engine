@@ -1,13 +1,15 @@
 import XWing from './xwing.js';
-import {Controls, Engine, Light, Models, Skybox, extractMeshesByName} from '/src/era.js';
+import {Controls, Engine, Light, Models, RendererStats, Skybox} from '/src/era.js';
 
 async function start() {
   // Create engine and load models.
   const engine = Engine.get();
   await Models.get().loadAllFromFile('/examples/basic/models/models.json');
   engine.start();
-  engine.enableDebug();
   const scene = engine.getScene();
+
+  // Enable debug.
+  new RendererStats(engine.getRenderer());
 
   // Create lighting.
   const light = Light.get();

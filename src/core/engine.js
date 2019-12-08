@@ -1,6 +1,4 @@
 import EngineResetEvent from '../events/engine_reset_event.js';
-import Settings from './settings.js';
-import SettingsEvent from '../events/settings_event.js';
 import {RendererTypes, rendererPool} from './renderer_pool.js';
 
 let instance = null;
@@ -20,14 +18,12 @@ class Engine {
   }
 
   constructor() {
-    this.fpsEnabled = Settings.get('fps');
     this.started = false;
     this.rendering = false;
     this.plugins = new Set();
     this.entities = new Set();
     // A map of cameras to the entities on which they are attached.
     this.cameras = new Map();
-    SettingsEvent.listen(this.handleSettingsChange.bind(this));
   }
 
   getScene() {
@@ -55,9 +51,6 @@ class Engine {
     if (!this.renderer) {
       this.renderer = this.createRenderer();
     }
-    if (this.fpsEnabled) {
-      this.enableFpsCounter();
-    }
     this.camera = this.createCamera();
 
     this.started = true;
@@ -71,11 +64,8 @@ class Engine {
    * Resets the game engine to its initial state.
    */
   reset() {
-    if (this.fpsEnabled) {
-      this.enableFpsCounter();
-    }
     // Reset all plugins.
-    this.plugins.forEach((plugin) => plugin.update(timeStamp));
+    this.plugins.forEach((plugin) => plugin.reset(timeStamp));
     new EngineResetEvent().fire();
     this.resetRender = true;
     this.clearScene();
@@ -105,9 +95,6 @@ class Engine {
   render(timeStamp) {
     this.renderer.render(this.scene, this.camera);
     TWEEN.update(timeStamp);
-    if (this.rendererStats) {
-      this.rendererStats.update(this.renderer);
-    }
     // Update all plugins.
     this.plugins.forEach((plugin) => plugin.update(timeStamp));
     // Update all entities.
@@ -160,74 +147,13 @@ class Engine {
     return camera;
   }
 
-  /**
-   * Enables both FPS and renderer stats.
-   */
-  enableDebug() {
-    this.enableFpsCounter();
-    this.enableRenderStats();
-  }
-
-  disableDebug() {
-    this.disableFpsCounter();
-    this.disableRenderStats();
-  }
-
-  /**
-   * FPS stats for development.
-   */
-  enableFpsCounter() {
-    if (this.stats) {
-      return;
-    }
-    this.fpsEnabled = true;
-    let stats = new Stats();
-    this.stats = stats;
-    document.body.appendChild(stats.dom);
-    let loop = () => {
-      stats.update();
-      if (this.fpsEnabled)
-        requestAnimationFrame(loop);
-    };
-    requestAnimationFrame(loop);
-  }
-
-  disableFpsCounter() {
-    this.fpsEnabled = false;
-    const parent = this.stats.dom.parentElement;
-    if (!parent) {
-      return;
-    }
-    parent.removeChild(this.stats.dom);
-    this.stats = null;
-  }
-
   enableRenderStats() {
-    this.rendererStats = new THREEx.RendererStats();
-    this.rendererStats.domElement.style.position = 'absolute';
-    this.rendererStats.domElement.style.right = '0';
-    this.rendererStats.domElement.style.bottom = '0';
-    document.body.appendChild(this.rendererStats.domElement);
+    this.rendererStats = new RendererStats(this.renderer);
   }
 
   disableRenderStats() {
     document.body.removeChild(this.rendererStats.domElement);
     this.rendererStats = null;
-  }
-
-  /**
-   * Loads settings relevant to the engine.
-   */
-  handleSettingsChange() {
-    if (this.fpsEnabled != Settings.get('fps')) {
-      if (Settings.get('fps')) {
-        this.fpsEnabled = true;
-        this.enableFpsCounter();
-      } else {
-        this.fpsEnabled = false;
-        this.disableFpsCounter();
-      }
-    }
   }
   
   /**

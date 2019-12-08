@@ -1,7 +1,6 @@
 import Engine from './engine.js';
 import Plugin from './plugin.js';
 import Settings from './settings.js';
-import SettingsEvent from '../events/settings_event.js';
 
 let instance = null;
 
@@ -24,13 +23,12 @@ class Light extends Plugin {
     super();
     this.ambientLight = null;
     this.directionalLights = [];
-    SettingsEvent.listen(this.handleSettingsChange.bind(this));
   }
   
   /** @override */
   reset() {
     instance = null;
-    // TODO: Disponse of lighting objects correctly.
+    // TODO: Dispose of lighting objects correctly.
   }
 
   /** @override */
@@ -142,9 +140,7 @@ class Light extends Plugin {
     light.shadow.mapSize.height = 2048;
   }
   
-  /**
-   * Handles the settings change event.
-   */
+  /** @override */
   handleSettingsChange() {
     if (!!Settings.get('shaders') == !!this.shadersEnabled) {
       return;

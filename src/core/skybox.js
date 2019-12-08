@@ -35,10 +35,9 @@ class Skybox extends THREE.Object3D {
       await this.createCubeMaterials(directory, filename, extension);
     
     const geometry = new THREE.CubeGeometry(WIDTH, WIDTH, WIDTH);
-    const cubeMaterial = new THREE.MeshFaceMaterial(cubeMaterials);
-    const cube = new THREE.Mesh(geometry, cubeMaterial);
+    const cube = new THREE.Mesh(geometry, cubeMaterials);
     this.cube = cube;
-    this.add(cube); 
+    this.add(cube);
   }
 
   /**
