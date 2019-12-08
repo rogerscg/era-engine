@@ -2,7 +2,7 @@
  * The default settings for the ERA engine.
  */
 const DEFAULT_SETTINGS = {
-  debug: false,
+  debug: true,
   mouse_sensitivity: 50,
   shaders: true,
   volume: 50,
@@ -2844,12 +2844,16 @@ class RendererStats$1 extends Plugin {
    */
   constructor(renderer) {
     super();
+    this.renderer = renderer;
+    this.enabled = Settings$1.get('debug');
     this.webGLStats = new WebGLStats(renderer);
     this.fpsStats = new FpsStats();
     this.dom = this.createDom();
     this.dom.appendChild(this.webGLStats.dom);
     this.dom.appendChild(this.fpsStats.dom);
-    renderer.domElement.parentElement.appendChild(this.dom);
+    if (this.enabled) {
+      renderer.domElement.parentElement.appendChild(this.dom);
+    }
   }
 
   /**
@@ -2861,16 +2865,41 @@ class RendererStats$1 extends Plugin {
     return container;
   }
 
+  /**
+   * Enables renderer stats.
+   */
+  enable() {
+    this.enabled = true;
+    this.renderer.domElement.parentElement.appendChild(this.dom);
+  }
+
+  /**
+   * Disables renderer stats.
+   */
+  disable() {
+    this.enabled = false;
+    this.dom.parentElement.removeChild(this.dom);
+  }
+
   
   /** @override */
   update() {
+    if (!this.enabled) {
+      return;
+    }
     this.fpsStats.update();
     this.webGLStats.update();
   }
 
   /** @override */
   handleSettingsChange() {
-    
+    const currEnabled = Settings$1.get('debug');
+    if (currEnabled && !this.enabled) {
+      return this.enable();
+    }
+    if (!currEnabled && this.enabled) {
+      return this.disable();
+    }
   }
 }
 
@@ -2951,8 +2980,6 @@ class WebGLStats extends Stats {
     msTexts[i++].textContent = 'Points: '	+ this.renderer.info.render.points;
   }
 }
-
-
 
 class FpsStats extends Stats {
   constructor() {

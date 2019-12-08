@@ -5,6 +5,7 @@
  */
 
 import Plugin from './plugin.js';
+import Settings from './settings.js';
 
 const STATS_CONTAINER_CSS = `
   bottom: 0;
@@ -40,12 +41,16 @@ class RendererStats extends Plugin {
    */
   constructor(renderer) {
     super();
+    this.renderer = renderer;
+    this.enabled = Settings.get('debug');
     this.webGLStats = new WebGLStats(renderer);
     this.fpsStats = new FpsStats();
     this.dom = this.createDom();
     this.dom.appendChild(this.webGLStats.dom);
     this.dom.appendChild(this.fpsStats.dom);
-    renderer.domElement.parentElement.appendChild(this.dom);
+    if (this.enabled) {
+      renderer.domElement.parentElement.appendChild(this.dom);
+    }
   }
 
   /**
@@ -57,16 +62,41 @@ class RendererStats extends Plugin {
     return container;
   }
 
+  /**
+   * Enables renderer stats.
+   */
+  enable() {
+    this.enabled = true;
+    this.renderer.domElement.parentElement.appendChild(this.dom);
+  }
+
+  /**
+   * Disables renderer stats.
+   */
+  disable() {
+    this.enabled = false;
+    this.dom.parentElement.removeChild(this.dom);
+  }
+
   
   /** @override */
   update() {
+    if (!this.enabled) {
+      return;
+    }
     this.fpsStats.update();
     this.webGLStats.update();
   }
 
   /** @override */
   handleSettingsChange() {
-    
+    const currEnabled = Settings.get('debug');
+    if (currEnabled && !this.enabled) {
+      return this.enable();
+    }
+    if (!currEnabled && this.enabled) {
+      return this.disable();
+    }
   }
 }
 
@@ -149,8 +179,6 @@ class WebGLStats extends Stats {
     msTexts[i++].textContent = 'Points: '	+ this.renderer.info.render.points;
   }
 }
-
-
 
 class FpsStats extends Stats {
   constructor() {

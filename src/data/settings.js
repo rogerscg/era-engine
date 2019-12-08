@@ -2,7 +2,7 @@
  * The default settings for the ERA engine.
  */
 const DEFAULT_SETTINGS = {
-  debug: false,
+  debug: true,
   mouse_sensitivity: 50,
   shaders: true,
   volume: 50,
