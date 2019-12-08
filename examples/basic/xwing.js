@@ -1,11 +1,16 @@
+import Cannons from './cannons.js';
 import {Bindings, Controls, Entity} from '/src/era.js';
 
 const XWING_BINDINGS = {
   SPRINT: {
-    binding_id: 8,
     keys: {
       keyboard: 16,
       controller: 'button5',
+    }
+  },
+  FIRE: {
+    keys: {
+      keyboard: 32,
     }
   },
 };
@@ -30,6 +35,16 @@ class XWing extends Entity {
     this.modelName = 'X-Wing';
     this.rotateTarget = 0;
     this.rotateAnim = null;
+    this.cannons = null;
+  }
+
+  /** @override */
+  build() {
+    super.build();
+    // Build cannons based on offsets.
+    this.cannons = new Cannons(970, 400, 220).build();
+    this.mesh.add(this.cannons);
+    return this;
   }
 
   /** @override */
@@ -47,6 +62,16 @@ class XWing extends Entity {
 
   /** @override */
   update() {
+    this.updateRoll();
+    if (this.getActionValue(this.bindings.FIRE)) {
+      this.cannons.fire();
+    }
+  }
+
+  /**
+   * Updates the roll of the X-Wing.
+   */
+  updateRoll() {
     if (this.getActionValue(this.bindings.LEFT)) {
       this.rotate(-.2);
     } else if (this.getActionValue(this.bindings.RIGHT)) {

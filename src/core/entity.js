@@ -7,28 +7,24 @@ import {createUUID} from './util.js';
 
 const ENTITY_BINDINGS = {
   BACKWARD: {
-    binding_id: 0,
     keys: {
       keyboard: 83,
       controller: 'axes1',
     }
   },
   FORWARD: {
-    binding_id: 5,
     keys: {
       keyboard: 87,
       controller: 'axes1',
     }
   },
   LEFT: {
-    binding_id: 6,
     keys: {
       keyboard: 65,
       controller: 'axes0',
     }
   },
   RIGHT: {
-    binding_id: 7,
     keys: {
       keyboard: 68,
       controller: 'axes0',
@@ -90,9 +86,11 @@ class Entity extends THREE.Object3D {
    * Creates the mesh and physics object.
    */
   build() {
-    if (this.modelName) {
-      this.generateMesh();
+    this.mesh = this.generateMesh();
+    if (this.mesh) {
+      this.add(this.mesh);
     }
+    this.cameraArm = this.createCameraArm();
     if (this.physicsEnabled) {
       this.generatePhysicsBody();
     }
@@ -116,10 +114,7 @@ class Entity extends THREE.Object3D {
       return console.warn('Model name not provided');
     }
     const scene = Models.get().storage.get(this.modelName).clone();
-    this.mesh = scene;
-    this.add(this.mesh);
-    this.cameraArm = this.createCameraArm();
-    return this.mesh;
+    return scene;
   }
 
   /**

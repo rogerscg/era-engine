@@ -191,7 +191,6 @@ class Action {
    * Loads the action from an arbitrary object.
    */
   load(actionObj) {
-    this.id = actionObj.binding_id;
     for (let inputType in actionObj.keys) {
       this.keys.set(inputType, actionObj.keys[inputType]);
     }
@@ -217,7 +216,6 @@ class Action {
    */
   toObject() {
     const exportObj = {};
-    exportObj.binding_id = this.id;
     exportObj.keys = {};
     this.keys.forEach((key, inputType) => exportObj.keys[inputType] = key);
     return exportObj;

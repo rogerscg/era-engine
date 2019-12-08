@@ -516,7 +516,7 @@ class Controls extends Plugin {
   getBindings(controlsId) {
     const bindings = this.registeredBindings.get(controlsId);
     if (!bindings) {
-      console.warn('No bindings provided for id', controlsId);
+      return;
     }
     return bindings;
   }

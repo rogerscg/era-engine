@@ -1,5 +1,5 @@
 import XWing from './xwing.js';
-import {Controls, Engine, Light, Models, Skybox} from '/src/era.js';
+import {Controls, Engine, Light, Models, Skybox, extractMeshesByName} from '/src/era.js';
 
 async function start() {
   // Create engine and load models.
@@ -28,17 +28,8 @@ async function start() {
 
   // Attach camera to XWing.
   engine.attachCamera(xwing);
-  window.xwing = xwing;
   Controls.get().registerEntity(xwing);
-  Controls.get().useOrbitControls()
-}
-
-window.setControls = function() {
-  Controls.get().setCustomBinding(xwing.getControlsId(), xwing.bindings.RIGHT, 'keyboard', 84);
-}
-
-window.clearControls = function () {
-  Controls.get().clearCustomBindingsForAction(xwing.getControlsId(), xwing.bindings.RIGHT, 'keyboard');
+  Controls.get().useOrbitControls();
 }
 
 document.addEventListener('DOMContentLoaded', start);

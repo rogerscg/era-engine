@@ -63,16 +63,20 @@ function extractMeshes(object, materialFilter, filterOut = true) {
 
 /**
  * Extracts an array of meshes with a certain name within an object hierarchy.
+ * The provided name can be a substring of the mesh name.
+ * @param {THREE.Object3D} object
+ * @param {string} meshName
+ * @returns {Array<THREE.Mesh>}
  */
-function extractMeshesByName(object, meshFilter) {
+function extractMeshesByName(object, meshName = '') {
   let meshes = new Array();
   if (object.type == 'Mesh') {
-    if (object.name.indexOf(meshFilter) >= 0) {
+    if (object.name.indexOf(meshName) >= 0) {
       meshes.push(object);
     }
   }
   object.children.forEach((child) => {
-    const childrenMeshes = extractMeshesByName(child, meshFilter);
+    const childrenMeshes = extractMeshesByName(child, meshName);
     meshes = meshes.concat(childrenMeshes);
   });
   return meshes;
