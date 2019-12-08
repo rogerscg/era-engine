@@ -1,5 +1,5 @@
 import Laser from "./laser.js";
-import {Engine} from "/src/era.js";
+import {Audio, Engine} from "/src/era.js";
 
 const COOLDOWN_TIME = 150;
 
@@ -53,6 +53,8 @@ class Cannons extends THREE.Object3D {
     if (Date.now() - this.lastFire < COOLDOWN_TIME) {
       return;
     }
+    // Play sound.
+    Audio.get().playSound('xwing_fire');
     this.emitters.forEach((emitter) => {
       // Create laser at a certain point.
       const laser = new Laser().build();

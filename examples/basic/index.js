@@ -1,10 +1,23 @@
 import XWing from './xwing.js';
-import {Controls, Engine, Light, Models, RendererStats, Skybox} from '/src/era.js';
+import {
+  Audio,
+  Controls,
+  Engine,
+  Light,
+  Models,
+  RendererStats,
+  Skybox
+} from '/src/era.js';
 
 async function start() {
+  // Load models.
+  await Models.get().loadAllFromFile('/examples/basic/models/models.json');
+
+  // Load sounds.
+  await Audio.get().loadAllFromFile('/examples/basic/sounds/sounds.json');
+
   // Create engine and load models.
   const engine = Engine.get();
-  await Models.get().loadAllFromFile('/examples/basic/models/models.json');
   engine.start();
   const scene = engine.getScene();
 

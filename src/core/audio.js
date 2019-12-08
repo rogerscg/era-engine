@@ -1,31 +1,27 @@
-import DEFAULT_SETTINGS from '../data/settings.js';
-import SOUND_DATA from '../data/sounds.js';
 import EngineResetEvent from '../events/engine_reset_event.js';
 import Settings from './settings.js';
 import SettingsEvent from '../events/settings_event.js';
-import {createUUID, shuffleArray} from './util.js';
+import {createUUID, loadJsonFromFile, shuffleArray} from './util.js';
 
 const CROSSFADE_TIME = 500;
+
+let instance = null;
 
 /** 
  * Core implementation for all audio. Manages the loading, playback, and
  * other controls needed for in-game audio.
  */
-let audioInstance = null;
-
 class Audio {
-
-  /**
-   * Enforces a singleton audio instance.
-   */
   static get() {
-    if (!audioInstance) {
-      audioInstance = new Audio();
+    if (!instance) {
+      instance = new Audio();
     }
-    return audioInstance;
+    return instance;
   }
 
   constructor() {
+    this.defaultVolume = 50;
+
     this.context = new AudioContext();
 
     // Map containing all sounds used in the engine. Key is the sound name,
@@ -45,32 +41,53 @@ class Audio {
   }
 
   /**
-   * Loads all sounds specified in the sound data file.
+   * Loads all sounds described from the provided file path. The file should
+   * be a JSON file. Follow the example at /src/data/sounds.json.
+   * @param {string} filePath
+   * @async
    */
-  loadSounds() {
-    const promises = [];
-    for (let name in SOUND_DATA) {
-      const soundData = SOUND_DATA[name];
-      promises.push(this.loadSound(soundData.name, soundData.extension));
+  async loadAllFromFile(filePath) {
+    if (!filePath) {
+      return;
     }
-    return Promise.all(promises).then((sounds) => {
-      sounds.forEach((sound) => this.sounds.set(sound.name, sound.buffer));
-    });
+    // Load JSON file with all sounds and options.
+    let allSoundData;
+    try {
+      allSoundData = await loadJsonFromFile(filePath);
+    } catch (e) {
+      throw new Error(e);
+    }
+    // Extract the directory from the file path, use for loading sounds.
+    const directory = filePath.substr(0, filePath.lastIndexOf('/') + 1);
+    const promises = new Array();
+    for (let name in allSoundData) {
+      const options = allSoundData[name];
+      promises.push(this.loadSound(directory, name, options));
+    }
+    return Promise.all(promises);
   }
 
   /**
-   * Loads an individual sound.
+   * Loads an individual sound and stores it.
+   * @param {string} directory
+   * @param {string} name
+   * @param {Object} options
    */
-  loadSound(name, extension) {
-    const path = `assets/sounds/${name}.${extension}`;
-    return this.createSoundRequest(path).then((event) => {
-      return this.bufferSound(event);
-    }).then((buffer) => {
-      return Promise.resolve({
-        name,
-        buffer
-      });
-    });
+  async loadSound(directory, name, options) {
+    let extension = options.extension;
+    // Append a trailing slash to the directory if it doesn't exist.
+    if (!directory.endsWith('/')) {
+      directory += '/';
+    }
+    // Insert a period if the extension doesn't have one.
+    if (!extension.startsWith('.')) {
+      extension = '.' + extension;
+    }
+    const path = `${directory}${name}${extension}`;
+    const event = await this.createSoundRequest(path);
+    const buffer = await this.bufferSound(event);
+    this.sounds.set(name, buffer)
+    return;
   }
   
    /**
@@ -92,7 +109,7 @@ class Audio {
    * Decodes audio data from the request response.
    */
   bufferSound(event) {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const request = event.target;
       this.context.decodeAudioData(request.response, (buffer) => {
         resolve(buffer);
@@ -124,10 +141,10 @@ class Audio {
     if (!buffer) {
       return false;
     }
-    const soundData = SOUND_DATA[name];
     const source = this.createSourceNode(buffer);
     const volRatio = this.masterVolume / this.defaultVolume;
-    const dataVolume = soundData && soundData.volume ? soundData.volume : 1.0;
+    // TODO: Load sounds into actual sound objects.
+    const dataVolume = 1.0; //soundData && soundData.volume ? soundData.volume : 1.0;
     const volume = volRatio * dataVolume * adjustVolume;
     source.gain.gain.value = volume;
     source.source.start(0);
@@ -148,7 +165,6 @@ class Audio {
    */
   loadSettings() {
     this.masterVolume = Settings.get('volume');
-    this.defaultVolume = DEFAULT_SETTINGS.volume;
   }
 
   /**
