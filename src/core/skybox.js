@@ -1,4 +1,4 @@
-const WIDTH = 250;
+const WIDTH = 500;
 
 const SUFFIXES = ['ft', 'bk', 'up', 'dn', 'rt', 'lf'];
 

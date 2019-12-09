@@ -1,23 +1,4 @@
 /**
- * The default settings for the ERA engine.
- */
-const DEFAULT_SETTINGS = {
-  debug: true,
-  mouse_sensitivity: 50,
-  shaders: true,
-  volume: 50,
-  movement_deadzone: 0.15,
-};
-
-const SOUND_DATA = { 
-  example: {
-    name: 'example',
-    extension: 'wav',
-    volume: 0.5
-  },
-};
-
-/**
  * Generates a RFC4122 version 4 compliant UUID.
  */
 function createUUID() {
@@ -307,6 +288,17 @@ class EngineResetEvent extends EraEvent {
 }
 
 /**
+ * The default settings for the ERA engine.
+ */
+const DEFAULT_SETTINGS = {
+  debug: true,
+  mouse_sensitivity: 50,
+  shaders: true,
+  volume: 50,
+  movement_deadzone: 0.15,
+};
+
+/**
  * Settings changed event. Fired when settings are applied.
  */
 class SettingsEvent extends EraEvent {
@@ -411,25 +403,23 @@ var Settings$1 = new Settings();
 
 const CROSSFADE_TIME = 500;
 
+let instance = null;
+
 /** 
  * Core implementation for all audio. Manages the loading, playback, and
  * other controls needed for in-game audio.
  */
-let audioInstance = null;
-
 class Audio {
-
-  /**
-   * Enforces a singleton audio instance.
-   */
   static get() {
-    if (!audioInstance) {
-      audioInstance = new Audio();
+    if (!instance) {
+      instance = new Audio();
     }
-    return audioInstance;
+    return instance;
   }
 
   constructor() {
+    this.defaultVolume = 50;
+
     this.context = new AudioContext();
 
     // Map containing all sounds used in the engine. Key is the sound name,
@@ -449,32 +439,53 @@ class Audio {
   }
 
   /**
-   * Loads all sounds specified in the sound data file.
+   * Loads all sounds described from the provided file path. The file should
+   * be a JSON file. Follow the example at /src/data/sounds.json.
+   * @param {string} filePath
+   * @async
    */
-  loadSounds() {
-    const promises = [];
-    for (let name in SOUND_DATA) {
-      const soundData = SOUND_DATA[name];
-      promises.push(this.loadSound(soundData.name, soundData.extension));
+  async loadAllFromFile(filePath) {
+    if (!filePath) {
+      return;
     }
-    return Promise.all(promises).then((sounds) => {
-      sounds.forEach((sound) => this.sounds.set(sound.name, sound.buffer));
-    });
+    // Load JSON file with all sounds and options.
+    let allSoundData;
+    try {
+      allSoundData = await loadJsonFromFile(filePath);
+    } catch (e) {
+      throw new Error(e);
+    }
+    // Extract the directory from the file path, use for loading sounds.
+    const directory = filePath.substr(0, filePath.lastIndexOf('/') + 1);
+    const promises = new Array();
+    for (let name in allSoundData) {
+      const options = allSoundData[name];
+      promises.push(this.loadSound(directory, name, options));
+    }
+    return Promise.all(promises);
   }
 
   /**
-   * Loads an individual sound.
+   * Loads an individual sound and stores it.
+   * @param {string} directory
+   * @param {string} name
+   * @param {Object} options
    */
-  loadSound(name, extension) {
-    const path = `assets/sounds/${name}.${extension}`;
-    return this.createSoundRequest(path).then((event) => {
-      return this.bufferSound(event);
-    }).then((buffer) => {
-      return Promise.resolve({
-        name,
-        buffer
-      });
-    });
+  async loadSound(directory, name, options) {
+    let extension = options.extension;
+    // Append a trailing slash to the directory if it doesn't exist.
+    if (!directory.endsWith('/')) {
+      directory += '/';
+    }
+    // Insert a period if the extension doesn't have one.
+    if (!extension.startsWith('.')) {
+      extension = '.' + extension;
+    }
+    const path = `${directory}${name}${extension}`;
+    const event = await this.createSoundRequest(path);
+    const buffer = await this.bufferSound(event);
+    this.sounds.set(name, buffer);
+    return;
   }
   
    /**
@@ -496,7 +507,7 @@ class Audio {
    * Decodes audio data from the request response.
    */
   bufferSound(event) {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const request = event.target;
       this.context.decodeAudioData(request.response, (buffer) => {
         resolve(buffer);
@@ -528,12 +539,32 @@ class Audio {
     if (!buffer) {
       return false;
     }
-    const soundData = SOUND_DATA[name];
     const source = this.createSourceNode(buffer);
     const volRatio = this.masterVolume / this.defaultVolume;
-    const dataVolume = soundData && soundData.volume ? soundData.volume : 1.0;
+    // TODO: Load sounds into actual sound objects.
+    const dataVolume = 1.0; //soundData && soundData.volume ? soundData.volume : 1.0;
     const volume = volRatio * dataVolume * adjustVolume;
     source.gain.gain.value = volume;
+    source.source.start(0);
+    return source;
+  }
+
+  /**
+   * Plays a sound in-game on a loop.
+   */
+  playSoundOnLoop(name, adjustVolume = 1.0) {
+    const defaultSound = this.sounds.get(name);
+    let buffer = defaultSound;
+    if (!buffer) {
+      return false;
+    }
+    const source = this.createSourceNode(buffer);
+    const volRatio = this.masterVolume / this.defaultVolume;
+    // TODO: Load sounds into actual sound objects.
+    const dataVolume = 1.0; //soundData && soundData.volume ? soundData.volume : 1.0;
+    const volume = volRatio * dataVolume * adjustVolume;
+    source.gain.gain.value = volume;
+    source.source.loop = true;
     source.source.start(0);
     return source;
   }
@@ -552,7 +583,6 @@ class Audio {
    */
   loadSettings() {
     this.masterVolume = Settings$1.get('volume');
-    this.defaultVolume = DEFAULT_SETTINGS.volume;
   }
 
   /**
@@ -996,7 +1026,7 @@ class RendererPool {
 const rendererPool = new RendererPool();
 const RendererTypes = Types;
 
-let instance = null;
+let instance$1 = null;
 
 /**
  * Engine core for the game.
@@ -1006,10 +1036,10 @@ class Engine {
    * Enforces singleton engine instance.
    */
   static get() {
-    if (!instance) {
-      instance = new Engine();
+    if (!instance$1) {
+      instance$1 = new Engine();
     }
-    return instance;
+    return instance$1;
   }
 
   constructor() {
@@ -1236,7 +1266,7 @@ class Plugin {
 
 const CONTROLS_KEY = 'era_bindings';
 
-let instance$1 = null;
+let instance$2 = null;
 
 /**
  * The controls core for the game. Input handlers are created here. Once the
@@ -1247,10 +1277,10 @@ class Controls extends Plugin {
    * Enforces singleton controls instance.
    */
   static get() {
-    if (!instance$1) {
-      instance$1 = new Controls();
+    if (!instance$2) {
+      instance$2 = new Controls();
     }
-    return instance$1;
+    return instance$2;
   }
 
   constructor() {
@@ -1749,7 +1779,7 @@ class Controls extends Plugin {
   }
 }
 
-let instance$2 = null;
+let instance$3 = null;
 
 /**
  * Core implementation for loading 3D models for use in-game.
@@ -1761,10 +1791,10 @@ class Models {
    * @returns {Models}
    */
   static get() {
-    if (!instance$2) {
-      instance$2 = new Models();
+    if (!instance$3) {
+      instance$3 = new Models();
     }
-    return instance$2;
+    return instance$3;
   }
 
   constructor() {
@@ -1907,7 +1937,7 @@ class EraContactListener {
 const velocityIterations = 8;
 const positionIterations = 3;
 
-let instance$3 = null;
+let instance$4 = null;
 
 /**
  * Core implementation for managing the game's physics. The
@@ -1918,10 +1948,10 @@ class Physics extends Plugin {
    * Enforces singleton physics instance.
    */
   static get() {
-    if (!instance$3) {
-      instance$3 = new Physics();
+    if (!instance$4) {
+      instance$4 = new Physics();
     }
-    return instance$3;
+    return instance$4;
   }
 
   constructor() {
@@ -2031,7 +2061,7 @@ class Physics extends Plugin {
    */
   terminate() {
     clearInterval(this.updateInterval);
-    instance$3 = null;
+    instance$4 = null;
   }
 }
 
@@ -2326,7 +2356,7 @@ class Entity extends THREE.Object3D {
   }
 }
 
-let instance$4 = null;
+let instance$5 = null;
 
 /**
  * Light core for the game engine. Creates and manages light
@@ -2337,10 +2367,10 @@ class Light extends Plugin {
    * Enforces singleton light instance.
    */
   static get() {
-    if (!instance$4) {
-      instance$4 = new Light();
+    if (!instance$5) {
+      instance$5 = new Light();
     }
-    return instance$4;
+    return instance$5;
   }
 
   constructor() {
@@ -2351,7 +2381,7 @@ class Light extends Plugin {
   
   /** @override */
   reset() {
-    instance$4 = null;
+    instance$5 = null;
     // TODO: Dispose of lighting objects correctly.
   }
 
