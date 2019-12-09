@@ -151,6 +151,26 @@ class Audio {
     return source;
   }
 
+  /**
+   * Plays a sound in-game on a loop.
+   */
+  playSoundOnLoop(name, adjustVolume = 1.0) {
+    const defaultSound = this.sounds.get(name);
+    let buffer = defaultSound;
+    if (!buffer) {
+      return false;
+    }
+    const source = this.createSourceNode(buffer);
+    const volRatio = this.masterVolume / this.defaultVolume;
+    // TODO: Load sounds into actual sound objects.
+    const dataVolume = 1.0; //soundData && soundData.volume ? soundData.volume : 1.0;
+    const volume = volRatio * dataVolume * adjustVolume;
+    source.gain.gain.value = volume;
+    source.source.loop = true;
+    source.source.start(0);
+    return source;
+  }
+
   /** 
    * Stops playing a sound.
    */

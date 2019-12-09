@@ -54,9 +54,9 @@ class Cannons extends THREE.Object3D {
       return;
     }
     // Play sound.
-    Audio.get().playSound('xwing_fire');
+    Audio.get().playSound('xwing_fire', .5);
+    // Create laser at a certain point.
     this.emitters.forEach((emitter) => {
-      // Create laser at a certain point.
       const laser = new Laser().build();
       laser.position.copy(emitter.getWorldPosition(WORLD_POS_VEC));
       Engine.get().getScene().add(laser);

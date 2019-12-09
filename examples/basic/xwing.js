@@ -1,5 +1,5 @@
 import Cannons from './cannons.js';
-import {Bindings, Controls, Entity} from '/src/era.js';
+import {Audio, Bindings, Controls, Entity} from '/src/era.js';
 
 const XWING_BINDINGS = {
   SPRINT: {
@@ -36,6 +36,9 @@ class XWing extends Entity {
     this.rotateTarget = 0;
     this.rotateAnim = null;
     this.cannons = null;
+    this.engineSound = null;
+    this.boosting = false;
+    this.playbackAnim = null;
   }
 
   /** @override */
@@ -44,6 +47,8 @@ class XWing extends Entity {
     // Build cannons based on offsets.
     this.cannons = new Cannons(970, 400, 220).build();
     this.mesh.add(this.cannons);
+    // Start engine.
+    this.engineSound = Audio.get().playSoundOnLoop('xwing_engine', 0.4);
     return this;
   }
 
@@ -65,6 +70,11 @@ class XWing extends Entity {
     this.updateRoll();
     if (this.getActionValue(this.bindings.FIRE)) {
       this.cannons.fire();
+    }
+    if (this.getActionValue(this.bindings.SPRINT)) {
+      this.boostEngines(true);
+    } else {
+      this.boostEngines(false);
     }
   }
 
@@ -104,6 +114,32 @@ class XWing extends Entity {
       .easing(TWEEN.Easing.Quadratic.InOut)
       .onUpdate(() => {
         this.mesh.rotation.z = currRotation.angle;
+      })
+      .start();
+  }
+
+  /**
+   * Boost engines.
+   */
+  boostEngines(boost) {
+    if (this.boosting == boost) {
+      return;
+    }
+    this.boosting = boost;
+    if (this.playbackAnim) {
+      this.playbackAnim.stop();
+    }
+    const currPlayback = {
+      playback: this.engineSound.source.playbackRate.value
+    };
+    const target = {
+      playback: boost ? 1.3 : 1
+    };
+    this.playbackAnim = new TWEEN.Tween(currPlayback)
+      .to(target, 2000)
+      .easing(TWEEN.Easing.Quadratic.InOut)
+      .onUpdate(() => {
+        this.engineSound.source.playbackRate.value = currPlayback.playback;
       })
       .start();
   }
