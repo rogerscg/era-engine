@@ -103,18 +103,8 @@ class XWing extends Entity {
     if (this.rotateAnim) {
       this.rotateAnim.stop();
     }
-    const currRotation = {
-      angle: this.mesh.rotation.z
-    };
-    const target = {
-      angle: angle
-    };
-    this.rotateAnim = new TWEEN.Tween(currRotation)
-      .to(target, 250)
-      .easing(TWEEN.Easing.Quadratic.InOut)
-      .onUpdate(() => {
-        this.mesh.rotation.z = currRotation.angle;
-      })
+    this.rotateAnim = new TWEEN.Tween(this.mesh.rotation)
+      .to({z: angle}, 250)
       .start();
   }
 
@@ -129,18 +119,9 @@ class XWing extends Entity {
     if (this.playbackAnim) {
       this.playbackAnim.stop();
     }
-    const currPlayback = {
-      playback: this.engineSound.source.playbackRate.value
-    };
-    const target = {
-      playback: boost ? 1.3 : 1
-    };
-    this.playbackAnim = new TWEEN.Tween(currPlayback)
-      .to(target, 2000)
-      .easing(TWEEN.Easing.Quadratic.InOut)
-      .onUpdate(() => {
-        this.engineSound.source.playbackRate.value = currPlayback.playback;
-      })
+    const rate = boost ? 1.3 : 1;
+    this.playbackAnim = new TWEEN.Tween(this.engineSound.source.playbackRate)
+      .to({value: rate}, 2000)
       .start();
   }
 }
