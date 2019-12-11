@@ -1,7 +1,10 @@
 /**
- * Entry point for the ERA engine.
+ * @author rogerscg / https://github.com/rogerscg
  */
 
+/**
+ * Entry point for the ERA engine.
+ */
 export {default as Audio} from './core/audio.js';
 export {Action, Bindings} from './core/bindings.js';
 export {default as Controls} from './core/controls.js';

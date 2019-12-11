@@ -1,3 +1,7 @@
+/**
+ * @author rogerscg / https://github.com/rogerscg
+ */
+
 import {Entity} from '/src/era.js';
 
 const GEOMETRY = new THREE.CubeGeometry(.3, .3, 8);

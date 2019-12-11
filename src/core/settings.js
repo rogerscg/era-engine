@@ -1,3 +1,7 @@
+/**
+ * @author rogerscg / https://github.com/rogerscg
+ */
+
 import DEFAULT_SETTINGS from '../data/settings.js';
 import SettingsEvent from '../events/settings_event.js';
 

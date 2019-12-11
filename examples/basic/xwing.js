@@ -1,3 +1,7 @@
+/**
+ * @author rogerscg / https://github.com/rogerscg
+ */
+
 import Cannons from './cannons.js';
 import Engines from './engines.js';
 import {Bindings, Controls, Entity} from '/src/era.js';

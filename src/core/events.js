@@ -1,3 +1,7 @@
+/**
+ * @author rogerscg / https://github.com/rogerscg
+ */
+
 import {createUUID} from './util.js';
 
 /**

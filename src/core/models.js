@@ -1,3 +1,7 @@
+/**
+ * @author rogerscg / https://github.com/rogerscg
+ */
+
 import {extractMeshes, loadJsonFromFile} from './util.js';
 
 let instance = null;

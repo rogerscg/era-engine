@@ -1,3 +1,7 @@
+/**
+ * @author rogerscg / https://github.com/rogerscg
+ */
+
 import ErrorEvent from '../events/error_event.js';
 
 const GAMEHOST_KEY = 'gamehost';

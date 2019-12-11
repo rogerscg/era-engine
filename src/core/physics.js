@@ -1,3 +1,7 @@
+/**
+ * @author rogerscg / https://github.com/rogerscg
+ */
+
 import EraContactListener from './era_contact_listener.js';
 import Plugin from './plugin.js';
 

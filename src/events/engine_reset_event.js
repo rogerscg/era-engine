@@ -1,3 +1,7 @@
+/**
+ * @author rogerscg / https://github.com/rogerscg
+ */
+
 import EraEvent from './era_event.js';
 
 const LABEL = 'reset';

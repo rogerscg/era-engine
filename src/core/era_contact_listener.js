@@ -1,4 +1,8 @@
 /**
+ * @author rogerscg / https://github.com/rogerscg
+ */
+
+/**
  * Class for creating contact listeners.
  */
 class EraContactListener {

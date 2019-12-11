@@ -1,3 +1,7 @@
+/**
+ * @author rogerscg / https://github.com/rogerscg
+ */
+
 import EngineResetEvent from '../events/engine_reset_event.js';
 import Settings from './settings.js';
 import SettingsEvent from '../events/settings_event.js';

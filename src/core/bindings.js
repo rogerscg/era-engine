@@ -1,4 +1,8 @@
 /**
+ * @author rogerscg / https://github.com/rogerscg
+ */
+
+/**
  * A bindings object, used for better control of custom bindings.
  */
 class Bindings {

@@ -1,3 +1,7 @@
+/**
+ * @author rogerscg / https://github.com/rogerscg
+ */
+
 import Engine from './engine.js';
 import SettingsEvent from '../events/settings_event.js';
 

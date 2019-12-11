@@ -1,4 +1,8 @@
 /**
+ * @author rogerscg / https://github.com/rogerscg
+ */
+
+/**
  * Generates a RFC4122 version 4 compliant UUID.
  */
 function createUUID() {

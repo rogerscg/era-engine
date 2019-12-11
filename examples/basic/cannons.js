@@ -1,3 +1,7 @@
+/**
+ * @author rogerscg / https://github.com/rogerscg
+ */
+
 import Laser from "./laser.js";
 import {Audio, Engine} from "/src/era.js";
 

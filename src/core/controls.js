@@ -1,3 +1,8 @@
+/**
+ * @author rogerscg / https://github.com/rogerscg
+ * @author erveon / https://github.com/erveon
+ */
+
 import Engine from './engine.js';
 import Events from './events.js';
 import Plugin from './plugin.js';

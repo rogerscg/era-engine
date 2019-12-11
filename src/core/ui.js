@@ -1,4 +1,8 @@
 /**
+ * @author rogerscg / https://github.com/rogerscg
+ */
+
+/**
  * The UI core for the game engine. The initial components are
  * created here, then most control is passed to individual controllers.
  */

@@ -1,3 +1,7 @@
+/**
+ * @author rogerscg / https://github.com/rogerscg
+ */
+
 import Controls from './controls.js';
 import Engine from './engine.js';
 import Models from './models.js';

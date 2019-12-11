@@ -1,3 +1,7 @@
+/**
+ * @author rogerscg / https://github.com/rogerscg
+ */
+
 const WIDTH = 500;
 
 const SUFFIXES = ['ft', 'bk', 'up', 'dn', 'rt', 'lf'];
