@@ -1,5 +1,6 @@
 import Cannons from './cannons.js';
-import {Audio, Bindings, Controls, Entity} from '/src/era.js';
+import Engines from './engines.js';
+import {Bindings, Controls, Entity} from '/src/era.js';
 
 const XWING_BINDINGS = {
   SPRINT: {
@@ -36,9 +37,7 @@ class XWing extends Entity {
     this.rotateTarget = 0;
     this.rotateAnim = null;
     this.cannons = null;
-    this.engineSound = null;
-    this.boosting = false;
-    this.playbackAnim = null;
+    this.engines = null;
   }
 
   /** @override */
@@ -48,7 +47,10 @@ class XWing extends Entity {
     this.cannons = new Cannons(970, 400, 220).build();
     this.mesh.add(this.cannons);
     // Start engine.
-    this.engineSound = Audio.get().playSoundOnLoop('xwing_engine', 0.4);
+    this.engines = new Engines(190, 230, -1230).build();
+    this.mesh.add(this.engines);
+    this.engines.start();
+    
     return this;
   }
 
@@ -71,10 +73,12 @@ class XWing extends Entity {
     if (this.getActionValue(this.bindings.FIRE)) {
       this.cannons.fire();
     }
-    if (this.getActionValue(this.bindings.SPRINT)) {
-      this.boostEngines(true);
-    } else {
-      this.boostEngines(false);
+    if (this.engines) {
+      if (this.getActionValue(this.bindings.SPRINT)) {
+        this.engines.boost(true);
+      } else {
+        this.engines.boost(false);
+      }
     }
   }
 
@@ -105,23 +109,6 @@ class XWing extends Entity {
     }
     this.rotateAnim = new TWEEN.Tween(this.mesh.rotation)
       .to({z: angle}, 250)
-      .start();
-  }
-
-  /**
-   * Boost engines.
-   */
-  boostEngines(boost) {
-    if (this.boosting == boost) {
-      return;
-    }
-    this.boosting = boost;
-    if (this.playbackAnim) {
-      this.playbackAnim.stop();
-    }
-    const rate = boost ? 1.3 : 1;
-    this.playbackAnim = new TWEEN.Tween(this.engineSound.source.playbackRate)
-      .to({value: rate}, 2000)
       .start();
   }
 }
