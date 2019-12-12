@@ -1,0 +1,24 @@
+{
+  "skybox": {
+    "directory": "/path/to/skybox/",
+    "file": "skybox_prefix",
+    "extension": "png"
+  },
+  "lights": {
+    "ambient": [
+      {
+        "color": "ffffff",
+        "intensity": 0.5
+      }
+    ],
+    "directional": [
+      {
+        "x": 100,
+        "y": 500,
+        "z": 100,
+        "color": "ffffff",
+        "intensity": 0.5
+      }
+    ]
+  }
+}

@@ -5,7 +5,7 @@ const DEFAULT_SETTINGS = {
   debug: true,
   mouse_sensitivity: 50,
   shaders: true,
-  volume: 50,
+  volume: 0,
   movement_deadzone: 0.15,
 };
 

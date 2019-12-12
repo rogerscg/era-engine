@@ -45,7 +45,6 @@ class Light extends Plugin {
     const ambientLight =
           new THREE.AmbientLight(parseInt(ambientConfig.color, 16));
     ambientLight.intensity = ambientConfig.intensity;
-    Engine.get().getScene().add(ambientLight);
     return ambientLight;
   }
 
@@ -81,7 +80,6 @@ class Light extends Plugin {
       this.shadersEnabled = true;
       this.createShaders(directionalLight);
     }
-    Engine.get().getScene().add(directionalLight);
     return directionalLight;
   }
   

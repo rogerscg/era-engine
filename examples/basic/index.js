@@ -7,10 +7,9 @@ import {
   Audio,
   Controls,
   Engine,
-  Light,
+  Environment,
   Models,
   RendererStats,
-  Skybox
 } from '/src/era.js';
 
 async function start() {
@@ -28,18 +27,11 @@ async function start() {
   // Enable debug.
   new RendererStats(engine.getRenderer());
 
-  // Create lighting.
-  const light = Light.get();
-  light.createAmbientLight({
-    color: 0xcccccc,
-    intensity: 0.7
-  });
-  light.createDirectionalLight(500, 1500, 500, 0xeeeeee, 0.5);
-
-  // Create skybox.
-  const skybox = new Skybox();
-  await skybox.load('/examples/basic/textures/skybox', 'starfield', 'tga');
-  scene.add(skybox);
+  // Create environment.
+  const environment = 
+    await new Environment()
+            .loadFromFile('/examples/basic/environments/space.json');
+  scene.add(environment);
 
   // Create X-Wing.
   const xwing = new XWing().build();

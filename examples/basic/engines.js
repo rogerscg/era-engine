@@ -10,7 +10,11 @@ const X_SHIFT = .4 * SCALE;
 const Y_SHIFT = -4.85 * SCALE;
 
 const GEOMETRY = new THREE.CylinderGeometry(.25 * SCALE, .25 * SCALE, 20, 32);
-const MATERIAL = new THREE.MeshBasicMaterial({ color: 0xffffff });
+const MATERIAL = new THREE.MeshBasicMaterial({
+  color: 0xffffff,
+  transparent: true,
+  opacity: .9,
+});
 const BALL_GEOMETRY = new THREE.SphereGeometry(.8 * SCALE, 64, 64);
 const BALL_MATERIAL = new THREE.MeshBasicMaterial({
   color: 0xff0000,
@@ -46,6 +50,7 @@ class Engines extends THREE.Object3D {
     this.soundAnim = null;
     this.cores = new Array();
     this.lights = new Array();
+    window.lights = this.lights;
     this.balls = new Array();
     this.coreAnim = null;
   }
@@ -131,7 +136,7 @@ class Engines extends THREE.Object3D {
     const current = {
       scale: this.cores[0].scale.x,
       intensity: this.lights[0].intensity,
-      dist: this.lights[0].distance,
+      distance: this.lights[0].distance,
     }
     const target = {
       scale: this.boosting ? 1.4 : 1,
