@@ -25,6 +25,19 @@ class Settings {
   }
 
   /**
+   * Sets a specific setting to the given value.
+   * @param {string} key
+   * @param {?} value
+   */
+  set(key, value) {
+    if (!this.get(key)) {
+      return;
+    }
+    this.settingsObject[key] = value;
+    this.apply(); 
+  }
+
+  /**
    * Retrieves the settings object from local storage. If none exists, create
    * the default.
    */

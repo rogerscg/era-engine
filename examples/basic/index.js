@@ -10,7 +10,9 @@ import {
   Environment,
   Models,
   RendererStats,
+  Settings,
 } from '/src/era.js';
+import settings from '../../src/core/settings.js';
 
 async function start() {
   // Load models.
@@ -40,7 +42,6 @@ async function start() {
   // Attach camera to XWing.
   engine.attachCamera(xwing);
   Controls.get().registerEntity(xwing);
-  Controls.get().useOrbitControls();
 }
 
 document.addEventListener('DOMContentLoaded', start);
