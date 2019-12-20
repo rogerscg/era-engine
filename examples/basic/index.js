@@ -12,9 +12,11 @@ import {
   RendererStats,
   Settings,
 } from '/src/era.js';
-import settings from '../../src/core/settings.js';
 
 async function start() {
+  // Load settings.
+  await Settings.load();
+
   // Load models.
   await Models.get().loadAllFromFile('/examples/basic/models/models.json');
 

@@ -469,7 +469,6 @@ class Controls extends Plugin {
    */
   loadSettings() {
     this.movementDeadzone = Settings.get('movement_deadzone');
-    this.overrideControls = Settings.get('overrides');
     this.mouseSensitivity = Settings.get('mouse_sensitivity');
   }
 

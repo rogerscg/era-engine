@@ -1,27 +1,38 @@
 /**
  * @author rogerscg / https://github.com/rogerscg
  */
-
-import DEFAULT_SETTINGS from '../data/settings.js';
 import SettingsEvent from '../events/settings_event.js';
+
+// The default settings for the ERA engine. These can be overwriten with custom
+// settings. See /data/settings.json as an example to define your own settings.
+const DEFAULT_SETTINGS = {
+  debug: true,
+  movement_deadzone: 0.15,
+  mouse_sensitivity: 50,
+  shaders: true,
+  volume: 50,
+};
 
 const SETTINGS_KEY = 'era_settings';
 
 /**
  * Controls the client settings in a singleton model in local storage.
  */
-class Settings {
+class Settings extends Map {
 
   constructor() {
-    this.settingsObject = this.initSettings();
-    this.verifySettings();
+    super();
   }
-  
+
   /**
    * Gets the value of a key in the settings object.
    */
   get(key) {
-    return this.settingsObject[key];
+    const setting = super.get(key);
+    if (!setting) {
+      return null;
+    }
+    return setting.getValue();
   }
 
   /**
@@ -33,31 +44,51 @@ class Settings {
     if (!this.get(key)) {
       return;
     }
-    this.settingsObject[key] = value;
+    super.set(key, value);
     this.apply(); 
   }
 
   /**
-   * Retrieves the settings object from local storage. If none exists, create
-   * the default.
+   * Loads the settings from engine defaults, provided defaults, and user-set
+   * values from local storage.
+   * @param {string} settingsPath
+   * @async
    */
-  initSettings() {
-    if (!localStorage.getItem(SETTINGS_KEY)) {
-      this.createDefaults();
+  async load(settingsPath) {
+    this.loadEngineDefaults();
+    if (settingsPath) {
+      await this.loadFromFile(settingsPath);
     }
-    try {
-      JSON.parse(localStorage.getItem(SETTINGS_KEY));
-    } catch (e) {
-      this.createDefaults();
-    }
-    return JSON.parse(localStorage.getItem(SETTINGS_KEY));
+    this.loadExistingSettings();
+    this.apply();
+    return this;
   }
 
   /**
-   * Creates the default settings object in local storage.
+   * Loads the default values for the engine. This is necessary for core plugins
+   * that are dependent on settings.
    */
-  createDefaults() {
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(DEFAULT_SETTINGS));
+  loadEngineDefaults() {
+    for (let key in DEFAULT_SETTINGS) {
+      const setting = new Setting(key, DEFAULT_SETTINGS[key]);
+      super.set(setting.getName(), setting);
+    }
+  }
+
+  /**
+   * Loads a default settings file at the give path. This is user-provided.
+   * @param {string} settingsPath
+   * @async
+   */
+  async loadFromFile(settingsPath) {
+    // TODO: Load from file.
+  }
+
+  /**
+   * Loads existing settings from local storage.
+   */
+  loadExistingSettings() {
+
   }
 
   /**
@@ -65,38 +96,35 @@ class Settings {
    * storage.
    */
   apply() {
-    localStorage.setItem(
-      SETTINGS_KEY, JSON.stringify(this.settingsObject));
-    const event = new SettingsEvent(this.settingsObject);
+    // TODO: Better export function.
+    //localStorage.setItem(
+    //  SETTINGS_KEY, JSON.stringify(this.settingsObject));
+    const event = new SettingsEvent();
     event.fire();
-  }
-  
-  /**
-   * Verifies that all fields in the settings are present. This is necessary
-   * for updates to settings that are not present in localStorage, i.e. if a
-   * new setting is added.
-   */
-  verifySettings() {
-    let changed = false;
-    for (let key in this.settingsObject) {
-      // If the current key in settings no longer exists in default settings,
-      // delete from local storage.
-      if (DEFAULT_SETTINGS[key] === undefined) {
-        delete this.settingsObject[key];
-        changed = true;
-      }
-    }
-    for (let key in DEFAULT_SETTINGS) {
-      // If the current key is not in current settings, set it to the default.
-      if (this.settingsObject[key] === undefined) {
-        this.settingsObject[key] = DEFAULT_SETTINGS[key];
-        changed = true;
-      }
-    }
-    if(changed) {
-      this.apply();
-    }
   }
 }
 
 export default new Settings();
+
+/**
+ * An individual setting for tracking defaults, types, and other properties
+ * of the field.
+ */
+class Setting {
+  /**
+   * Loads a setting from an object.
+   * @param {?} value
+   */
+  constructor(name, value) {
+    this.name = name;
+    this.value = value;
+  }
+
+  getName() {
+    return this.name;
+  }
+
+  getValue() {
+    return this.value;
+  }
+}
