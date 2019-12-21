@@ -22,6 +22,7 @@ class Settings extends Map {
 
   constructor() {
     super();
+    this.loaded = false;
   }
 
   /**
@@ -55,6 +56,10 @@ class Settings extends Map {
    * @async
    */
   async load(settingsPath) {
+    if (this.loaded) {
+      return;
+    }
+    this.loaded = true;
     this.loadEngineDefaults();
     if (settingsPath) {
       await this.loadFromFile(settingsPath);
@@ -77,18 +82,56 @@ class Settings extends Map {
 
   /**
    * Loads a default settings file at the give path. This is user-provided.
+   * This will also overwrite the default engine settings with the
+   * user-provided settings.
    * @param {string} settingsPath
    * @async
    */
   async loadFromFile(settingsPath) {
-    // TODO: Load from file.
+    if (!settingsPath) {
+      return;
+    }
+    // Load JSON file with all settings.
+    let allSettingsData;
+    try {
+      allSettingsData = await loadJsonFromFile(settingsPath);
+    } catch (e) {
+      throw new Error(e);
+    }
+    for (let key in allSettingsData) {
+      const setting = new Setting(key, allSettingsData[key]);
+      super.set(setting.getName(), setting);
+      promises.push(this.loadSound(directory, name, options));
+    }
+    return Promise.all(promises);
   }
 
   /**
-   * Loads existing settings from local storage.
+   * Loads existing settings from local storage. Merges the settings previously
+   * saved into the existing defaults.
    */
   loadExistingSettings() {
-
+    // Load from local storage.
+    let savedSettings;
+    try {
+      savedSettings = localStorage.getItem(SETTINGS_KEY);
+      if (!savedSettings) {
+        return;
+      }
+      savedSettings = JSON.parse(savedSettings);
+    } catch (e) {
+      return;
+    }
+    // Iterate over saved settings and merge into defaults.
+    for (let key in savedSettings) {
+      const setting = new Setting(key, savedSettings[key]);
+      const defaultSetting = super.get(setting.getName());
+      if (!defaultSetting) {
+        continue;
+      }
+      // Merge saved setting into default.
+      defaultSetting.merge(setting);
+    }
   }
 
   /**
@@ -118,6 +161,8 @@ class Setting {
   constructor(name, value) {
     this.name = name;
     this.value = value;
+    // TODO: Actually load modified bit.
+    this.wasModified = false;
   }
 
   getName() {
@@ -127,4 +172,35 @@ class Setting {
   getValue() {
     return this.value;
   }
+
+  /**
+   * Returns if the setting was modified at any point from the default.
+   * @returns {boolean}
+   */
+  wasModifiedFromDefault() {
+    return this.wasModified;
+  }
+
+  /**
+   * Merges another setting into this setting. This will only occur if the
+   * other setting has been mutated from the default. This check is useful in
+   * the event developers want to change a default setting, as otherwise, the
+   * new default setting would not be applied to returning users.
+   * @param {Setting} other
+   * @returns {Setting}
+   */
+  merge(other) {
+    // Sanity check for comparability.
+    if (!other || other.getName() != this.getName()) {
+      return;
+    }
+    // If the other setting was not modified from default, ignore.
+    if (!other.wasModifiedFromDefault()) {
+      return;
+    }
+    this.value = other.getValue();
+    this.wasModified = true;
+    // TODO: Check for min/max, type, or other options for validation.
+  }
+
 }
