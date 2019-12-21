@@ -6,11 +6,21 @@ import SettingsEvent from '../events/settings_event.js';
 // The default settings for the ERA engine. These can be overwriten with custom
 // settings. See /data/settings.json as an example to define your own settings.
 const DEFAULT_SETTINGS = {
-  debug: true,
-  movement_deadzone: 0.15,
-  mouse_sensitivity: 50,
-  shaders: true,
-  volume: 50,
+  debug: {
+    value: true,
+  },
+  movement_deadzone: {
+    value: 0.15,
+  },
+  mouse_sensitivity: {
+    value: 50,
+  },
+  shaders: {
+    value: true,
+  },
+  volume: {
+    value: 50,
+  },
 };
 
 const SETTINGS_KEY = 'era_settings';
@@ -42,10 +52,11 @@ class Settings extends Map {
    * @param {?} value
    */
   set(key, value) {
-    if (!this.get(key)) {
+    const setting = super.get(key);
+    if (!setting) {
       return;
     }
-    super.set(key, value);
+    setting.setValue(value);
     this.apply(); 
   }
 
@@ -139,11 +150,21 @@ class Settings extends Map {
    * storage.
    */
   apply() {
-    // TODO: Better export function.
-    //localStorage.setItem(
-    //  SETTINGS_KEY, JSON.stringify(this.settingsObject));
+    localStorage.setItem(SETTINGS_KEY, this.export());
     const event = new SettingsEvent();
     event.fire();
+  }
+
+  /**
+   * Exports all settings into a string for use in local storage.
+   * @returns {string}
+   */
+  export() {
+    const expObj = {};
+    this.forEach((setting, name) => {
+      expObj[name] = setting.export();
+    });
+    return JSON.stringify(expObj);
   }
 }
 
@@ -156,13 +177,12 @@ export default new Settings();
 class Setting {
   /**
    * Loads a setting from an object.
-   * @param {?} value
+   * @param {Object} settingsData
    */
-  constructor(name, value) {
+  constructor(name, settingsData) {
     this.name = name;
-    this.value = value;
-    // TODO: Actually load modified bit.
-    this.wasModified = false;
+    this.value = settingsData.value;
+    this.wasModified = !!settingsData.modified;
   }
 
   getName() {
@@ -171,6 +191,16 @@ class Setting {
 
   getValue() {
     return this.value;
+  }
+
+  /**
+   * Sets the value of the individual setting, flipping the "modified" bit to
+   * true.
+   * @param {?} newValue
+   */
+  setValue(newValue) {
+    this.value = newValue;
+    this.wasModified = true;
   }
 
   /**
@@ -202,5 +232,15 @@ class Setting {
     this.wasModified = true;
     // TODO: Check for min/max, type, or other options for validation.
   }
-
+  
+  /**
+   * Exports the individual setting to an object.
+   * @returns {Object}
+   */
+  export() {
+    return {
+      value: this.value,
+      modified: this.wasModified,
+    };
+  }
 }
