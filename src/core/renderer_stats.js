@@ -276,6 +276,8 @@ class Panel {
     this.name = name;
     this.fg = fg;
     this.bg = bg;
+    this.min = Infinity;
+    this.max = 0;
     this.createDom();
   }
 
@@ -307,14 +309,14 @@ class Panel {
   update(value, maxValue) {
     const canvas = this.canvas;
     const context = this.context;
-    const min = Math.min(Infinity, value);
-    const max = Math.max(0, value);
+    this.min = Math.min(this.min, value);
+    this.max = Math.max(this.max, value);
 
     context.fillStyle = this.bg;
     context.globalAlpha = 1;
     context.fillRect(0, 0, WIDTH, GRAPH_Y);
     context.fillStyle = this.fg;
-    context.fillText(`${Math.round(value)} ${this.name} (${Math.round(min)}-${Math.round(max)})`, TEXT_X, TEXT_Y);
+    context.fillText(`${Math.round(value)} ${this.name} (${Math.round(this.min)}-${Math.round(this.max)})`, TEXT_X, TEXT_Y);
 
     context.drawImage(canvas, GRAPH_X + PR, GRAPH_Y, GRAPH_WIDTH - PR, GRAPH_HEIGHT, GRAPH_X, GRAPH_Y, GRAPH_WIDTH - PR, GRAPH_HEIGHT);
 
