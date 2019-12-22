@@ -75,9 +75,10 @@ class RendererStats extends Plugin {
    */
   disable() {
     this.enabled = false;
-    this.dom.parentElement.removeChild(this.dom);
+    if (this.dom.parentElement) {
+      this.dom.parentElement.removeChild(this.dom);
+    }
   }
-
   
   /** @override */
   update() {
@@ -86,6 +87,11 @@ class RendererStats extends Plugin {
     }
     this.fpsStats.update();
     this.webGLStats.update();
+  }
+
+  /** @override */
+  reset() {
+    this.disable();
   }
 
   /** @override */

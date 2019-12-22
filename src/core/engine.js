@@ -48,20 +48,17 @@ class Engine {
    */
   async start() {
     if (this.started) {
-      this.reset();
+      return;
     }
+    this.started = true;
     this.clock = new THREE.Clock();
     this.scene = new THREE.Scene();
     if (!this.renderer) {
       this.renderer = this.createRenderer();
     }
     this.camera = this.createCamera();
-
-    this.started = true;
     this.rendering = true;
-    requestAnimationFrame(() => {
-      this.render();
-    });
+    requestAnimationFrame(() => this.render());
   }
 
   /**
@@ -69,18 +66,14 @@ class Engine {
    */
   reset() {
     // Reset all plugins.
-    this.plugins.forEach((plugin) => plugin.reset(timeStamp));
+    this.plugins.forEach((plugin) => plugin.reset());
     new EngineResetEvent().fire();
+    // Destroy all registered entities.
+    this.entities.forEach((entity) => entity.destroy());
+    // Clear the renderer.
     this.resetRender = true;
     this.clearScene();
-    // TODO: Clean up reset rendering.
-    if (!this.rendering) {
-      this.rendering = true;
-      return this.render();
-    } else {
-      // If still rendering, prevent the reset and use the old loop.
-      this.resetRender = false;
-    }
+    this.started = false;
   }
 
   /**

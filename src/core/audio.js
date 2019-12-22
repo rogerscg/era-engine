@@ -1,8 +1,7 @@
 /**
  * @author rogerscg / https://github.com/rogerscg
  */
-
-import EngineResetEvent from '../events/engine_reset_event.js';
+import Plugin from './plugin.js';
 import Settings from './settings.js';
 import SettingsEvent from '../events/settings_event.js';
 import {createUUID, loadJsonFromFile, shuffleArray} from './util.js';
@@ -15,7 +14,7 @@ let instance = null;
  * Core implementation for all audio. Manages the loading, playback, and
  * other controls needed for in-game audio.
  */
-class Audio {
+class Audio extends Plugin {
   static get() {
     if (!instance) {
       instance = new Audio();
@@ -24,6 +23,7 @@ class Audio {
   }
 
   constructor() {
+    super();
     this.defaultVolume = 50;
 
     this.context = new AudioContext();
@@ -41,8 +41,17 @@ class Audio {
 
     this.loadSettings();
     SettingsEvent.listen(this.loadSettings.bind(this));
-    EngineResetEvent.listen(this.handleEngineReset.bind(this));
   }
+
+  /** @override */
+  reset() {
+    this.stopAmbientSound();
+    this.playingSounds.forEach((node) => node.source.stop());
+    this.playingSounds.clear();
+  }
+
+  /** @override */
+  update() {}
 
   /**
    * Loads all sounds described from the provided file path. The file should
@@ -145,14 +154,19 @@ class Audio {
     if (!buffer) {
       return false;
     }
-    const source = this.createSourceNode(buffer);
+    const node = this.createSourceNode(buffer);
     const volRatio = this.masterVolume / this.defaultVolume;
     // TODO: Load sounds into actual sound objects.
     const dataVolume = 1.0; //soundData && soundData.volume ? soundData.volume : 1.0;
     const volume = volRatio * dataVolume * adjustVolume;
-    source.gain.gain.value = volume;
-    source.source.start(0);
-    return source;
+    node.gain.gain.value = volume;
+    node.source.start(0);
+    node.uuid = createUUID();
+    this.playingSounds.set(node.uuid, node);
+    setTimeout(() => {
+      this.playingSounds.delete(node.uuid);
+    }, Math.round(node.source.buffer.duration * 1000));
+    return node;
   }
 
   /**
@@ -164,15 +178,17 @@ class Audio {
     if (!buffer) {
       return false;
     }
-    const source = this.createSourceNode(buffer);
+    const node = this.createSourceNode(buffer);
     const volRatio = this.masterVolume / this.defaultVolume;
     // TODO: Load sounds into actual sound objects.
     const dataVolume = 1.0; //soundData && soundData.volume ? soundData.volume : 1.0;
     const volume = volRatio * dataVolume * adjustVolume;
-    source.gain.gain.value = volume;
-    source.source.loop = true;
-    source.source.start(0);
-    return source;
+    node.gain.gain.value = volume;
+    node.source.loop = true;
+    node.source.start(0);
+    node.uuid = createUUID();
+    this.playingSounds.set(node.uuid, node);
+    return node;
   }
 
   /** 
@@ -181,6 +197,9 @@ class Audio {
   stopSound(sourceNode) {
     if (sourceNode) {
       sourceNode.source.stop();
+      if (sourceNode.uuid) {
+        this.playingSounds.delete(sourceNode.uuid);
+      }
     }
   }
 
@@ -213,10 +232,6 @@ class Audio {
    */
   stopAmbientSound() {
     this.shouldPlayAmbientSound = false;
-    this.playingSounds.forEach((node) => {
-      node.source.stop();
-    });
-    this.playingSounds.clear();
   }
 
   /**
@@ -251,8 +266,6 @@ class Audio {
     selectedBuffer.inUse = true;
     let currTime = this.context.currentTime;
     const node = this.createSourceNode(selectedBuffer);
-    const uuid = createUUID();
-    this.playingSounds.set(uuid, node);
     node.source.start(0);
     node.gain.gain.linearRampToValueAtTime(0, currTime);
     node.gain.gain.linearRampToValueAtTime(
@@ -268,17 +281,12 @@ class Audio {
     }, Math.round(node.source.buffer.duration * 1000 - CROSSFADE_TIME));
 
     // When audio finishes playing, mark as not in use.
+    const uuid = createUUID();
+    this.playingSounds.set(uuid, node);
     setTimeout(() => {
       selectedBuffer.inUse = false;
       this.playingSounds.delete(uuid);
     }, Math.round(node.source.buffer.duration * 1000));
-  }
-
-  /**
-   * Handles an engine reset event.
-   */
-  handleEngineReset() {
-    this.stopAmbientSound();
   }
 }
 

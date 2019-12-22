@@ -31,7 +31,6 @@ class Light extends Plugin {
   
   /** @override */
   reset() {
-    instance = null;
     // TODO: Dispose of lighting objects correctly.
   }
 

@@ -44,6 +44,14 @@ async function start() {
   // Attach camera to XWing.
   engine.attachCamera(xwing);
   Controls.get().registerEntity(xwing);
+
+  setTimeout(() => {
+    engine.reset();
+  }, 2000);
+
+  setTimeout(() => {
+    start();
+  }, 3000);
 }
 
 document.addEventListener('DOMContentLoaded', start);
