@@ -4,76 +4,36 @@
 
 import ErrorEvent from '../events/error_event.js';
 
-const GAMEHOST_KEY = 'gamehost';
-const GAMEPORT_KEY = 'gameport';
-
 /**
- * Core functionality for network procedures in the game. Can be extended
+ * Core functionality for network procedures in the engine. Can be extended
  * in the case of different servers.
  */
-
-let networkInstance = null;
-
 class Network {
-
-  /**
-   * Enforces singleton instance, if no other subclasses.
-   */
-  static get() {
-    if (!networkInstance) {
-      let host = localStorage.getItem(GAMEHOST_KEY);
-      let port = localStorage.getItem(GAMEPORT_KEY);
-      if (!host) {
-        port = 5000;
-        if(isBeta()) {
-          host = 'ec2-18-197-111-163.eu-central-1.compute.amazonaws.com';
-        } else {
-          host = 'ec2-54-172-65-111.compute-1.amazonaws.com';
-        }
-      }
-      networkInstance = new Network(host, port);
-      //if (window.devMode) {
-      //  networkInstance = new Network('localhost', 5000);
-      //}
-    }
-    return networkInstance;
-  }
-
-  /**
-   * Clears the registered singleton instance.
-   */
-  static clear() {
-    if (!networkInstance) {
-      return;
-    }
-    networkInstance.disconnect();
-    networkInstance = null;
-  }
-
-  constructor(host, port) {
+  constructor(protocol, host, port) {
+    this.protocol = protocol;
     this.host = host;
     this.port = port;
-    this.path = this.createPath(host, port);
-    this.cleared = false;
-    this.shouldReload = true;
+    this.origin = this.createPath(protocol, host, port);
     this.pendingResponses = new Set();
+    this.connectionResolve = null;
+    this.socket = null;
+    this.token = null;
   }
 
   /**
    * Disconnects the network instance.
    */
   disconnect() {
-    this.cleared = true;
     if (this.socket) {
       this.socket.disconnect();
     }
   }
 
   /**
-   * Creates a path given the host and port
+   * Creates a path given the protocol, host, and port.
    */
-  createPath(host, port) {
-    return `${host}:${port}`;
+  createPath(protocol, host, port) {
+    return `${protocol}://${host}:${port}`;
   }
 
   setAuthToken(token) {
@@ -81,85 +41,47 @@ class Network {
   }
 
   /**
-   * Creates and sends an HTTP POST request.
+   * Creates and sends an HTTP POST request, awaiting for the response.
+   * @param {string} path Endpoint path on the server, i.e. /path/to/endpoint.
+   * @param {Object} data
+   * @returns {Object}
+   * @async
    */
-  createPostRequest(path, data) {
-    path = 'http://' + this.path + path;
-    return new Promise((resolve, reject) => {
-      let req = new XMLHttpRequest();
-      req.open('POST', path, true);
-      req.setRequestHeader('Content-type', 'application/json');
-      if (this.token)
-        req.setRequestHeader('Authorization', this.token);
-      req.addEventListener('load', () => {
-        if (req.status == 200 || req.status == 304) {
-          let response = JSON.parse(req.responseText);
-          resolve(response);
-        } else {
-          reject(this.createError(req));
-        }
-      });
-      req.addEventListener('error', () => {
-        reject(this.createError(req));
-      });
-      req.send(JSON.stringify(data));
-    });
+  async createPostRequest(path, data) {
+    const url = this.origin + path;
+    const req = this.buildRequest('POST', url);
+    const response = await this.sendRequest(req, data);
+    return response;
   }
 
   /** 
-   * Creates and sends an HTTP GET request.
+   * Creates and sends an HTTP GET request, awaiting for the response.
+   * @param {string} path Endpoint path on the server, i.e. /path/to/endpoint.
+   * @returns {Object}
+   * @async
    */
-  createGetRequest(path) {
-    path = 'http://' + this.path + path;
-    return new Promise((resolve, reject) => {
-      let req = new XMLHttpRequest();
-      req.open('GET', path, true);
-      req.setRequestHeader('Content-type', 'application/json');
-      if (this.token)
-        req.setRequestHeader('Authorization', this.token);
-      req.addEventListener('load', () => {
-        if (req.status == 200) {
-          let response = JSON.parse(req.responseText);
-          resolve(response);
-        } else {
-          reject(this.createError(req));
-        }
-      });
-      req.addEventListener('error', () => {
-        reject(this.createError(req));
-      });
-      req.send();
-    });
+  async createGetRequest(path) {
+    const url = this.origin + path;
+    const req = this.buildRequest('GET', url);
+    const response = await this.sendRequest(req);
+    return response;
   }
 
   /**
-   * Creates and sends an HTTP DELETE request.
+   * Creates and sends an HTTP DELETE request, awaiting for the response.
+   * @param {string} path Endpoint path on the server, i.e. /path/to/endpoint.
+   * @returns {Object}
+   * @async
    */
-  createDeleteRequest(path, data) {
-    path = 'http://' + this.path + path;
-    return new Promise((resolve, reject) => {
-      let req = new XMLHttpRequest();
-      req.open('DELETE', path, true);
-      req.setRequestHeader('Content-type', 'application/json');
-      if (this.token)
-        req.setRequestHeader('Authorization', this.token);
-      req.addEventListener('load', () => {
-        if (req.status == 200) {
-          let response = JSON.parse(req.responseText);
-          resolve(response);
-        } else {
-          reject(this.createError(req));
-        }
-      });
-      req.addEventListener('error', () => {
-        reject(this.createError(req));
-      });
-      req.send(JSON.stringify(data));
-    });
+  async createDeleteRequest(path, data) {
+    const url = this.origin + path;
+    const req = this.buildRequest('DELETE', url);
+    const response = await this.sendRequest(req, data);
+    return response;
   }
 
   /**
-   * Creates an ERA error for a failed or invalid HTTP request.
+   * Creates an error for a failed or invalid HTTP request.
    */
   createError(req) {
     let message;
@@ -178,7 +100,7 @@ class Network {
    * is successful, it resolves.
    */
   async createSocketConnection(query, required = false) {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       if (this.socket) {
         return resolve(this.socket);
       }
@@ -189,9 +111,8 @@ class Network {
       if (!query) {
         query = new Map();
       }
-      query.set('token', this.token);
-      if (window.devMode) {
-        query.set('dev', '1');
+      if (this.token) {
+        query.set('token', this.token);
       }
       let queryString = '';
       for (let pair of query) {
@@ -204,8 +125,7 @@ class Network {
       if (queryString) {
         params.query = queryString;
       }
-      const path = 'ws://' + this.createPath(this.host, this.port);
-      this.socket = io.connect(path, params);
+      this.socket = io.connect(this.origin, params);
       this.socket.on('connect', () => this.handleConnect(required));
     });
   }
@@ -213,22 +133,14 @@ class Network {
   /**
    * Handles a successful connection to the WebSockets server.
    */
-  handleConnect(required) {
+  handleConnect() {
     this.connectionResolver(this.socket);
+    // TODO: Create base socket endpoints for easier registration of handlers.
     this.socket.on('error', (err) => {
       const message = 'Socket error:' + JSON.stringify(err);
       console.error(message);
       new ErrorEvent(message).fire();
     });
-    if (required) {
-      this.socket.once('disconnect', (reason) => {
-        console.error('Disconnecting from socket', reason);
-        new ErrorEvent(reason).fire();
-        if (!this.cleared) {
-          window.location.reload();
-        }
-      });
-    }
   }
 
   /**
@@ -278,10 +190,58 @@ class Network {
     }
     this.pendingResponses.add(endpoint);
     this.socket.removeAllListeners(endpoint);
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       this.socket.once(endpoint, (data) => {
         return resolve(data);
       });
+    });
+  }
+
+  /**
+   * Builds a request object given a method and url.
+   * @param {string} method
+   * @param {string} url
+   */
+  buildRequest(method, url) {
+    const req = new XMLHttpRequest();
+    req.open(method, url, true);
+    req.setRequestHeader('Content-type', 'application/json');
+    if(this.token) {
+      req.setRequestHeader('Authorization', this.token);
+    }
+    return req;
+  }
+
+  /**
+   * Sends the request and awaits the response.
+   * @param {XMLHttpRequest} req
+   * @param {Object=} data
+   * @async
+   */
+  sendRequest(req, data = null) {
+    return new Promise((resolve, reject) => {
+      // Install load listener.
+      req.addEventListener('load', () => {
+        if (req.status == 200 || req.status == 304) {
+          const responseStr = req.responseText;
+          try {
+            const response = JSON.parse(responseStr);
+            resolve(response);
+          } catch (e) {
+            resolve(responseStr);
+          }
+        } else {
+          reject(this.createError(req));
+        }
+      });
+      // Install error listener.
+      req.addEventListener('error', () => reject(this.createError(req)));
+      // Send request.
+      if (data) {
+        req.send(JSON.stringify(data));
+      } else {
+        req.send();
+      }
     });
   }
 }

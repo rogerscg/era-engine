@@ -1,4 +1,8 @@
 /**
+ * @author rogerscg / https://github.com/rogerscg
+ */
+
+/**
  * Generates a RFC4122 version 4 compliant UUID.
  */
 function createUUID() {
@@ -145,7 +149,7 @@ function lerp(a, b, factor) {
  * @return {Promise<Object>} Parsed JSON object.
  * @async
  */
-async function loadJsonFromFile(path) {
+async function loadJsonFromFile$1(path) {
   return new Promise((resolve, reject) => {
     const loader = new THREE.FileLoader();
     loader.load(path, (data) => {
@@ -155,6 +159,10 @@ async function loadJsonFromFile(path) {
     });
   });
 }
+
+/**
+ * @author rogerscg / https://github.com/rogerscg
+ */
 
 /**
  * Core implementation for managing events and listeners. This
@@ -242,6 +250,10 @@ class Events {
 }
 
 /**
+ * @author rogerscg / https://github.com/rogerscg
+ */
+
+/**
  * Superclass for all custom events within the engine. Utilizes the
  * engine-specific event handling system used for both client and
  * server.
@@ -271,6 +283,10 @@ class EraEvent {
   
 }
 
+/**
+ * @author rogerscg / https://github.com/rogerscg
+ */
+
 const LABEL = 'reset';
 
 /**
@@ -288,15 +304,326 @@ class EngineResetEvent extends EraEvent {
 }
 
 /**
- * The default settings for the ERA engine.
+ * @author rogerscg / https://github.com/rogerscg
  */
-const DEFAULT_SETTINGS = {
-  debug: true,
-  mouse_sensitivity: 50,
-  shaders: true,
-  volume: 50,
-  movement_deadzone: 0.15,
+
+const Types = {
+  GAME: 'game',
+  MINIMAP: 'minimap',
+  BACKGROUND: 'background',
+  STAGE: 'stage',
+  TILE: 'tile',
 };
+
+/**
+ * A pool of singleton, lazy-loaded WebGL renderers for specific uses.
+ */
+class RendererPool {
+  constructor() {
+    this.map = new Map();
+    EngineResetEvent.listen(this.handleEngineReset.bind(this));
+  }
+  
+  get(name) {
+    if (name == Types.TILE) {
+      return this.getOrCreateTileRenderer();
+    }
+    if (!this.map.has(name)) {
+      return this.createRenderer(name);
+    }
+    return this.map.get(name);
+  }
+
+  /**
+   * Creates a new renderer based on the name of the renderer.
+   */
+  createRenderer(name) {
+    let renderer = null;
+    switch (name) {
+      case Types.GAME:
+        renderer = this.createGameRenderer();
+        break;
+      case Types.STAGE:
+      case Types.MINIMAP:
+      case Types.BACKGROUND:
+        renderer = this.createGenericRenderer();
+        break;
+    }
+    this.map.set(name, renderer);
+    return renderer;
+  }
+  
+  /**
+   * Creates the main renderer for the game.
+   */
+  createGameRenderer() {
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: true,
+    });
+    renderer.gammaOutput = true;
+    renderer.gammaInput = true;
+    renderer.setClearColor(0x111111);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(width, height);
+    return renderer;
+  }
+  
+  /**
+   * Creates the renderer used for face tiles.
+   */
+  createGenericRenderer() {
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: true
+    });
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.gammaInput = true;
+    renderer.gammaOutput = true;
+    return renderer;
+  }
+  
+  /**
+   * Retrives a tile renderer from the pool if it exists. If not, creates a new
+   * one.
+   */
+  getOrCreateTileRenderer() {
+    if (!this.map.has(Types.TILE)) {
+      this.map.set(Types.TILE, new Set());
+    }
+    const pool = this.map.get(Types.TILE);
+    let found = null;
+    pool.forEach((renderer) => {
+      if (!renderer.inUse && !found) {
+        found = renderer;
+      }
+    });
+    if (!found) {
+      found = this.createGenericRenderer();
+      pool.add(found);
+    }
+    found.inUse = true;
+    return found;
+  }
+  
+  /**
+   * Handles an engine reset by marking all renderers as not in use.
+   */
+  handleEngineReset() {
+    const tilePool = this.map.get(Types.TILE);
+    if (!tilePool) {
+      return;
+    }
+    tilePool.forEach((renderer) => renderer.inUse = false);
+  }
+}
+
+const rendererPool = new RendererPool();
+const RendererTypes = Types;
+
+/**
+ * @author rogerscg / https://github.com/rogerscg
+ */
+
+let instance = null;
+
+/**
+ * Engine core for the game.
+ */
+class Engine {
+  /**
+   * Enforces singleton engine instance.
+   */
+  static get() {
+    if (!instance) {
+      instance = new Engine();
+    }
+    return instance;
+  }
+
+  constructor() {
+    this.started = false;
+    this.rendering = false;
+    this.plugins = new Set();
+    this.entities = new Set();
+    // A map of cameras to the entities on which they are attached.
+    this.cameras = new Map();
+  }
+
+  getScene() {
+    return this.scene;
+  }
+
+  getCamera() {
+    return this.camera;
+  }
+
+  getRenderer() {
+    return this.renderer;
+  }
+
+  /**
+   * Starts the engine. This is separate from the constructor as it
+   * is asynchronous.
+   */
+  async start() {
+    if (this.started) {
+      return;
+    }
+    this.started = true;
+    this.clock = new THREE.Clock();
+    this.scene = new THREE.Scene();
+    if (!this.renderer) {
+      this.renderer = this.createRenderer();
+    }
+    this.camera = this.createCamera();
+    this.rendering = true;
+    requestAnimationFrame(() => this.render());
+  }
+
+  /**
+   * Resets the game engine to its initial state.
+   */
+  reset() {
+    // Reset all plugins.
+    this.plugins.forEach((plugin) => plugin.reset());
+    new EngineResetEvent().fire();
+    // Destroy all registered entities.
+    this.entities.forEach((entity) => entity.destroy());
+    // Clear the renderer.
+    this.resetRender = true;
+    this.clearScene();
+    this.started = false;
+  }
+
+  /**
+   * Clears the scene.
+   */
+  clearScene() {
+    const scene = this.scene;
+    while (scene.children.length > 0) {
+      scene.remove(scene.children[0]);
+    }
+  }
+
+  /**
+   * The root for all tick updates in the game.
+   */
+  render(timeStamp) {
+    this.renderer.render(this.scene, this.camera);
+    TWEEN.update(timeStamp);
+    // Update all plugins.
+    this.plugins.forEach((plugin) => plugin.update(timeStamp));
+    // Update all entities.
+    this.entities.forEach((entity) => entity.update());
+
+    // Check if the render loop should be halted.
+    if (this.resetRender) {
+      this.resetRender = false;
+      this.rendering = false;
+      return;
+    }
+    // Continue the loop.
+    requestAnimationFrame((time) => {
+      this.render(time);
+    });
+  }
+
+  /**
+   * Creates the three.js renderer and sets options.
+   */
+  createRenderer() {
+    const renderer = rendererPool.get(RendererTypes.GAME);
+    const container = document.getElementById('container');
+    container.appendChild(renderer.domElement);
+    window.addEventListener('resize', this.onWindowResize.bind(this), false);
+    return renderer;
+  }
+
+  /**
+   * Adjusts the game container and camera for the new window size.
+   */
+  onWindowResize(e) {
+    this.camera.aspect = window.innerWidth / window.innerHeight;
+    this.camera.updateProjectionMatrix();
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+  }
+
+  /**
+   * Creates the scene camera.
+   */
+  createCamera() {
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    const viewAngle = 70;
+    const aspect = width / height;
+    const near = 1;
+    const far = 1000;
+    const camera = new THREE.PerspectiveCamera(viewAngle, aspect, near, far);
+    camera.rotation.order = 'YXZ';
+    return camera;
+  }
+
+  enableRenderStats() {
+    this.rendererStats = new RendererStats(this.renderer);
+  }
+
+  disableRenderStats() {
+    document.body.removeChild(this.rendererStats.domElement);
+    this.rendererStats = null;
+  }
+  
+  /**
+   * Installs a plugin to receive updates on each engine loop as well as 
+   * resets.
+   * @param {Plugin} plugin
+   */
+  installPlugin(plugin) {
+    this.plugins.add(plugin);
+  }
+
+  /**
+   * Registers an entity for engine updates.
+   * @param {Entity} entity 
+   */
+  registerEntity(entity) {
+    this.entities.add(entity);
+  }
+
+  /**
+   * Unregisters an entity for engine updates.
+   * @param {Entity} entity 
+   */
+  unregisterEntity(entity) {
+    this.entities.delete(entity);
+  }
+
+  /**
+   * Attaches the main camera to the given entity.
+   * @param {Entity} entity
+   */
+  attachCamera(entity) {
+    if (!entity) {
+      return console.warn('No entity provided to attachCamera');
+    }
+    const camera = this.getCamera();
+    const prevEntity = this.cameras.get(camera);
+    if (prevEntity) {
+      prevEntity.detachCamera(camera);
+    }
+    entity.attachCamera(camera);
+    this.cameras.set(camera, entity);
+  }
+
+}
+
+/**
+ * @author rogerscg / https://github.com/rogerscg
+ */
 
 /**
  * Settings changed event. Fired when settings are applied.
@@ -318,46 +645,193 @@ class SettingsEvent extends EraEvent {
   }
 }
 
+/**
+ * @author rogerscg / https://github.com/rogerscg
+ */
+
+/**
+ * Base class for plugins to the engine such as audio, light, etc that can be
+ * updated on each engine tick and reset gracefully.
+ */
+class Plugin {
+  constructor() {
+    this.install();
+    SettingsEvent.listen(this.handleSettingsChange.bind(this));
+  }
+
+  /**
+   * Installs the plugin into the engine. This method should be final.
+   */
+  install() {
+    Engine.get().installPlugin(this);
+    return this;
+  }
+
+  /**
+   * Resets the plugin.
+   */
+  reset() {
+    console.warn('Plugin reset function not implemented');
+  }
+
+  /**
+   * Updates the plugin at each engine tick.
+   * @param {number} timestamp
+   */
+  update(timestamp) {
+    console.warn('Plugin update function not implemented');
+  }
+
+  /**
+   * Handles a settings change event.
+   */
+  handleSettingsChange() {}
+}
+
+/**
+ * @author rogerscg / https://github.com/rogerscg
+ */
+
+// The default settings for the ERA engine. These can be overwriten with custom
+// settings. See /data/settings.json as an example to define your own settings.
+const DEFAULT_SETTINGS = {
+  debug: {
+    value: true,
+  },
+  movement_deadzone: {
+    value: 0.15,
+  },
+  mouse_sensitivity: {
+    value: 50,
+  },
+  shaders: {
+    value: true,
+  },
+  volume: {
+    value: 50,
+  },
+};
+
 const SETTINGS_KEY = 'era_settings';
 
 /**
  * Controls the client settings in a singleton model in local storage.
  */
-class Settings {
+class Settings extends Map {
 
   constructor() {
-    this.settingsObject = this.initSettings();
-    this.verifySettings();
+    super();
+    this.loaded = false;
   }
-  
+
   /**
    * Gets the value of a key in the settings object.
    */
   get(key) {
-    return this.settingsObject[key];
+    const setting = super.get(key);
+    if (!setting) {
+      return null;
+    }
+    return setting.getValue();
   }
 
   /**
-   * Retrieves the settings object from local storage. If none exists, create
-   * the default.
+   * Sets a specific setting to the given value.
+   * @param {string} key
+   * @param {?} value
    */
-  initSettings() {
-    if (!localStorage.getItem(SETTINGS_KEY)) {
-      this.createDefaults();
+  set(key, value) {
+    const setting = super.get(key);
+    if (!setting) {
+      return;
     }
+    setting.setValue(value);
+    this.apply(); 
+  }
+
+  /**
+   * Loads the settings from engine defaults, provided defaults, and user-set
+   * values from local storage.
+   * @param {string} settingsPath
+   * @async
+   */
+  async load(settingsPath) {
+    if (this.loaded) {
+      return;
+    }
+    this.loaded = true;
+    this.loadEngineDefaults();
+    if (settingsPath) {
+      await this.loadFromFile(settingsPath);
+    }
+    this.loadExistingSettings();
+    this.apply();
+    return this;
+  }
+
+  /**
+   * Loads the default values for the engine. This is necessary for core plugins
+   * that are dependent on settings.
+   */
+  loadEngineDefaults() {
+    for (let key in DEFAULT_SETTINGS) {
+      const setting = new Setting(key, DEFAULT_SETTINGS[key]);
+      super.set(setting.getName(), setting);
+    }
+  }
+
+  /**
+   * Loads a default settings file at the give path. This is user-provided.
+   * This will also overwrite the default engine settings with the
+   * user-provided settings.
+   * @param {string} settingsPath
+   * @async
+   */
+  async loadFromFile(settingsPath) {
+    if (!settingsPath) {
+      return;
+    }
+    // Load JSON file with all settings.
+    let allSettingsData;
     try {
-      JSON.parse(localStorage.getItem(SETTINGS_KEY));
+      allSettingsData = await loadJsonFromFile(settingsPath);
     } catch (e) {
-      this.createDefaults();
+      throw new Error(e);
     }
-    return JSON.parse(localStorage.getItem(SETTINGS_KEY));
+    for (let key in allSettingsData) {
+      const setting = new Setting(key, allSettingsData[key]);
+      super.set(setting.getName(), setting);
+      promises.push(this.loadSound(directory, name, options));
+    }
+    return Promise.all(promises);
   }
 
   /**
-   * Creates the default settings object in local storage.
+   * Loads existing settings from local storage. Merges the settings previously
+   * saved into the existing defaults.
    */
-  createDefaults() {
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(DEFAULT_SETTINGS));
+  loadExistingSettings() {
+    // Load from local storage.
+    let savedSettings;
+    try {
+      savedSettings = localStorage.getItem(SETTINGS_KEY);
+      if (!savedSettings) {
+        return;
+      }
+      savedSettings = JSON.parse(savedSettings);
+    } catch (e) {
+      return;
+    }
+    // Iterate over saved settings and merge into defaults.
+    for (let key in savedSettings) {
+      const setting = new Setting(key, savedSettings[key]);
+      const defaultSetting = super.get(setting.getName());
+      if (!defaultSetting) {
+        continue;
+      }
+      // Merge saved setting into default.
+      defaultSetting.merge(setting);
+    }
   }
 
   /**
@@ -365,59 +839,123 @@ class Settings {
    * storage.
    */
   apply() {
-    localStorage.setItem(
-      SETTINGS_KEY, JSON.stringify(this.settingsObject));
-    const event = new SettingsEvent(this.settingsObject);
+    localStorage.setItem(SETTINGS_KEY, this.export());
+    const event = new SettingsEvent();
     event.fire();
   }
-  
+
   /**
-   * Verifies that all fields in the settings are present. This is necessary
-   * for updates to settings that are not present in localStorage, i.e. if a
-   * new setting is added.
+   * Exports all settings into a string for use in local storage.
+   * @returns {string}
    */
-  verifySettings() {
-    let changed = false;
-    for (let key in this.settingsObject) {
-      // If the current key in settings no longer exists in default settings,
-      // delete from local storage.
-      if (DEFAULT_SETTINGS[key] === undefined) {
-        delete this.settingsObject[key];
-        changed = true;
-      }
-    }
-    for (let key in DEFAULT_SETTINGS) {
-      // If the current key is not in current settings, set it to the default.
-      if (this.settingsObject[key] === undefined) {
-        this.settingsObject[key] = DEFAULT_SETTINGS[key];
-        changed = true;
-      }
-    }
-    if(changed) {
-      this.apply();
-    }
+  export() {
+    const expObj = {};
+    this.forEach((setting, name) => {
+      expObj[name] = setting.export();
+    });
+    return JSON.stringify(expObj);
   }
 }
 
 var Settings$1 = new Settings();
 
+/**
+ * An individual setting for tracking defaults, types, and other properties
+ * of the field.
+ */
+class Setting {
+  /**
+   * Loads a setting from an object.
+   * @param {Object} settingsData
+   */
+  constructor(name, settingsData) {
+    this.name = name;
+    this.value = settingsData.value;
+    this.wasModified = !!settingsData.modified;
+  }
+
+  getName() {
+    return this.name;
+  }
+
+  getValue() {
+    return this.value;
+  }
+
+  /**
+   * Sets the value of the individual setting, flipping the "modified" bit to
+   * true.
+   * @param {?} newValue
+   */
+  setValue(newValue) {
+    this.value = newValue;
+    this.wasModified = true;
+  }
+
+  /**
+   * Returns if the setting was modified at any point from the default.
+   * @returns {boolean}
+   */
+  wasModifiedFromDefault() {
+    return this.wasModified;
+  }
+
+  /**
+   * Merges another setting into this setting. This will only occur if the
+   * other setting has been mutated from the default. This check is useful in
+   * the event developers want to change a default setting, as otherwise, the
+   * new default setting would not be applied to returning users.
+   * @param {Setting} other
+   * @returns {Setting}
+   */
+  merge(other) {
+    // Sanity check for comparability.
+    if (!other || other.getName() != this.getName()) {
+      return;
+    }
+    // If the other setting was not modified from default, ignore.
+    if (!other.wasModifiedFromDefault()) {
+      return;
+    }
+    this.value = other.getValue();
+    this.wasModified = true;
+    // TODO: Check for min/max, type, or other options for validation.
+  }
+  
+  /**
+   * Exports the individual setting to an object.
+   * @returns {Object}
+   */
+  export() {
+    return {
+      value: this.value,
+      modified: this.wasModified,
+    };
+  }
+}
+
+/**
+ * @author rogerscg / https://github.com/rogerscg
+ */
+
 const CROSSFADE_TIME = 500;
 
-let instance = null;
+let instance$1 = null;
 
 /** 
  * Core implementation for all audio. Manages the loading, playback, and
  * other controls needed for in-game audio.
  */
-class Audio {
+class Audio extends Plugin {
   static get() {
-    if (!instance) {
-      instance = new Audio();
+    if (!instance$1) {
+      instance$1 = new Audio();
     }
-    return instance;
+    return instance$1;
   }
 
   constructor() {
+    super();
     this.defaultVolume = 50;
 
     this.context = new AudioContext();
@@ -435,8 +973,17 @@ class Audio {
 
     this.loadSettings();
     SettingsEvent.listen(this.loadSettings.bind(this));
-    EngineResetEvent.listen(this.handleEngineReset.bind(this));
   }
+
+  /** @override */
+  reset() {
+    this.stopAmbientSound();
+    this.playingSounds.forEach((node) => node.source.stop());
+    this.playingSounds.clear();
+  }
+
+  /** @override */
+  update() {}
 
   /**
    * Loads all sounds described from the provided file path. The file should
@@ -451,7 +998,7 @@ class Audio {
     // Load JSON file with all sounds and options.
     let allSoundData;
     try {
-      allSoundData = await loadJsonFromFile(filePath);
+      allSoundData = await loadJsonFromFile$1(filePath);
     } catch (e) {
       throw new Error(e);
     }
@@ -539,14 +1086,19 @@ class Audio {
     if (!buffer) {
       return false;
     }
-    const source = this.createSourceNode(buffer);
+    const node = this.createSourceNode(buffer);
     const volRatio = this.masterVolume / this.defaultVolume;
     // TODO: Load sounds into actual sound objects.
     const dataVolume = 1.0; //soundData && soundData.volume ? soundData.volume : 1.0;
     const volume = volRatio * dataVolume * adjustVolume;
-    source.gain.gain.value = volume;
-    source.source.start(0);
-    return source;
+    node.gain.gain.value = volume;
+    node.source.start(0);
+    node.uuid = createUUID();
+    this.playingSounds.set(node.uuid, node);
+    setTimeout(() => {
+      this.playingSounds.delete(node.uuid);
+    }, Math.round(node.source.buffer.duration * 1000));
+    return node;
   }
 
   /**
@@ -558,15 +1110,17 @@ class Audio {
     if (!buffer) {
       return false;
     }
-    const source = this.createSourceNode(buffer);
+    const node = this.createSourceNode(buffer);
     const volRatio = this.masterVolume / this.defaultVolume;
     // TODO: Load sounds into actual sound objects.
     const dataVolume = 1.0; //soundData && soundData.volume ? soundData.volume : 1.0;
     const volume = volRatio * dataVolume * adjustVolume;
-    source.gain.gain.value = volume;
-    source.source.loop = true;
-    source.source.start(0);
-    return source;
+    node.gain.gain.value = volume;
+    node.source.loop = true;
+    node.source.start(0);
+    node.uuid = createUUID();
+    this.playingSounds.set(node.uuid, node);
+    return node;
   }
 
   /** 
@@ -575,6 +1129,9 @@ class Audio {
   stopSound(sourceNode) {
     if (sourceNode) {
       sourceNode.source.stop();
+      if (sourceNode.uuid) {
+        this.playingSounds.delete(sourceNode.uuid);
+      }
     }
   }
 
@@ -607,10 +1164,6 @@ class Audio {
    */
   stopAmbientSound() {
     this.shouldPlayAmbientSound = false;
-    this.playingSounds.forEach((node) => {
-      node.source.stop();
-    });
-    this.playingSounds.clear();
   }
 
   /**
@@ -645,8 +1198,6 @@ class Audio {
     selectedBuffer.inUse = true;
     let currTime = this.context.currentTime;
     const node = this.createSourceNode(selectedBuffer);
-    const uuid = createUUID();
-    this.playingSounds.set(uuid, node);
     node.source.start(0);
     node.gain.gain.linearRampToValueAtTime(0, currTime);
     node.gain.gain.linearRampToValueAtTime(
@@ -662,19 +1213,18 @@ class Audio {
     }, Math.round(node.source.buffer.duration * 1000 - CROSSFADE_TIME));
 
     // When audio finishes playing, mark as not in use.
+    const uuid = createUUID();
+    this.playingSounds.set(uuid, node);
     setTimeout(() => {
       selectedBuffer.inUse = false;
       this.playingSounds.delete(uuid);
     }, Math.round(node.source.buffer.duration * 1000));
   }
-
-  /**
-   * Handles an engine reset event.
-   */
-  handleEngineReset() {
-    this.stopAmbientSound();
-  }
 }
+
+/**
+ * @author rogerscg / https://github.com/rogerscg
+ */
 
 /**
  * A bindings object, used for better control of custom bindings.
@@ -908,361 +1458,10 @@ class Action {
   }
 }
 
-const Types = {
-  GAME: 'game',
-  MINIMAP: 'minimap',
-  BACKGROUND: 'background',
-  STAGE: 'stage',
-  TILE: 'tile',
-};
-
 /**
- * A pool of singleton, lazy-loaded WebGL renderers for specific uses.
+ * @author rogerscg / https://github.com/rogerscg
+ * @author erveon / https://github.com/erveon
  */
-class RendererPool {
-  constructor() {
-    this.map = new Map();
-    EngineResetEvent.listen(this.handleEngineReset.bind(this));
-  }
-  
-  get(name) {
-    if (name == Types.TILE) {
-      return this.getOrCreateTileRenderer();
-    }
-    if (!this.map.has(name)) {
-      return this.createRenderer(name);
-    }
-    return this.map.get(name);
-  }
-
-  /**
-   * Creates a new renderer based on the name of the renderer.
-   */
-  createRenderer(name) {
-    let renderer = null;
-    switch (name) {
-      case Types.GAME:
-        renderer = this.createGameRenderer();
-        break;
-      case Types.STAGE:
-      case Types.MINIMAP:
-      case Types.BACKGROUND:
-        renderer = this.createGenericRenderer();
-        break;
-    }
-    this.map.set(name, renderer);
-    return renderer;
-  }
-  
-  /**
-   * Creates the main renderer for the game.
-   */
-  createGameRenderer() {
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-    const renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      alpha: true,
-    });
-    renderer.gammaOutput = true;
-    renderer.gammaInput = true;
-    renderer.setClearColor(0x111111);
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setSize(width, height);
-    return renderer;
-  }
-  
-  /**
-   * Creates the renderer used for face tiles.
-   */
-  createGenericRenderer() {
-    const renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      alpha: true
-    });
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.gammaInput = true;
-    renderer.gammaOutput = true;
-    return renderer;
-  }
-  
-  /**
-   * Retrives a tile renderer from the pool if it exists. If not, creates a new
-   * one.
-   */
-  getOrCreateTileRenderer() {
-    if (!this.map.has(Types.TILE)) {
-      this.map.set(Types.TILE, new Set());
-    }
-    const pool = this.map.get(Types.TILE);
-    let found = null;
-    pool.forEach((renderer) => {
-      if (!renderer.inUse && !found) {
-        found = renderer;
-      }
-    });
-    if (!found) {
-      found = this.createGenericRenderer();
-      pool.add(found);
-    }
-    found.inUse = true;
-    return found;
-  }
-  
-  /**
-   * Handles an engine reset by marking all renderers as not in use.
-   */
-  handleEngineReset() {
-    const tilePool = this.map.get(Types.TILE);
-    if (!tilePool) {
-      return;
-    }
-    tilePool.forEach((renderer) => renderer.inUse = false);
-  }
-}
-
-const rendererPool = new RendererPool();
-const RendererTypes = Types;
-
-let instance$1 = null;
-
-/**
- * Engine core for the game.
- */
-class Engine {
-  /**
-   * Enforces singleton engine instance.
-   */
-  static get() {
-    if (!instance$1) {
-      instance$1 = new Engine();
-    }
-    return instance$1;
-  }
-
-  constructor() {
-    this.started = false;
-    this.rendering = false;
-    this.plugins = new Set();
-    this.entities = new Set();
-    // A map of cameras to the entities on which they are attached.
-    this.cameras = new Map();
-  }
-
-  getScene() {
-    return this.scene;
-  }
-
-  getCamera() {
-    return this.camera;
-  }
-
-  getRenderer() {
-    return this.renderer;
-  }
-
-  /**
-   * Starts the engine. This is separate from the constructor as it
-   * is asynchronous.
-   */
-  async start() {
-    if (this.started) {
-      this.reset();
-    }
-    this.clock = new THREE.Clock();
-    this.scene = new THREE.Scene();
-    if (!this.renderer) {
-      this.renderer = this.createRenderer();
-    }
-    this.camera = this.createCamera();
-
-    this.started = true;
-    this.rendering = true;
-    requestAnimationFrame(() => {
-      this.render();
-    });
-  }
-
-  /**
-   * Resets the game engine to its initial state.
-   */
-  reset() {
-    // Reset all plugins.
-    this.plugins.forEach((plugin) => plugin.reset(timeStamp));
-    new EngineResetEvent().fire();
-    this.resetRender = true;
-    this.clearScene();
-    // TODO: Clean up reset rendering.
-    if (!this.rendering) {
-      this.rendering = true;
-      return this.render();
-    } else {
-      // If still rendering, prevent the reset and use the old loop.
-      this.resetRender = false;
-    }
-  }
-
-  /**
-   * Clears the scene.
-   */
-  clearScene() {
-    const scene = this.scene;
-    while (scene.children.length > 0) {
-      scene.remove(scene.children[0]);
-    }
-  }
-
-  /**
-   * The root for all tick updates in the game.
-   */
-  render(timeStamp) {
-    this.renderer.render(this.scene, this.camera);
-    TWEEN.update(timeStamp);
-    // Update all plugins.
-    this.plugins.forEach((plugin) => plugin.update(timeStamp));
-    // Update all entities.
-    this.entities.forEach((entity) => entity.update());
-
-    // Check if the render loop should be halted.
-    if (this.resetRender) {
-      this.resetRender = false;
-      this.rendering = false;
-      return;
-    }
-    // Continue the loop.
-    requestAnimationFrame((time) => {
-      this.render(time);
-    });
-  }
-
-  /**
-   * Creates the three.js renderer and sets options.
-   */
-  createRenderer() {
-    const renderer = rendererPool.get(RendererTypes.GAME);
-    const container = document.getElementById('container');
-    container.appendChild(renderer.domElement);
-    window.addEventListener('resize', this.onWindowResize.bind(this), false);
-    return renderer;
-  }
-
-  /**
-   * Adjusts the game container and camera for the new window size.
-   */
-  onWindowResize(e) {
-    this.camera.aspect = window.innerWidth / window.innerHeight;
-    this.camera.updateProjectionMatrix();
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
-  }
-
-  /**
-   * Creates the scene camera.
-   */
-  createCamera() {
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-    const viewAngle = 70;
-    const aspect = width / height;
-    const near = 1;
-    const far = 1000;
-    const camera = new THREE.PerspectiveCamera(viewAngle, aspect, near, far);
-    camera.rotation.order = 'YXZ';
-    return camera;
-  }
-
-  enableRenderStats() {
-    this.rendererStats = new RendererStats(this.renderer);
-  }
-
-  disableRenderStats() {
-    document.body.removeChild(this.rendererStats.domElement);
-    this.rendererStats = null;
-  }
-  
-  /**
-   * Installs a plugin to receive updates on each engine loop as well as 
-   * resets.
-   * @param {Plugin} plugin
-   */
-  installPlugin(plugin) {
-    this.plugins.add(plugin);
-  }
-
-  /**
-   * Registers an entity for engine updates.
-   * @param {Entity} entity 
-   */
-  registerEntity(entity) {
-    this.entities.add(entity);
-  }
-
-  /**
-   * Unregisters an entity for engine updates.
-   * @param {Entity} entity 
-   */
-  unregisterEntity(entity) {
-    this.entities.delete(entity);
-  }
-
-  /**
-   * Attaches the main camera to the given entity.
-   * @param {Entity} entity
-   */
-  attachCamera(entity) {
-    if (!entity) {
-      return console.warn('No entity provided to attachCamera');
-    }
-    const camera = this.getCamera();
-    const prevEntity = this.cameras.get(camera);
-    if (prevEntity) {
-      prevEntity.detachCamera(camera);
-    }
-    entity.attachCamera(camera);
-    this.cameras.set(camera, entity);
-  }
-
-}
-
-/**
- * Base class for plugins to the engine such as audio, light, etc that can be
- * updated on each engine tick and reset gracefully.
- */
-class Plugin {
-  constructor() {
-    this.install();
-    SettingsEvent.listen(this.handleSettingsChange.bind(this));
-  }
-
-  /**
-   * Installs the plugin into the engine. This method should be final.
-   */
-  install() {
-    Engine.get().installPlugin(this);
-    return this;
-  }
-
-  /**
-   * Resets the plugin.
-   */
-  reset() {
-    console.warn('Plugin reset function not implemented');
-  }
-
-  /**
-   * Updates the plugin at each engine tick.
-   * @param {number} timestamp
-   */
-  update(timestamp) {
-    console.warn('Plugin update function not implemented');
-  }
-
-  /**
-   * Handles a settings change event.
-   */
-  handleSettingsChange() {}
-}
 
 const CONTROLS_KEY = 'era_bindings';
 
@@ -1721,7 +1920,6 @@ class Controls extends Plugin {
    */
   loadSettings() {
     this.movementDeadzone = Settings$1.get('movement_deadzone');
-    this.overrideControls = Settings$1.get('overrides');
     this.mouseSensitivity = Settings$1.get('mouse_sensitivity');
   }
 
@@ -1779,6 +1977,10 @@ class Controls extends Plugin {
   }
 }
 
+/**
+ * @author rogerscg / https://github.com/rogerscg
+ */
+
 let instance$3 = null;
 
 /**
@@ -1816,7 +2018,7 @@ class Models {
     // Load JSON file with all models and options.
     let allModelData;
     try {
-      allModelData = await loadJsonFromFile(filePath);
+      allModelData = await loadJsonFromFile$1(filePath);
     } catch (e) {
       throw new Error(e);
     }
@@ -1870,6 +2072,10 @@ class Models {
     return this.storage.get(name).clone();
   }
 }
+
+/**
+ * @author rogerscg / https://github.com/rogerscg
+ */
 
 /**
  * Class for creating contact listeners.
@@ -1933,6 +2139,10 @@ class EraContactListener {
     }
   }
 }
+
+/**
+ * @author rogerscg / https://github.com/rogerscg
+ */
 
 const velocityIterations = 8;
 const positionIterations = 3;
@@ -2064,6 +2274,10 @@ class Physics extends Plugin {
     instance$4 = null;
   }
 }
+
+/**
+ * @author rogerscg / https://github.com/rogerscg
+ */
 
 const ENTITY_BINDINGS = {
   BACKWARD: {
@@ -2356,6 +2570,10 @@ class Entity extends THREE.Object3D {
   }
 }
 
+/**
+ * @author rogerscg / https://github.com/rogerscg
+ */
+
 let instance$5 = null;
 
 /**
@@ -2381,7 +2599,6 @@ class Light extends Plugin {
   
   /** @override */
   reset() {
-    instance$5 = null;
     // TODO: Dispose of lighting objects correctly.
   }
 
@@ -2395,7 +2612,6 @@ class Light extends Plugin {
     const ambientLight =
           new THREE.AmbientLight(parseInt(ambientConfig.color, 16));
     ambientLight.intensity = ambientConfig.intensity;
-    Engine.get().getScene().add(ambientLight);
     return ambientLight;
   }
 
@@ -2431,7 +2647,6 @@ class Light extends Plugin {
       this.shadersEnabled = true;
       this.createShaders(directionalLight);
     }
-    Engine.get().getScene().add(directionalLight);
     return directionalLight;
   }
   
@@ -2535,6 +2750,182 @@ class Light extends Plugin {
 }
 
 /**
+ * @author rogerscg / https://github.com/rogerscg
+ */
+
+const WIDTH = 500;
+
+const SUFFIXES = ['ft', 'bk', 'up', 'dn', 'rt', 'lf'];
+
+/**
+ * Wrapper class for a cube geometry, representing a skybox.
+ */
+class Skybox extends THREE.Object3D {
+  constructor() {
+    super();
+    this.cube = null;
+  }
+
+  /**
+   * Loads the skybox with a given texture. Requires that the 
+   * @param {string} directory
+   * @param {string} filename
+   * @param {string} extension
+   * @async
+   */
+  async load(directory, filename, extension) {
+    if (!directory || !filename || !extension) {
+      return console.warn('Not all params present for skybox load');
+    }
+    // Append a trailing slash to the directory if it doesn't exist.
+    if (!directory.endsWith('/')) {
+      directory += '/';
+    }
+    // Insert a period if the extension doesn't have one.
+    if (!extension.startsWith('.')) {
+      extension = '.' + extension;
+    }
+    // Load each texture for the cube.
+    const cubeMaterials =
+      await this.createCubeMaterials(directory, filename, extension);
+    
+    const geometry = new THREE.CubeGeometry(WIDTH, WIDTH, WIDTH);
+    const cube = new THREE.Mesh(geometry, cubeMaterials);
+    this.cube = cube;
+    this.add(cube);
+  }
+
+  /**
+   * Loads each cube face material.
+   * @param {string} directory
+   * @param {string} filename
+   * @param {string} extension
+   * @returns {Array<THREE.Material>}
+   * @async
+   */
+  async createCubeMaterials(directory, filename, extension) {
+    // Load all textures first.
+    const loader = extension == '.tga' ?
+      new THREE.TGALoader() :
+      new THREE.TextureLoader();
+    const texturePromises = new Array();
+    for (let i = 0; i < SUFFIXES.length; ++i) {
+      const suffix = SUFFIXES[i];
+      const path = `${directory}${filename}_${suffix}${extension}`;
+      texturePromises.push(this.loadTexture(loader, path));
+    }
+    const textures = await Promise.all(texturePromises);
+    // Create all materials from textures.
+    const cubeMaterials = new Array();
+    for (let i = 0; i < textures.length; ++i) {
+      const mat = new THREE.MeshBasicMaterial({
+        map: textures[i],
+        side: THREE.DoubleSide,
+      });
+      cubeMaterials.push(mat);
+    }
+    return cubeMaterials;
+  }
+
+  /**
+   * Wrapper for loading a texture.
+   * @param {THREE.Loader} loader
+   * @param {string} path
+   * @returns {THREE.Texture}
+   * @async
+   */
+  async loadTexture(loader, path) {
+    return new Promise((resolve) => {
+      loader.load(path, (texture) => {
+        resolve(texture);
+      });
+    });
+  }
+}
+
+/**
+ * Provides a way of dynamically creating light, skyboxes, ambient sounds, etc
+ * that are unique to an environment. Extends THREE.Object3D to act as a root
+ * that can be added to a scene.
+ */
+class Environment extends THREE.Object3D {
+  constructor() {
+    super();
+  }
+
+  /**
+   * Loads the environment from a JSON file.
+   * @param {string} filePath
+   * @async
+   */
+  async loadFromFile(filePath) {
+    if (!filePath) {
+      return;
+    }
+    // Load JSON file with environment and options.
+    const environmentData = await loadJsonFromFile$1(filePath);
+    this.loadLights(environmentData.lights);
+    await this.loadSkybox(environmentData.skybox);
+    return this;
+  }
+
+  /**
+   * Loads lights from the environment file.
+   * @param {Object} lightsData
+   */
+  loadLights(lightsData) {
+    if (!lightsData) {
+      return;
+    }
+    if (lightsData.ambient) {
+      lightsData.ambient.forEach((data) => {
+        const color = data.color !== undefined ?
+                      parseInt(data.color, 16) :
+                      0xffffff;
+        this.add(Light.get().createAmbientLight({
+          color: color,
+          intensity: data.intensity ? data.intensity : 1.0,
+        }));
+      });
+    }
+    if (lightsData.directional) {
+      lightsData.directional.forEach((data) => {
+        const color = data.color === undefined ?
+                      parseInt(data.color, 16) :
+                      0xffffff;
+        const x = data.x ? data.x : 0;
+        const y = data.y ? data.y : 0;
+        const z = data.z ? data.z : 0;
+        const intensity = data.intensity ? data.intensity : 1.0;
+        this.add(Light.get().createDirectionalLight(x, y, z, color, intensity));
+      });
+    }
+  }
+
+  /**
+   * Loads the skybox for the environment.
+   * @param {Object} skyboxData
+   * @async
+   */
+  async loadSkybox(skyboxData) {
+    if (!skyboxData) {
+      return;
+    }
+    // Create skybox.
+    const skybox = new Skybox();
+    const directory = skyboxData.directory;
+    const file = skyboxData.file;
+    const extension = skyboxData.extension;
+    await skybox.load(directory, file, extension);
+    this.add(skybox);
+  }
+}
+
+/**
+ * @author rogerscg / https://github.com/rogerscg
+ */
+
+/**
  * Custom event fired when a soft error occurs.
  */
 class ErrorEvent extends EraEvent {
@@ -2552,76 +2943,40 @@ class ErrorEvent extends EraEvent {
   }
 }
 
-const GAMEHOST_KEY = 'gamehost';
-const GAMEPORT_KEY = 'gameport';
-
 /**
- * Core functionality for network procedures in the game. Can be extended
- * in the case of different servers.
+ * @author rogerscg / https://github.com/rogerscg
  */
 
-let networkInstance = null;
-
+/**
+ * Core functionality for network procedures in the engine. Can be extended
+ * in the case of different servers.
+ */
 class Network {
-
-  /**
-   * Enforces singleton instance, if no other subclasses.
-   */
-  static get() {
-    if (!networkInstance) {
-      let host = localStorage.getItem(GAMEHOST_KEY);
-      let port = localStorage.getItem(GAMEPORT_KEY);
-      if (!host) {
-        port = 5000;
-        if(isBeta()) {
-          host = 'ec2-18-197-111-163.eu-central-1.compute.amazonaws.com';
-        } else {
-          host = 'ec2-54-172-65-111.compute-1.amazonaws.com';
-        }
-      }
-      networkInstance = new Network(host, port);
-      //if (window.devMode) {
-      //  networkInstance = new Network('localhost', 5000);
-      //}
-    }
-    return networkInstance;
-  }
-
-  /**
-   * Clears the registered singleton instance.
-   */
-  static clear() {
-    if (!networkInstance) {
-      return;
-    }
-    networkInstance.disconnect();
-    networkInstance = null;
-  }
-
-  constructor(host, port) {
+  constructor(protocol, host, port) {
+    this.protocol = protocol;
     this.host = host;
     this.port = port;
-    this.path = this.createPath(host, port);
-    this.cleared = false;
-    this.shouldReload = true;
+    this.origin = this.createPath(protocol, host, port);
     this.pendingResponses = new Set();
+    this.connectionResolve = null;
+    this.socket = null;
+    this.token = null;
   }
 
   /**
    * Disconnects the network instance.
    */
   disconnect() {
-    this.cleared = true;
     if (this.socket) {
       this.socket.disconnect();
     }
   }
 
   /**
-   * Creates a path given the host and port
+   * Creates a path given the protocol, host, and port.
    */
-  createPath(host, port) {
-    return `${host}:${port}`;
+  createPath(protocol, host, port) {
+    return `${protocol}://${host}:${port}`;
   }
 
   setAuthToken(token) {
@@ -2629,85 +2984,47 @@ class Network {
   }
 
   /**
-   * Creates and sends an HTTP POST request.
+   * Creates and sends an HTTP POST request, awaiting for the response.
+   * @param {string} path Endpoint path on the server, i.e. /path/to/endpoint.
+   * @param {Object} data
+   * @returns {Object}
+   * @async
    */
-  createPostRequest(path, data) {
-    path = 'http://' + this.path + path;
-    return new Promise((resolve, reject) => {
-      let req = new XMLHttpRequest();
-      req.open('POST', path, true);
-      req.setRequestHeader('Content-type', 'application/json');
-      if (this.token)
-        req.setRequestHeader('Authorization', this.token);
-      req.addEventListener('load', () => {
-        if (req.status == 200 || req.status == 304) {
-          let response = JSON.parse(req.responseText);
-          resolve(response);
-        } else {
-          reject(this.createError(req));
-        }
-      });
-      req.addEventListener('error', () => {
-        reject(this.createError(req));
-      });
-      req.send(JSON.stringify(data));
-    });
+  async createPostRequest(path, data) {
+    const url = this.origin + path;
+    const req = this.buildRequest('POST', url);
+    const response = await this.sendRequest(req, data);
+    return response;
   }
 
   /** 
-   * Creates and sends an HTTP GET request.
+   * Creates and sends an HTTP GET request, awaiting for the response.
+   * @param {string} path Endpoint path on the server, i.e. /path/to/endpoint.
+   * @returns {Object}
+   * @async
    */
-  createGetRequest(path) {
-    path = 'http://' + this.path + path;
-    return new Promise((resolve, reject) => {
-      let req = new XMLHttpRequest();
-      req.open('GET', path, true);
-      req.setRequestHeader('Content-type', 'application/json');
-      if (this.token)
-        req.setRequestHeader('Authorization', this.token);
-      req.addEventListener('load', () => {
-        if (req.status == 200) {
-          let response = JSON.parse(req.responseText);
-          resolve(response);
-        } else {
-          reject(this.createError(req));
-        }
-      });
-      req.addEventListener('error', () => {
-        reject(this.createError(req));
-      });
-      req.send();
-    });
+  async createGetRequest(path) {
+    const url = this.origin + path;
+    const req = this.buildRequest('GET', url);
+    const response = await this.sendRequest(req);
+    return response;
   }
 
   /**
-   * Creates and sends an HTTP DELETE request.
+   * Creates and sends an HTTP DELETE request, awaiting for the response.
+   * @param {string} path Endpoint path on the server, i.e. /path/to/endpoint.
+   * @returns {Object}
+   * @async
    */
-  createDeleteRequest(path, data) {
-    path = 'http://' + this.path + path;
-    return new Promise((resolve, reject) => {
-      let req = new XMLHttpRequest();
-      req.open('DELETE', path, true);
-      req.setRequestHeader('Content-type', 'application/json');
-      if (this.token)
-        req.setRequestHeader('Authorization', this.token);
-      req.addEventListener('load', () => {
-        if (req.status == 200) {
-          let response = JSON.parse(req.responseText);
-          resolve(response);
-        } else {
-          reject(this.createError(req));
-        }
-      });
-      req.addEventListener('error', () => {
-        reject(this.createError(req));
-      });
-      req.send(JSON.stringify(data));
-    });
+  async createDeleteRequest(path, data) {
+    const url = this.origin + path;
+    const req = this.buildRequest('DELETE', url);
+    const response = await this.sendRequest(req, data);
+    return response;
   }
 
   /**
-   * Creates an ERA error for a failed or invalid HTTP request.
+   * Creates an error for a failed or invalid HTTP request.
    */
   createError(req) {
     let message;
@@ -2726,7 +3043,7 @@ class Network {
    * is successful, it resolves.
    */
   async createSocketConnection(query, required = false) {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       if (this.socket) {
         return resolve(this.socket);
       }
@@ -2737,9 +3054,8 @@ class Network {
       if (!query) {
         query = new Map();
       }
-      query.set('token', this.token);
-      if (window.devMode) {
-        query.set('dev', '1');
+      if (this.token) {
+        query.set('token', this.token);
       }
       let queryString = '';
       for (let pair of query) {
@@ -2752,8 +3068,7 @@ class Network {
       if (queryString) {
         params.query = queryString;
       }
-      const path = 'ws://' + this.createPath(this.host, this.port);
-      this.socket = io.connect(path, params);
+      this.socket = io.connect(this.origin, params);
       this.socket.on('connect', () => this.handleConnect(required));
     });
   }
@@ -2761,22 +3076,14 @@ class Network {
   /**
    * Handles a successful connection to the WebSockets server.
    */
-  handleConnect(required) {
+  handleConnect() {
     this.connectionResolver(this.socket);
+    // TODO: Create base socket endpoints for easier registration of handlers.
     this.socket.on('error', (err) => {
       const message = 'Socket error:' + JSON.stringify(err);
       console.error(message);
       new ErrorEvent(message).fire();
     });
-    if (required) {
-      this.socket.once('disconnect', (reason) => {
-        console.error('Disconnecting from socket', reason);
-        new ErrorEvent(reason).fire();
-        if (!this.cleared) {
-          window.location.reload();
-        }
-      });
-    }
   }
 
   /**
@@ -2826,10 +3133,58 @@ class Network {
     }
     this.pendingResponses.add(endpoint);
     this.socket.removeAllListeners(endpoint);
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       this.socket.once(endpoint, (data) => {
         return resolve(data);
       });
+    });
+  }
+
+  /**
+   * Builds a request object given a method and url.
+   * @param {string} method
+   * @param {string} url
+   */
+  buildRequest(method, url) {
+    const req = new XMLHttpRequest();
+    req.open(method, url, true);
+    req.setRequestHeader('Content-type', 'application/json');
+    if(this.token) {
+      req.setRequestHeader('Authorization', this.token);
+    }
+    return req;
+  }
+
+  /**
+   * Sends the request and awaits the response.
+   * @param {XMLHttpRequest} req
+   * @param {Object=} data
+   * @async
+   */
+  sendRequest(req, data = null) {
+    return new Promise((resolve, reject) => {
+      // Install load listener.
+      req.addEventListener('load', () => {
+        if (req.status == 200 || req.status == 304) {
+          const responseStr = req.responseText;
+          try {
+            const response = JSON.parse(responseStr);
+            resolve(response);
+          } catch (e) {
+            resolve(responseStr);
+          }
+        } else {
+          reject(this.createError(req));
+        }
+      });
+      // Install error listener.
+      req.addEventListener('error', () => reject(this.createError(req)));
+      // Send request.
+      if (data) {
+        req.send(JSON.stringify(data));
+      } else {
+        req.send();
+      }
     });
   }
 }
@@ -2908,9 +3263,10 @@ class RendererStats$1 extends Plugin {
    */
   disable() {
     this.enabled = false;
-    this.dom.parentElement.removeChild(this.dom);
+    if (this.dom.parentElement) {
+      this.dom.parentElement.removeChild(this.dom);
+    }
   }
-
   
   /** @override */
   update() {
@@ -2919,6 +3275,11 @@ class RendererStats$1 extends Plugin {
     }
     this.fpsStats.update();
     this.webGLStats.update();
+  }
+
+  /** @override */
+  reset() {
+    this.disable();
   }
 
   /** @override */
@@ -3090,7 +3451,7 @@ class FpsStats extends Stats {
 
 // Panel constants.
 const PR = Math.round(window.devicePixelRatio || 1);
-const WIDTH = 83 * PR;
+const WIDTH$1 = 83 * PR;
 const HEIGHT = 48 * PR;
 const TEXT_X = 3 * PR;
 const TEXT_Y = 2 * PR;
@@ -3107,12 +3468,14 @@ class Panel {
     this.name = name;
     this.fg = fg;
     this.bg = bg;
+    this.min = Infinity;
+    this.max = 0;
     this.createDom();
   }
 
   createDom() {
     const canvas = document.createElement('canvas');
-    canvas.width = WIDTH;
+    canvas.width = WIDTH$1;
     canvas.height = HEIGHT;
     canvas.style.cssText = 'width:83px;height:48px';
     
@@ -3121,7 +3484,7 @@ class Panel {
     context.textBaseline = 'top';
     
     context.fillStyle = this.bg;
-    context.fillRect(0, 0, WIDTH, HEIGHT);
+    context.fillRect(0, 0, WIDTH$1, HEIGHT);
     
     context.fillStyle = this.fg;
     context.fillText(name, TEXT_X, TEXT_Y);
@@ -3138,14 +3501,14 @@ class Panel {
   update(value, maxValue) {
     const canvas = this.canvas;
     const context = this.context;
-    const min = Math.min(Infinity, value);
-    const max = Math.max(0, value);
+    this.min = Math.min(this.min, value);
+    this.max = Math.max(this.max, value);
 
     context.fillStyle = this.bg;
     context.globalAlpha = 1;
-    context.fillRect(0, 0, WIDTH, GRAPH_Y);
+    context.fillRect(0, 0, WIDTH$1, GRAPH_Y);
     context.fillStyle = this.fg;
-    context.fillText(`${Math.round(value)} ${this.name} (${Math.round(min)}-${Math.round(max)})`, TEXT_X, TEXT_Y);
+    context.fillText(`${Math.round(value)} ${this.name} (${Math.round(this.min)}-${Math.round(this.max)})`, TEXT_X, TEXT_Y);
 
     context.drawImage(canvas, GRAPH_X + PR, GRAPH_Y, GRAPH_WIDTH - PR, GRAPH_HEIGHT, GRAPH_X, GRAPH_Y, GRAPH_WIDTH - PR, GRAPH_HEIGHT);
 
@@ -3157,94 +3520,4 @@ class Panel {
   }
 }
 
-const WIDTH$1 = 250;
-
-const SUFFIXES = ['ft', 'bk', 'up', 'dn', 'rt', 'lf'];
-
-/**
- * Wrapper class for a cube geometry, representing a skybox.
- */
-class Skybox extends THREE.Object3D {
-  constructor() {
-    super();
-    this.cube = null;
-  }
-
-  /**
-   * Loads the skybox with a given texture. Requires that the 
-   * @param {string} directory
-   * @param {string} filename
-   * @param {string} extension
-   * @async
-   */
-  async load(directory, filename, extension) {
-    if (!directory || !filename || !extension) {
-      return console.warn('Not all params present for skybox load');
-    }
-    // Append a trailing slash to the directory if it doesn't exist.
-    if (!directory.endsWith('/')) {
-      directory += '/';
-    }
-    // Insert a period if the extension doesn't have one.
-    if (!extension.startsWith('.')) {
-      extension = '.' + extension;
-    }
-    // Load each texture for the cube.
-    const cubeMaterials =
-      await this.createCubeMaterials(directory, filename, extension);
-    
-    const geometry = new THREE.CubeGeometry(WIDTH$1, WIDTH$1, WIDTH$1);
-    const cube = new THREE.Mesh(geometry, cubeMaterials);
-    this.cube = cube;
-    this.add(cube);
-  }
-
-  /**
-   * Loads each cube face material.
-   * @param {string} directory
-   * @param {string} filename
-   * @param {string} extension
-   * @returns {Array<THREE.Material>}
-   * @async
-   */
-  async createCubeMaterials(directory, filename, extension) {
-    // Load all textures first.
-    const loader = extension == '.tga' ?
-      new THREE.TGALoader() :
-      new THREE.TextureLoader();
-    const texturePromises = new Array();
-    for (let i = 0; i < SUFFIXES.length; ++i) {
-      const suffix = SUFFIXES[i];
-      const path = `${directory}${filename}_${suffix}${extension}`;
-      texturePromises.push(this.loadTexture(loader, path));
-    }
-    const textures = await Promise.all(texturePromises);
-    // Create all materials from textures.
-    const cubeMaterials = new Array();
-    for (let i = 0; i < textures.length; ++i) {
-      const mat = new THREE.MeshBasicMaterial({
-        map: textures[i],
-        side: THREE.DoubleSide,
-      });
-      cubeMaterials.push(mat);
-    }
-    return cubeMaterials;
-  }
-
-  /**
-   * Wrapper for loading a texture.
-   * @param {THREE.Loader} loader
-   * @param {string} path
-   * @returns {THREE.Texture}
-   * @async
-   */
-  async loadTexture(loader, path) {
-    return new Promise((resolve) => {
-      loader.load(path, (texture) => {
-        resolve(texture);
-      });
-    });
-  }
-}
-
-export { Action, Audio, Bindings, Controls, Engine, EngineResetEvent, Entity, EraEvent, Events, Light, Models, Network, Physics, Plugin, RendererStats$1 as RendererStats, Settings$1 as Settings, SettingsEvent, Skybox, createUUID, disableShadows, dispose, extractMeshes, extractMeshesByName, getHexColorRatio, lerp, loadJsonFromFile, shuffleArray, toDegrees, toRadians, vectorToAngle };
+export { Action, Audio, Bindings, Controls, Engine, EngineResetEvent, Entity, Environment, EraEvent, Events, Light, Models, Network, Physics, Plugin, RendererStats$1 as RendererStats, Settings$1 as Settings, SettingsEvent, Skybox, createUUID, disableShadows, dispose, extractMeshes, extractMeshesByName, getHexColorRatio, lerp, loadJsonFromFile$1 as loadJsonFromFile, shuffleArray, toDegrees, toRadians, vectorToAngle };
