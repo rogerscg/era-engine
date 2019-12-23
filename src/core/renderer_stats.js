@@ -3,7 +3,7 @@
  * @author jetienne / http://jetienne.com/
  * @author rogerscg / https://github.com/rogerscg
  */
-
+import EngineTimer from './engine_timer.js';
 import Plugin from './plugin.js';
 import Settings from './settings.js';
 
@@ -211,10 +211,11 @@ class FpsStats extends Stats {
     }, false);
     
 
-    this.fpsPanel = this.addPanel(new Panel('FPS', '#0ff', '#002'));
-    this.msPanel = this.addPanel(new Panel('MS', '#0f0', '#020'));
+    this.fpsPanel = this.addPanel(new Panel('FPS', '#0ff', '#002', true));
+    this.msPanel = this.addPanel(new Panel('MS', '#0f0', '#020', false));
+    this.timerPanel = this.addPanel(new Panel('Render', '#ff3800', '#210', false));
     if (self.performance && self.performance.memory) {
-      this.memPanel = this.addPanel(new Panel('MB', '#f08', '#201'));
+      this.memPanel = this.addPanel(new Panel('MB', '#f08', '#201', true));
     }
     this.showPanel(0);
     return container;
@@ -243,7 +244,11 @@ class FpsStats extends Stats {
   end() {
     this.frames++;
     const time = (performance || Date).now();
-    this.msPanel.update(time - this.beginTime, 200);
+    this.msPanel.update(time - this.beginTime, 30);
+    const engStats = EngineTimer.export();
+    if (engStats) {
+      this.timerPanel.update(engStats.avg, 30);
+    }
     if (time >= this.prevTime + 1000) {
       this.fps = (this.frames * 1000) / (time - this.prevTime);
       this.fpsPanel.update(this.fps, 100);
@@ -278,12 +283,13 @@ const GRAPH_HEIGHT = 30 * PR;
  * An individual panel on the FPS stats component.
  */
 class Panel {
-  constructor(name, fg, bg) {
+  constructor(name, fg, bg, shouldRound) {
     this.name = name;
     this.fg = fg;
     this.bg = bg;
     this.min = Infinity;
     this.max = 0;
+    this.shouldRound = shouldRound;
     this.createDom();
   }
 
@@ -317,12 +323,13 @@ class Panel {
     const context = this.context;
     this.min = Math.min(this.min, value);
     this.max = Math.max(this.max, value);
+    const roundedValue = this.shouldRound ? Math.round(value) : value.toFixed(2);
 
     context.fillStyle = this.bg;
     context.globalAlpha = 1;
     context.fillRect(0, 0, WIDTH, GRAPH_Y);
     context.fillStyle = this.fg;
-    context.fillText(`${Math.round(value)} ${this.name} (${Math.round(this.min)}-${Math.round(this.max)})`, TEXT_X, TEXT_Y);
+    context.fillText(`${roundedValue} ${this.name} (${Math.round(this.min)}-${Math.round(this.max)})`, TEXT_X, TEXT_Y);
 
     context.drawImage(canvas, GRAPH_X + PR, GRAPH_Y, GRAPH_WIDTH - PR, GRAPH_HEIGHT, GRAPH_X, GRAPH_Y, GRAPH_WIDTH - PR, GRAPH_HEIGHT);
 
