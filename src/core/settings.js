@@ -112,9 +112,7 @@ class Settings extends Map {
     for (let key in allSettingsData) {
       const setting = new Setting(key, allSettingsData[key]);
       super.set(setting.getName(), setting);
-      promises.push(this.loadSound(directory, name, options));
     }
-    return Promise.all(promises);
   }
 
   /**

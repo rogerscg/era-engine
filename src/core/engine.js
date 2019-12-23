@@ -3,6 +3,7 @@
  */
 
 import EngineResetEvent from '../events/engine_reset_event.js';
+import EngineTimer from './engine_timer.js';
 import {RendererTypes, rendererPool} from './renderer_pool.js';
 
 let instance = null;
@@ -28,6 +29,7 @@ class Engine {
     this.entities = new Set();
     // A map of cameras to the entities on which they are attached.
     this.cameras = new Map();
+    this.timer = EngineTimer;
   }
 
   getScene() {
@@ -90,6 +92,7 @@ class Engine {
    * The root for all tick updates in the game.
    */
   render(timeStamp) {
+    this.timer.start();
     this.renderer.render(this.scene, this.camera);
     TWEEN.update(timeStamp);
     // Update all plugins.
@@ -103,10 +106,9 @@ class Engine {
       this.rendering = false;
       return;
     }
+    this.timer.end();
     // Continue the loop.
-    requestAnimationFrame((time) => {
-      this.render(time);
-    });
+    requestAnimationFrame((time) => this.render(time));
   }
 
   /**
