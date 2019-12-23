@@ -9,10 +9,10 @@ import {
   Engine,
   Environment,
   Models,
+  NetworkRegistry,
   RendererStats,
   Settings,
 } from '/src/era.js';
-import { Network } from '../../src/era.js';
 
 async function start() {
   // Load settings.

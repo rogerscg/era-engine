@@ -17,6 +17,7 @@ export {default as Events} from './core/events.js';
 export {default as Light} from './core/light.js';
 export {default as Models} from './core/models.js';
 export {default as Network} from './core/network.js';
+export {default as NetworkRegistry} from './core/network_registry.js';
 export {default as Physics} from './core/physics.js';
 export {default as Plugin} from './core/plugin.js';
 export {default as RendererStats} from './core/renderer_stats.js';

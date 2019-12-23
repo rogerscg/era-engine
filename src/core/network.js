@@ -1,7 +1,6 @@
 /**
  * @author rogerscg / https://github.com/rogerscg
  */
-
 import ErrorEvent from '../events/error_event.js';
 
 /**
@@ -18,6 +17,17 @@ class Network {
     this.connectionResolve = null;
     this.socket = null;
     this.token = null;
+    this.name = null;
+  }
+
+  /**
+   * Give the server a name.
+   * @param {string} name
+   * @returns {Network}
+   */
+  withName(name) {
+    this.name = name;
+    return this;
   }
 
   /**
