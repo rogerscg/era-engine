@@ -4,7 +4,7 @@ const FORCE_STRENGTH = 5;
 const RADIUS = 2;
 
 const GEOMETRY = new THREE.SphereGeometry(RADIUS, 32, 32);
-const MATERIAL = new THREE.MeshLambertMaterial({color: 0xff6600});
+const MATERIAL = new THREE.MeshLambertMaterial({color: 0xff0000});
 
 class Ball extends Entity {
   constructor() {

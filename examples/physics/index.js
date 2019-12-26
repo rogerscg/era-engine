@@ -46,7 +46,7 @@ async function start() {
   physics.registerEntity(ball);
   Controls.get().registerEntity(ball);
 
-  engine.attachCamera(ball);
+  engine.attachCamera(stage);
 }
 
 document.addEventListener('DOMContentLoaded', start);
