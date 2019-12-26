@@ -1,13 +1,12 @@
 /**
  * @author rogerscg / https://github.com/rogerscg
  */
-
+import Camera from './camera.js';
 import EngineResetEvent from '../events/engine_reset_event.js';
 import EngineTimer from './engine_timer.js';
 import {RendererTypes, rendererPool} from './renderer_pool.js';
 
 let instance = null;
-
 /**
  * Engine core for the game.
  */
@@ -45,6 +44,16 @@ class Engine {
   }
 
   /**
+   * Sets the camera on the engine.
+   * @param {THREE.Camera} camera
+   * @returns {Engine}
+   */
+  withCamera(camera) {
+    this.camera = camera;
+    return this;
+  }
+
+  /**
    * Starts the engine. This is separate from the constructor as it
    * is asynchronous.
    */
@@ -53,12 +62,13 @@ class Engine {
       return;
     }
     this.started = true;
-    this.clock = new THREE.Clock();
     this.scene = new THREE.Scene();
     if (!this.renderer) {
       this.renderer = this.createRenderer();
     }
-    this.camera = this.createCamera();
+    if (!this.camera) {
+      this.camera = Camera.get().buildPerspectiveCamera();
+    }
     this.rendering = true;
     requestAnimationFrame(() => this.render());
   }
@@ -129,21 +139,6 @@ class Engine {
     this.camera.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-  }
-
-  /**
-   * Creates the scene camera.
-   */
-  createCamera() {
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-    const viewAngle = 70;
-    const aspect = width / height;
-    const near = 1;
-    const far = 1000;
-    const camera = new THREE.PerspectiveCamera(viewAngle, aspect, near, far);
-    camera.rotation.order = 'YXZ';
-    return camera;
   }
 
   enableRenderStats() {

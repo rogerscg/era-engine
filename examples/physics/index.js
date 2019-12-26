@@ -6,7 +6,7 @@ import Ball from './ball.js';
 import Stage from './stage.js';
 import {
   AmmoPhysics,
-  Controls,
+  Camera,
   Engine,
   Environment,
   RendererStats,
@@ -18,7 +18,8 @@ async function start() {
   await Settings.load();
 
   // Create engine and load models.
-  const engine = Engine.get();
+  const engine = Engine.get()
+                  .withCamera(Camera.get().buildIsometricCamera());
   engine.start();
   const scene = engine.getScene();
 

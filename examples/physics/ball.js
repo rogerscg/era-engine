@@ -32,8 +32,9 @@ class Ball extends Entity {
   /** @override */
   positionCamera(camera) {
     this.cameraArm.add(camera);
+    camera.position.x = 35;
+    camera.position.y = 35;
     camera.position.z = 35;
-    camera.position.y = 10;
     camera.lookAt(this.position);
   }
 }
