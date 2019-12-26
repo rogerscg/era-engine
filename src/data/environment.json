@@ -4,6 +4,7 @@
     "file": "skybox_prefix",
     "extension": "png"
   },
+  "background": "ffffff",
   "lights": {
     "ambient": [
       {

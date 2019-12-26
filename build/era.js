@@ -2998,6 +2998,7 @@ class Environment extends THREE.Object3D {
     // Load JSON file with environment and options.
     const environmentData = await loadJsonFromFile$1(filePath);
     this.loadLights(environmentData.lights);
+    this.loadBackground(environmentData.background);
     await this.loadSkybox(environmentData.skybox);
     return this;
   }
@@ -3033,6 +3034,18 @@ class Environment extends THREE.Object3D {
         this.add(Light.get().createDirectionalLight(x, y, z, color, intensity));
       });
     }
+  }
+
+  /**
+   * Sets the renderer background color.
+   * @param {string} background
+   */
+  loadBackground(background) {
+    const renderer = Engine.get().getRenderer();
+    if (!renderer || !background) {
+      return;
+    }
+    renderer.setClearColor(parseInt(background, 16));
   }
 
   /**
