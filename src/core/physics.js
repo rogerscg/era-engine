@@ -35,7 +35,7 @@ class Physics extends Plugin {
   /** @override */
   update() {
     const currTime = performance.now();
-    let delta = (currTime - this.lastTime) / 1000;
+    let delta = (currTime - this.lastTime);
     this.lastTime = currTime;
     if (delta <= 0) {
       return;
@@ -72,19 +72,30 @@ class Physics extends Plugin {
 
   /**
    * Registers an entity to partake in physics simulations.
+   * @param {Entity} entity
    */
   registerEntity(entity) {
-    if (!entity || !entity.physicsObject) {
+    if (!entity || !entity.physicsBody) {
       console.error('Must pass in an entity');
+      return false;
     }
     this.registeredEntities.set(entity.uuid, entity);
+    entity.registerPhysicsWorld(this);
+    return true;
   }
 
   /**
    * Unregisters an entity from partaking in physics simulations.
+   * @param {Entity} entity
    */
   unregisterEntity(entity) {
-    console.warn('Unregister entity not defined');
+    if (!entity || !entity.physicsBody) {
+      console.error('Must pass in an entity');
+      return false;
+    }
+    this.registeredEntities.delete(entity.uuid);
+    entity.unregisterPhysicsWorld(this);
+    return true;
   }
 
   /**
@@ -109,6 +120,26 @@ class Physics extends Plugin {
   terminate() {
     clearInterval(this.updateInterval);
     instance = null;
+  }
+
+  /**
+   * Gets the position of the given entity. Must be implemented by
+   * engine-specific implementations.
+   * @param {Entity} entity
+   * @returns {Object}
+   */
+  getPosition(entity) {
+    console.warn('getPosition(entity) not implemented');
+  }
+
+  /**
+   * Gets the rotation of the given entity. Must be implemented by
+   * engine-specific implementations.
+   * @param {Entity} entity
+   * @returns {Object}
+   */
+  getRotation(entity) {
+    console.warn('getRotation(entity) not implemented');
   }
 }
 

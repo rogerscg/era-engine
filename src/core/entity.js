@@ -59,6 +59,7 @@ class Entity extends THREE.Object3D {
     this.bindings = Controls.get().getBindings(this.getControlsId());
     this.inputDevice = 'keyboard';
     this.registeredCameras = new Set();
+    this.physicsWorld = null;
     this.mouseMovement = {
       x: 0,
       y: 0
@@ -96,7 +97,7 @@ class Entity extends THREE.Object3D {
     }
     this.cameraArm = this.createCameraArm();
     if (this.physicsEnabled) {
-      this.generatePhysicsBody();
+      this.physicsBody = this.generatePhysicsBody();
     }
     Engine.get().registerEntity(this);
     return this;
@@ -111,6 +112,25 @@ class Entity extends THREE.Object3D {
       this.parent.remove(this);
     }
     Engine.get().unregisterEntity(this);
+  }
+
+  /**
+   * Registers a physics instance to the entity. This is used for communicating
+   * with the physics engine.
+   * @param {Physics} physics
+   */
+  registerPhysicsWorld(physics) {
+    this.physicsWorld = physics;
+  }
+
+  /**
+   * Unregisters a physics instance from the entity.
+   * @param {Physics} physics
+   */
+  unregisterPhysicsWorld(physics) {
+    if (this.physicsWorld && this.physicsWorld.uuid == physics.uuid) {
+      this.physicsWorld = null;
+    }
   }
 
   /**
@@ -189,6 +209,7 @@ class Entity extends THREE.Object3D {
     if (!body)
       return null;
     const precision = 4;
+    // TODO: make this engine-agnostic.
     return [
       [body.angularVelocity.toFixed(precision)],
       body.interpolatedPosition.map((x) => x.toFixed(precision)),
@@ -261,13 +282,23 @@ class Entity extends THREE.Object3D {
    * synchronized.
    */
   update() {
-    if (!this.mesh || !this.physicsBody) {
+    if (!this.mesh || !this.physicsBody || !this.physicsWorld) {
       return;
     }
-    // TODO: Don't make this so physics-engine-dependent.
-    this.mesh.position.x = this.physicsBody.interpolatedPosition[0];
-    this.mesh.position.z = this.physicsBody.interpolatedPosition[1];
-    this.mesh.rotation.y = -this.physicsBody.interpolatedAngle;
+    const position = this.physicsWorld.getPosition(this);
+    const rotation = this.physicsWorld.getRotation(this);
+    if (position.x != null) {
+      this.position.x = position.x;
+    }
+    if (position.y != null) {
+      this.position.y = position.y;
+    }
+    if (position.z != null) {
+      this.position.z = position.z;
+    }
+    if (rotation.w != null) {
+      this.mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
+    }
   }
 
   /** 
@@ -276,6 +307,7 @@ class Entity extends THREE.Object3D {
   consumeUpdate(physics) {
     if (!physics)
       return;
+      // TODO: make this engine-agnostic.
     const [angVelo, pos, velo, rot] = physics;
     this.physicsBody.angularVelocity = angVelo;
     this.physicsBody.angle = rot;

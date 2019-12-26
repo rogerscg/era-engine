@@ -4,6 +4,7 @@
 
 import Engine from './engine.js';
 import SettingsEvent from '../events/settings_event.js';
+import {createUUID} from './util.js';
 
 /**
  * Base class for plugins to the engine such as audio, light, etc that can be
@@ -11,6 +12,7 @@ import SettingsEvent from '../events/settings_event.js';
  */
 class Plugin {
   constructor() {
+    this.uuid = createUUID();
     this.install();
     SettingsEvent.listen(this.handleSettingsChange.bind(this));
   }

@@ -41,8 +41,7 @@ class Light extends Plugin {
    * Creates the ambient lighting. Use this for easing/darkening shadows.
    */
   createAmbientLight(ambientConfig) {
-    const ambientLight =
-          new THREE.AmbientLight(parseInt(ambientConfig.color, 16));
+    const ambientLight = new THREE.AmbientLight(ambientConfig.color);
     ambientLight.intensity = ambientConfig.intensity;
     return ambientLight;
   }

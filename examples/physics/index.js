@@ -5,6 +5,7 @@
 import Ball from './ball.js';
 import Stage from './stage.js';
 import {
+  AmmoPhysics,
   Controls,
   Engine,
   Environment,
@@ -24,6 +25,9 @@ async function start() {
   // Enable debug.
   new RendererStats(engine.getRenderer());
 
+  // Create physics.
+  const physics = new AmmoPhysics();
+
   // Create environment.
   const environment =
     await new Environment().loadFromFile('/examples/physics/environment.json');
@@ -32,13 +36,14 @@ async function start() {
   // Create stage.
   const stage = new Stage().withPhysics().build();
   scene.add(stage);
+  physics.registerEntity(stage);
 
   // Create ball.
-  const ball = new Ball().build();
+  const ball = new Ball().withPhysics().build();
   scene.add(ball);
+  physics.registerEntity(ball);
 
   engine.attachCamera(ball);
-  Controls.get().useOrbitControls();
 }
 
 document.addEventListener('DOMContentLoaded', start);
