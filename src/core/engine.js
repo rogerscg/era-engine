@@ -1,7 +1,6 @@
 /**
  * @author rogerscg / https://github.com/rogerscg
  */
-import Camera from './camera.js';
 import EngineResetEvent from '../events/engine_reset_event.js';
 import EngineTimer from './engine_timer.js';
 import {RendererTypes, rendererPool} from './renderer_pool.js';
@@ -48,8 +47,12 @@ class Engine {
    * @param {THREE.Camera} camera
    * @returns {Engine}
    */
-  withCamera(camera) {
+  setCamera(camera) {
+    if (this.camera) {
+      this.camera.userData.active = false;
+    }
     this.camera = camera;
+    camera.userData.active = true;
     return this;
   }
 
@@ -67,7 +70,7 @@ class Engine {
       this.renderer = this.createRenderer();
     }
     if (!this.camera) {
-      this.camera = Camera.get().buildPerspectiveCamera();
+      console.error('No camera provided');
     }
     this.rendering = true;
     requestAnimationFrame(() => this.render());
@@ -135,7 +138,7 @@ class Engine {
   /**
    * Adjusts the game container and camera for the new window size.
    */
-  onWindowResize(e) {
+  onWindowResize() {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
   }
   

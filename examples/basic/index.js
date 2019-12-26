@@ -5,6 +5,7 @@
 import XWing from './xwing.js';
 import {
   Audio,
+  Camera,
   Controls,
   Engine,
   Environment,
@@ -24,7 +25,7 @@ async function start() {
   await Audio.get().loadAllFromFile('/examples/basic/sounds/sounds.json');
 
   // Create engine and load models.
-  const engine = Engine.get();
+  const engine = Engine.get().setCamera(Camera.get().buildPerspectiveCamera());
   engine.start();
   const scene = engine.getScene();
 

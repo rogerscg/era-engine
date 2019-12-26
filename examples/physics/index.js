@@ -7,6 +7,7 @@ import Stage from './stage.js';
 import {
   AmmoPhysics,
   Camera,
+  Controls,
   Engine,
   Environment,
   RendererStats,
@@ -19,7 +20,7 @@ async function start() {
 
   // Create engine and load models.
   const engine = Engine.get()
-                  .withCamera(Camera.get().buildIsometricCamera());
+                  .setCamera(Camera.get().buildIsometricCamera());
   engine.start();
   const scene = engine.getScene();
 
@@ -43,6 +44,7 @@ async function start() {
   const ball = new Ball().withPhysics().build();
   scene.add(ball);
   physics.registerEntity(ball);
+  Controls.get().registerEntity(ball);
 
   engine.attachCamera(ball);
 }

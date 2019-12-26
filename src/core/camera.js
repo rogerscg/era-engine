@@ -23,6 +23,15 @@ class Camera {
   }
 
   /**
+   * Returns the active camera.
+   * @returns {THREE.Camera}
+   */
+  getActiveCamera() {
+    const cameras = [...this.cameras.values()];
+    return cameras.filter((camera) => camera.userData.active)[0];
+  }
+
+  /**
    * Builds a default perspective camera.
    * @returns {THREE.PerspectiveCamera}
    */
