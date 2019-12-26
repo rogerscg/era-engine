@@ -9,7 +9,6 @@ import {
   Engine,
   Environment,
   Models,
-  NetworkRegistry,
   RendererStats,
   Settings,
 } from '/src/era.js';

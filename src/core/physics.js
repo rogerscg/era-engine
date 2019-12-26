@@ -1,20 +1,12 @@
 /**
  * @author rogerscg / https://github.com/rogerscg
  */
-
-import EraContactListener from './era_contact_listener.js';
 import Plugin from './plugin.js';
 
-const ALL_MASK = 1 | 2 | 4 | 8;
-
-const velocityIterations = 8;
-const positionIterations = 3;
-
 let instance = null;
-
 /**
  * Core implementation for managing the game's physics. The
- * actual physics engine is provided by box2d.
+ * actual physics engine is provided by the user.
  */
 class Physics extends Plugin {
   /**
@@ -32,12 +24,6 @@ class Physics extends Plugin {
     this.registeredEntities = new Map();
     this.world = this.createWorld();
     this.lastTime = performance.now();
-    this.physicalMaterials = new Map();
-    this.contactMaterials = new Map();
-    this.stepsPerSecond = 120;
-
-    // A registry of shape and body contact callbacks.
-    this.pairCallbacks = new Map();
   }
 
   /** @override */
@@ -47,14 +33,14 @@ class Physics extends Plugin {
   }
 
   /** @override */
-  update(forcedTime) {
+  update() {
     const currTime = performance.now();
     let delta = (currTime - this.lastTime) / 1000;
     this.lastTime = currTime;
     if (delta <= 0) {
       return;
     }
-    this.world.Step(delta, velocityIterations, positionIterations);
+    this.step(delta);
     this.updateEntities(delta);
   }
 
@@ -63,33 +49,25 @@ class Physics extends Plugin {
   }
 
   /**
+   * Steps the physics world.
+   * @param {number} delta
+   */
+  step(delta) {
+    console.warn('Step not defined');
+  }
+
+  /**
    * Instantiates the physics world.
    */
   createWorld() {
-    const world = new box2d.b2World(new box2d.b2Vec2(0.0, 0.0));
-    this.contactListener = new EraContactListener();
-    world.SetContactListener(this.contactListener);
-    return world;
+    console.warn('Create world not defined');
   }
 
   /**
    * Iterates through all registered entities and updates them.
    */
   updateEntities(delta) {
-    this.registeredEntities.forEach((entity) => {
-      entity.update(delta);
-    });
-  }
-
-  /**
-   * Registers a fixture for contact event handling.
-   */
-  registerContactHandler(fixture, handler) {
-    if (!this.contactListener) {
-      console.warn('No contact listener installed!');
-      return;
-    }
-    this.contactListener.registerHandler(fixture, handler);
+    this.registeredEntities.forEach((entity) => entity.update(delta));
   }
 
   /**
@@ -106,11 +84,7 @@ class Physics extends Plugin {
    * Unregisters an entity from partaking in physics simulations.
    */
   unregisterEntity(entity) {
-    if (!entity || !entity.actions) {
-      console.error('Must pass in an entity');
-    }
-    this.registeredEntities.delete(entity.uuid);
-    this.world.DestroyBody(entity.physicsObject);
+    console.warn('Unregister entity not defined');
   }
 
   /**
@@ -119,14 +93,14 @@ class Physics extends Plugin {
    * to a mesh.
    */
   registerComponent(body) {
-    // Does nothing at the moment.
+    console.warn('Unregister entity not defined');
   }
 
   /**
    * Unregisters a component to partake in physics simulations.
    */
   unregisterComponent(body) {
-    this.world.DestroyBody(body);
+    console.warn('Unregister component not defined');
   }
 
   /**

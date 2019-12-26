@@ -5,8 +5,9 @@
 /**
  * Entry point for the ERA engine.
  */
-export {default as Audio} from './core/audio.js';
 export {Action, Bindings} from './core/bindings.js';
+export {default as Audio} from './core/audio.js';
+export {default as Box2DPhysics} from './physics/box2d_physics.js';
 export {default as Controls} from './core/controls.js';
 export {default as Engine} from './core/engine.js';
 export {default as EngineResetEvent} from './events/engine_reset_event.js';

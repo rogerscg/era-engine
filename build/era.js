@@ -3,6 +3,242 @@
  */
 
 /**
+ * A bindings object, used for better control of custom bindings.
+ */
+class Bindings {
+  constructor(id) {
+    this.id = id;
+    this.actions = new Map();
+    this.keysToActions = new Map();
+    this.staticProperties = new Set();
+  }
+
+  getId() {
+    return this.id;
+  }
+
+  getActions() {
+    return this.actions;
+  }
+
+  /**
+   * Returns all actions associated with a given key.
+   * @param {?} key
+   * @returns {Array<Action>}
+   */
+  getActionsForKey(key) {
+    return this.keysToActions.get(key);
+  }
+
+  /**
+   * Adds an action to the bindings.
+   * @param {Action} action
+   */
+  addAction(action) {
+    this.actions.set(action.getName(), action);
+    this.loadKeysToActions();
+    this.loadStaticProperties();
+    return this;
+  }
+
+  /**
+   * Removes an action from the bindings.
+   * @param {Action} action
+   */
+  removeAction(action) {
+    this.actions.delete(action.getName());
+    this.loadKeysToActions();
+    this.loadStaticProperties();
+    return this;
+  }
+
+  /**
+   * Gets the action for a given name.
+   * @param {string} actionName 
+   */
+  getAction(actionName) {
+    return this.actions.get(actionName);
+  }
+
+  /**
+   * Loads an object into the bindings, considering custom bindings.
+   * @param {Object} bindingsObj
+   */
+  load(bindingsObj) {
+    for (let actionName in bindingsObj) {
+      const actionObj = bindingsObj[actionName];
+      const action = new Action(actionName).load(actionObj);
+      this.actions.set(actionName, action);
+    }
+    this.loadKeysToActions();
+    this.loadStaticProperties();
+    return this;
+  }
+
+  /**
+   * Loads all keys into a map to their respective actions for fast lookups in
+   * controls updates.
+   */
+  loadKeysToActions() {
+    // Clear beforehand in case we're reloading.
+    this.keysToActions.clear();
+    this.actions.forEach((action) => {
+      const keys = action.getKeys();
+      keys.forEach((key) => {
+        if (!this.keysToActions.has(key)) {
+          this.keysToActions.set(key, new Array());
+        }
+        this.keysToActions.get(key).push(action);
+      });
+    });
+  }
+
+  /**
+   * Takes all action names and sets their names as "static" fields of the
+   * bindings instance. This is to ease development for the user, so they can
+   * call `entity.getActionValue(bindings.SPRINT)` as opposed to passing in a
+   * string literal `entity.getActionValue('SPRINT')`.
+   */
+  loadStaticProperties() {
+    // Clear old static properties, based on a set created from earlier.
+    this.staticProperties.forEach((propName) => {
+      delete this[propName];
+    });
+    this.staticProperties.clear();
+    // Set new static properties based on actions.
+    this.actions.forEach((ignore, actionName) => {
+      this[actionName] = actionName;
+      this.staticProperties.add(actionName);
+    });
+  }
+
+  /**
+   * Merges the given bindings into the existing bindings.
+   * @param {Bindings} other
+   */
+  merge(other) {
+    other.getActions().forEach((action) => {
+      if (!this.actions.has(action.getName())) {
+        this.actions.set(action.getName(), action);
+      } else {
+        this.actions.get(action.getName()).merge(action);
+      }
+    });
+    this.loadKeysToActions();
+    this.loadStaticProperties();
+    return this;
+  }
+
+  /**
+   * Converts the bindings instance to an object.
+   * @returns {Object}
+   */
+  toObject() {
+    const exportObj = {};
+    this.actions.forEach((action) => {
+      exportObj[action.getName()] = action.toObject();
+    });
+    return exportObj;
+  }
+
+  /**
+   * Returns if there are no actions associated with the bindings.
+   * @returns {boolean}
+   */
+  isEmpty() {
+    // Get all non-empty actions.
+    const nonEmptyActions = [...this.actions.values()].filter((action) => {
+      return !action.isEmpty();
+    });
+    return nonEmptyActions.length == 0;
+  }
+}
+
+/**
+ * Represents an action an entity can take as well as the inputs that are used
+ * to trigger this action.
+ */
+class Action {
+  constructor(name) {
+    this.name = name;
+    this.id = null;
+    this.keys = new Map();
+  }
+
+  getName() {
+    return this.name;
+  }
+
+  getKeys() {
+    return this.keys;
+  }
+
+  /**
+   * Adds a key that can trigger the action.
+   * @param {string} inputType
+   * @param {?} key 
+   */
+  addKey(inputType, key) {
+    this.keys.set(inputType, key);
+    return this;
+  }
+
+  /**
+   * Clears the key for the given input type.
+   * @param {string} inputType 
+   */
+  clearInputType(inputType) {
+    this.keys.delete(inputType);
+  }
+
+  /**
+   * Loads the action from an arbitrary object.
+   */
+  load(actionObj) {
+    for (let inputType in actionObj.keys) {
+      this.keys.set(inputType, actionObj.keys[inputType]);
+    }
+    return this;
+  }
+
+  /**
+   * Merges an existing action with this action.
+   * @param {Action} other
+   */
+  merge(other) {
+    other.getKeys().forEach((key, inputType) => {
+      if (!this.keys.has(inputType)) {
+        this.keys.set(inputType, key);
+      }
+    });
+    return this
+  }
+
+  /**
+   * Converts the action instance to an object.
+   * @returns {Object}
+   */
+  toObject() {
+    const exportObj = {};
+    exportObj.keys = {};
+    this.keys.forEach((key, inputType) => exportObj.keys[inputType] = key);
+    return exportObj;
+  }
+
+  /**
+   * Detects if the action is empty.
+   * @returns {boolean}
+   */
+  isEmpty() {
+    return this.keys.size == 0;
+  }
+}
+
+/**
+ * @author rogerscg / https://github.com/rogerscg
+ */
+
+/**
  * Generates a RFC4122 version 4 compliant UUID.
  */
 function createUUID() {
@@ -307,6 +543,375 @@ class EngineResetEvent extends EraEvent {
  * @author rogerscg / https://github.com/rogerscg
  */
 
+/**
+ * Settings changed event. Fired when settings are applied.
+ */
+class SettingsEvent extends EraEvent {
+  
+  /**
+   * Takes in the new settings object.
+   */
+  constructor() {
+    const label = 'settings';
+    const data = {};
+    super(label, data);
+  }
+  
+  /** @override */
+  static listen(callback) {
+    EraEvent.listen('settings', callback);
+  }
+}
+
+/**
+ * @author rogerscg / https://github.com/rogerscg
+ */
+
+// The default settings for the ERA engine. These can be overwriten with custom
+// settings. See /data/settings.json as an example to define your own settings.
+const DEFAULT_SETTINGS = {
+  debug: {
+    value: true,
+  },
+  movement_deadzone: {
+    value: 0.15,
+  },
+  mouse_sensitivity: {
+    value: 50,
+  },
+  shaders: {
+    value: true,
+  },
+  volume: {
+    value: 50,
+  },
+};
+
+const SETTINGS_KEY = 'era_settings';
+
+/**
+ * Controls the client settings in a singleton model in local storage.
+ */
+class Settings extends Map {
+
+  constructor() {
+    super();
+    this.loaded = false;
+  }
+
+  /**
+   * Gets the value of a key in the settings object.
+   */
+  get(key) {
+    const setting = super.get(key);
+    if (!setting) {
+      return null;
+    }
+    return setting.getValue();
+  }
+
+  /**
+   * Sets a specific setting to the given value.
+   * @param {string} key
+   * @param {?} value
+   */
+  set(key, value) {
+    const setting = super.get(key);
+    if (!setting) {
+      return;
+    }
+    setting.setValue(value);
+    this.apply(); 
+  }
+
+  /**
+   * Loads the settings from engine defaults, provided defaults, and user-set
+   * values from local storage.
+   * @param {string} settingsPath
+   * @async
+   */
+  async load(settingsPath) {
+    if (this.loaded) {
+      return;
+    }
+    this.loaded = true;
+    this.loadEngineDefaults();
+    if (settingsPath) {
+      await this.loadFromFile(settingsPath);
+    }
+    this.loadExistingSettings();
+    this.apply();
+    return this;
+  }
+
+  /**
+   * Loads the default values for the engine. This is necessary for core plugins
+   * that are dependent on settings.
+   */
+  loadEngineDefaults() {
+    for (let key in DEFAULT_SETTINGS) {
+      const setting = new Setting(key, DEFAULT_SETTINGS[key]);
+      super.set(setting.getName(), setting);
+    }
+  }
+
+  /**
+   * Loads a default settings file at the give path. This is user-provided.
+   * This will also overwrite the default engine settings with the
+   * user-provided settings.
+   * @param {string} settingsPath
+   * @async
+   */
+  async loadFromFile(settingsPath) {
+    if (!settingsPath) {
+      return;
+    }
+    // Load JSON file with all settings.
+    let allSettingsData;
+    try {
+      allSettingsData = await loadJsonFromFile(settingsPath);
+    } catch (e) {
+      throw new Error(e);
+    }
+    for (let key in allSettingsData) {
+      const setting = new Setting(key, allSettingsData[key]);
+      super.set(setting.getName(), setting);
+    }
+  }
+
+  /**
+   * Loads existing settings from local storage. Merges the settings previously
+   * saved into the existing defaults.
+   */
+  loadExistingSettings() {
+    // Load from local storage.
+    let savedSettings;
+    try {
+      savedSettings = localStorage.getItem(SETTINGS_KEY);
+      if (!savedSettings) {
+        return;
+      }
+      savedSettings = JSON.parse(savedSettings);
+    } catch (e) {
+      return;
+    }
+    // Iterate over saved settings and merge into defaults.
+    for (let key in savedSettings) {
+      const setting = new Setting(key, savedSettings[key]);
+      const defaultSetting = super.get(setting.getName());
+      if (!defaultSetting) {
+        continue;
+      }
+      // Merge saved setting into default.
+      defaultSetting.merge(setting);
+    }
+  }
+
+  /**
+   * Fires the applySettings event to the event core, then saves to local
+   * storage.
+   */
+  apply() {
+    localStorage.setItem(SETTINGS_KEY, this.export());
+    const event = new SettingsEvent();
+    event.fire();
+  }
+
+  /**
+   * Exports all settings into a string for use in local storage.
+   * @returns {string}
+   */
+  export() {
+    const expObj = {};
+    this.forEach((setting, name) => {
+      expObj[name] = setting.export();
+    });
+    return JSON.stringify(expObj);
+  }
+}
+
+var Settings$1 = new Settings();
+
+/**
+ * An individual setting for tracking defaults, types, and other properties
+ * of the field.
+ */
+class Setting {
+  /**
+   * Loads a setting from an object.
+   * @param {Object} settingsData
+   */
+  constructor(name, settingsData) {
+    this.name = name;
+    this.value = settingsData.value;
+    this.wasModified = !!settingsData.modified;
+  }
+
+  getName() {
+    return this.name;
+  }
+
+  getValue() {
+    return this.value;
+  }
+
+  /**
+   * Sets the value of the individual setting, flipping the "modified" bit to
+   * true.
+   * @param {?} newValue
+   */
+  setValue(newValue) {
+    this.value = newValue;
+    this.wasModified = true;
+  }
+
+  /**
+   * Returns if the setting was modified at any point from the default.
+   * @returns {boolean}
+   */
+  wasModifiedFromDefault() {
+    return this.wasModified;
+  }
+
+  /**
+   * Merges another setting into this setting. This will only occur if the
+   * other setting has been mutated from the default. This check is useful in
+   * the event developers want to change a default setting, as otherwise, the
+   * new default setting would not be applied to returning users.
+   * @param {Setting} other
+   * @returns {Setting}
+   */
+  merge(other) {
+    // Sanity check for comparability.
+    if (!other || other.getName() != this.getName()) {
+      return;
+    }
+    // If the other setting was not modified from default, ignore.
+    if (!other.wasModifiedFromDefault()) {
+      return;
+    }
+    this.value = other.getValue();
+    this.wasModified = true;
+    // TODO: Check for min/max, type, or other options for validation.
+  }
+  
+  /**
+   * Exports the individual setting to an object.
+   * @returns {Object}
+   */
+  export() {
+    return {
+      value: this.value,
+      modified: this.wasModified,
+    };
+  }
+}
+
+/**
+ * @author rogerscg / https://github.com/rogerscg
+ */
+
+const MEASUREMENT_MIN = 10;
+const MAX_LENGTH = 100;
+
+/**
+ * A timer for monitoring render loop execution time. Installed on the engine
+ * core, then read by renderer stats. Only enabled when debug is enabled.
+ */
+class EngineTimer {
+  constructor() {
+    this.measurements = new Array();
+    this.min = Infinity;
+    this.max = 0;
+    this.currIndex = 0;
+    this.enabled = Settings$1.get('debug');
+    SettingsEvent.listen(this.handleSettings.bind(this));
+  }
+
+  /**
+   * Starts a measurement.
+   */
+  start() {
+    if (!this.enabled) {
+      return;
+    }
+    this.startTime = performance.now();
+  }
+
+  /**
+   * Completes a measurement, recording it if enabled.
+   */
+  end() {
+    if (!this.enabled || !this.startTime) {
+      return;
+    }
+    const time = performance.now() - this.startTime;
+    this.measurements[this.currIndex] = time;
+    this.currIndex++;
+    if (this.currIndex >= MAX_LENGTH) {
+      this.currIndex = 0;
+    }
+    if (time > this.max) {
+      this.max = time;
+    }
+    if (time < this.min) {
+      this.min = time;
+    }
+  }
+
+  /**
+   * Resets the timer cache.
+   */
+  reset() {
+    this.max = 0;
+    this.min = Infinity;
+    this.currIndex = 0;
+    // Clear the array.
+    this.measurements.length = 0;
+  }
+
+  /**
+   * Exports the meaurements average for reading in the stats panel. Clears the
+   * measurements array for memory usage.
+   * @returns {Object}
+   */
+  export() {
+    if (!this.enabled) {
+      return null;
+    }
+    if (this.measurements.length < MEASUREMENT_MIN) {
+      return null;
+    }
+    const total = this.measurements.reduce((agg, x) => agg + x, 0);
+    const avg = total / this.measurements.length;
+    const exportObj = {
+      max: this.max,
+      min: this.min,
+      avg: avg,
+    };
+    this.reset();
+    return exportObj;
+  }
+
+  /**
+   * Handles a settings change.
+   */
+  handleSettings() {
+    const currEnabled = this.enabled;
+    if (currEnabled == Settings$1.get('debug')) {
+      return;
+    }
+    this.enabled = Settings$1.get('debug');
+    this.reset();
+  }
+}
+
+var EngineTimer$1 = new EngineTimer();
+
+/**
+ * @author rogerscg / https://github.com/rogerscg
+ */
+
 const Types = {
   GAME: 'game',
   MINIMAP: 'minimap',
@@ -452,6 +1057,7 @@ class Engine {
     this.entities = new Set();
     // A map of cameras to the entities on which they are attached.
     this.cameras = new Map();
+    this.timer = EngineTimer$1;
   }
 
   getScene() {
@@ -514,6 +1120,7 @@ class Engine {
    * The root for all tick updates in the game.
    */
   render(timeStamp) {
+    this.timer.start();
     this.renderer.render(this.scene, this.camera);
     TWEEN.update(timeStamp);
     // Update all plugins.
@@ -527,10 +1134,9 @@ class Engine {
       this.rendering = false;
       return;
     }
+    this.timer.end();
     // Continue the loop.
-    requestAnimationFrame((time) => {
-      this.render(time);
-    });
+    requestAnimationFrame((time) => this.render(time));
   }
 
   /**
@@ -626,30 +1232,6 @@ class Engine {
  */
 
 /**
- * Settings changed event. Fired when settings are applied.
- */
-class SettingsEvent extends EraEvent {
-  
-  /**
-   * Takes in the new settings object.
-   */
-  constructor() {
-    const label = 'settings';
-    const data = {};
-    super(label, data);
-  }
-  
-  /** @override */
-  static listen(callback) {
-    EraEvent.listen('settings', callback);
-  }
-}
-
-/**
- * @author rogerscg / https://github.com/rogerscg
- */
-
-/**
  * Base class for plugins to the engine such as audio, light, etc that can be
  * updated on each engine tick and reset gracefully.
  */
@@ -686,252 +1268,6 @@ class Plugin {
    * Handles a settings change event.
    */
   handleSettingsChange() {}
-}
-
-/**
- * @author rogerscg / https://github.com/rogerscg
- */
-
-// The default settings for the ERA engine. These can be overwriten with custom
-// settings. See /data/settings.json as an example to define your own settings.
-const DEFAULT_SETTINGS = {
-  debug: {
-    value: true,
-  },
-  movement_deadzone: {
-    value: 0.15,
-  },
-  mouse_sensitivity: {
-    value: 50,
-  },
-  shaders: {
-    value: true,
-  },
-  volume: {
-    value: 50,
-  },
-};
-
-const SETTINGS_KEY = 'era_settings';
-
-/**
- * Controls the client settings in a singleton model in local storage.
- */
-class Settings extends Map {
-
-  constructor() {
-    super();
-    this.loaded = false;
-  }
-
-  /**
-   * Gets the value of a key in the settings object.
-   */
-  get(key) {
-    const setting = super.get(key);
-    if (!setting) {
-      return null;
-    }
-    return setting.getValue();
-  }
-
-  /**
-   * Sets a specific setting to the given value.
-   * @param {string} key
-   * @param {?} value
-   */
-  set(key, value) {
-    const setting = super.get(key);
-    if (!setting) {
-      return;
-    }
-    setting.setValue(value);
-    this.apply(); 
-  }
-
-  /**
-   * Loads the settings from engine defaults, provided defaults, and user-set
-   * values from local storage.
-   * @param {string} settingsPath
-   * @async
-   */
-  async load(settingsPath) {
-    if (this.loaded) {
-      return;
-    }
-    this.loaded = true;
-    this.loadEngineDefaults();
-    if (settingsPath) {
-      await this.loadFromFile(settingsPath);
-    }
-    this.loadExistingSettings();
-    this.apply();
-    return this;
-  }
-
-  /**
-   * Loads the default values for the engine. This is necessary for core plugins
-   * that are dependent on settings.
-   */
-  loadEngineDefaults() {
-    for (let key in DEFAULT_SETTINGS) {
-      const setting = new Setting(key, DEFAULT_SETTINGS[key]);
-      super.set(setting.getName(), setting);
-    }
-  }
-
-  /**
-   * Loads a default settings file at the give path. This is user-provided.
-   * This will also overwrite the default engine settings with the
-   * user-provided settings.
-   * @param {string} settingsPath
-   * @async
-   */
-  async loadFromFile(settingsPath) {
-    if (!settingsPath) {
-      return;
-    }
-    // Load JSON file with all settings.
-    let allSettingsData;
-    try {
-      allSettingsData = await loadJsonFromFile(settingsPath);
-    } catch (e) {
-      throw new Error(e);
-    }
-    for (let key in allSettingsData) {
-      const setting = new Setting(key, allSettingsData[key]);
-      super.set(setting.getName(), setting);
-      promises.push(this.loadSound(directory, name, options));
-    }
-    return Promise.all(promises);
-  }
-
-  /**
-   * Loads existing settings from local storage. Merges the settings previously
-   * saved into the existing defaults.
-   */
-  loadExistingSettings() {
-    // Load from local storage.
-    let savedSettings;
-    try {
-      savedSettings = localStorage.getItem(SETTINGS_KEY);
-      if (!savedSettings) {
-        return;
-      }
-      savedSettings = JSON.parse(savedSettings);
-    } catch (e) {
-      return;
-    }
-    // Iterate over saved settings and merge into defaults.
-    for (let key in savedSettings) {
-      const setting = new Setting(key, savedSettings[key]);
-      const defaultSetting = super.get(setting.getName());
-      if (!defaultSetting) {
-        continue;
-      }
-      // Merge saved setting into default.
-      defaultSetting.merge(setting);
-    }
-  }
-
-  /**
-   * Fires the applySettings event to the event core, then saves to local
-   * storage.
-   */
-  apply() {
-    localStorage.setItem(SETTINGS_KEY, this.export());
-    const event = new SettingsEvent();
-    event.fire();
-  }
-
-  /**
-   * Exports all settings into a string for use in local storage.
-   * @returns {string}
-   */
-  export() {
-    const expObj = {};
-    this.forEach((setting, name) => {
-      expObj[name] = setting.export();
-    });
-    return JSON.stringify(expObj);
-  }
-}
-
-var Settings$1 = new Settings();
-
-/**
- * An individual setting for tracking defaults, types, and other properties
- * of the field.
- */
-class Setting {
-  /**
-   * Loads a setting from an object.
-   * @param {Object} settingsData
-   */
-  constructor(name, settingsData) {
-    this.name = name;
-    this.value = settingsData.value;
-    this.wasModified = !!settingsData.modified;
-  }
-
-  getName() {
-    return this.name;
-  }
-
-  getValue() {
-    return this.value;
-  }
-
-  /**
-   * Sets the value of the individual setting, flipping the "modified" bit to
-   * true.
-   * @param {?} newValue
-   */
-  setValue(newValue) {
-    this.value = newValue;
-    this.wasModified = true;
-  }
-
-  /**
-   * Returns if the setting was modified at any point from the default.
-   * @returns {boolean}
-   */
-  wasModifiedFromDefault() {
-    return this.wasModified;
-  }
-
-  /**
-   * Merges another setting into this setting. This will only occur if the
-   * other setting has been mutated from the default. This check is useful in
-   * the event developers want to change a default setting, as otherwise, the
-   * new default setting would not be applied to returning users.
-   * @param {Setting} other
-   * @returns {Setting}
-   */
-  merge(other) {
-    // Sanity check for comparability.
-    if (!other || other.getName() != this.getName()) {
-      return;
-    }
-    // If the other setting was not modified from default, ignore.
-    if (!other.wasModifiedFromDefault()) {
-      return;
-    }
-    this.value = other.getValue();
-    this.wasModified = true;
-    // TODO: Check for min/max, type, or other options for validation.
-  }
-  
-  /**
-   * Exports the individual setting to an object.
-   * @returns {Object}
-   */
-  export() {
-    return {
-      value: this.value,
-      modified: this.wasModified,
-    };
-  }
 }
 
 /**
@@ -1227,234 +1563,233 @@ class Audio extends Plugin {
  */
 
 /**
- * A bindings object, used for better control of custom bindings.
+ * Class for creating contact listeners.
  */
-class Bindings {
-  constructor(id) {
-    this.id = id;
-    this.actions = new Map();
-    this.keysToActions = new Map();
-    this.staticProperties = new Set();
+class EraContactListener {
+  constructor() {
+    // A registry of shape and body contact callbacks.
+    this.contactCallbacks = new Map();
   }
 
-  getId() {
-    return this.id;
+  /** 
+   * Registers a new callback.
+   */
+  registerHandler(fixture, handler) {
+    this.contactCallbacks.set(fixture, handler);
   }
 
-  getActions() {
-    return this.actions;
+  /** @override */
+  BeginContact(contact) {
+    const event = {
+      type: 'begin',
+      contact
+    };
+    this.determineCallbacks(contact, event);
+    
+  }
+
+  /** @override */
+  EndContact(contact) {
+    const event = {
+      type: 'end',
+      contact
+    };
+    this.determineCallbacks(contact, event);
+  }
+
+  /** @override */
+  PreSolve(contact, oldManifold) {}
+
+  /** @override */
+  PostSolve(contact, contactImpulse) {
+    const event = {
+      type: 'postsolve',
+      contact,
+      contactImpulse
+    };
+    this.determineCallbacks(contact, event); 
   }
 
   /**
-   * Returns all actions associated with a given key.
-   * @param {?} key
-   * @returns {Array<Action>}
+   * Determines if any callbacks should be made.
    */
-  getActionsForKey(key) {
-    return this.keysToActions.get(key);
-  }
-
-  /**
-   * Adds an action to the bindings.
-   * @param {Action} action
-   */
-  addAction(action) {
-    this.actions.set(action.getName(), action);
-    this.loadKeysToActions();
-    this.loadStaticProperties();
-    return this;
-  }
-
-  /**
-   * Removes an action from the bindings.
-   * @param {Action} action
-   */
-  removeAction(action) {
-    this.actions.delete(action.getName());
-    this.loadKeysToActions();
-    this.loadStaticProperties();
-    return this;
-  }
-
-  /**
-   * Gets the action for a given name.
-   * @param {string} actionName 
-   */
-  getAction(actionName) {
-    return this.actions.get(actionName);
-  }
-
-  /**
-   * Loads an object into the bindings, considering custom bindings.
-   * @param {Object} bindingsObj
-   */
-  load(bindingsObj) {
-    for (let actionName in bindingsObj) {
-      const actionObj = bindingsObj[actionName];
-      const action = new Action(actionName).load(actionObj);
-      this.actions.set(actionName, action);
+  determineCallbacks(contact, event) {
+    const callbackA = this.contactCallbacks.get(contact.GetFixtureA());
+    if (callbackA) {
+      callbackA(event);
     }
-    this.loadKeysToActions();
-    this.loadStaticProperties();
-    return this;
-  }
-
-  /**
-   * Loads all keys into a map to their respective actions for fast lookups in
-   * controls updates.
-   */
-  loadKeysToActions() {
-    // Clear beforehand in case we're reloading.
-    this.keysToActions.clear();
-    this.actions.forEach((action) => {
-      const keys = action.getKeys();
-      keys.forEach((key) => {
-        if (!this.keysToActions.has(key)) {
-          this.keysToActions.set(key, new Array());
-        }
-        this.keysToActions.get(key).push(action);
-      });
-    });
-  }
-
-  /**
-   * Takes all action names and sets their names as "static" fields of the
-   * bindings instance. This is to ease development for the user, so they can
-   * call `entity.getActionValue(bindings.SPRINT)` as opposed to passing in a
-   * string literal `entity.getActionValue('SPRINT')`.
-   */
-  loadStaticProperties() {
-    // Clear old static properties, based on a set created from earlier.
-    this.staticProperties.forEach((propName) => {
-      delete this[propName];
-    });
-    this.staticProperties.clear();
-    // Set new static properties based on actions.
-    this.actions.forEach((ignore, actionName) => {
-      this[actionName] = actionName;
-      this.staticProperties.add(actionName);
-    });
-  }
-
-  /**
-   * Merges the given bindings into the existing bindings.
-   * @param {Bindings} other
-   */
-  merge(other) {
-    other.getActions().forEach((action) => {
-      if (!this.actions.has(action.getName())) {
-        this.actions.set(action.getName(), action);
-      } else {
-        this.actions.get(action.getName()).merge(action);
-      }
-    });
-    this.loadKeysToActions();
-    this.loadStaticProperties();
-    return this;
-  }
-
-  /**
-   * Converts the bindings instance to an object.
-   * @returns {Object}
-   */
-  toObject() {
-    const exportObj = {};
-    this.actions.forEach((action) => {
-      exportObj[action.getName()] = action.toObject();
-    });
-    return exportObj;
-  }
-
-  /**
-   * Returns if there are no actions associated with the bindings.
-   * @returns {boolean}
-   */
-  isEmpty() {
-    // Get all non-empty actions.
-    const nonEmptyActions = [...this.actions.values()].filter((action) => {
-      return !action.isEmpty();
-    });
-    return nonEmptyActions.length == 0;
+    const callbackB = this.contactCallbacks.get(contact.GetFixtureB());
+    if (callbackB) {
+      callbackB(event);
+    }
   }
 }
 
 /**
- * Represents an action an entity can take as well as the inputs that are used
- * to trigger this action.
+ * @author rogerscg / https://github.com/rogerscg
  */
-class Action {
-  constructor(name) {
-    this.name = name;
-    this.id = null;
-    this.keys = new Map();
-  }
 
-  getName() {
-    return this.name;
-  }
-
-  getKeys() {
-    return this.keys;
-  }
-
+let instance$2 = null;
+/**
+ * Core implementation for managing the game's physics. The
+ * actual physics engine is provided by the user.
+ */
+class Physics extends Plugin {
   /**
-   * Adds a key that can trigger the action.
-   * @param {string} inputType
-   * @param {?} key 
+   * Enforces singleton physics instance.
    */
-  addKey(inputType, key) {
-    this.keys.set(inputType, key);
-    return this;
-  }
-
-  /**
-   * Clears the key for the given input type.
-   * @param {string} inputType 
-   */
-  clearInputType(inputType) {
-    this.keys.delete(inputType);
-  }
-
-  /**
-   * Loads the action from an arbitrary object.
-   */
-  load(actionObj) {
-    for (let inputType in actionObj.keys) {
-      this.keys.set(inputType, actionObj.keys[inputType]);
+  static get() {
+    if (!instance$2) {
+      instance$2 = new Physics();
     }
-    return this;
+    return instance$2;
+  }
+
+  constructor() {
+    super();
+    this.registeredEntities = new Map();
+    this.world = this.createWorld();
+    this.lastTime = performance.now();
+  }
+
+  /** @override */
+  reset() {
+    this.terminate();
+    // TODO: Clean up physics bodies.
+  }
+
+  /** @override */
+  update() {
+    const currTime = performance.now();
+    let delta = (currTime - this.lastTime) / 1000;
+    this.lastTime = currTime;
+    if (delta <= 0) {
+      return;
+    }
+    this.step(delta);
+    this.updateEntities(delta);
+  }
+
+  getWorld() {
+    return this.world;
   }
 
   /**
-   * Merges an existing action with this action.
-   * @param {Action} other
+   * Steps the physics world.
+   * @param {number} delta
    */
-  merge(other) {
-    other.getKeys().forEach((key, inputType) => {
-      if (!this.keys.has(inputType)) {
-        this.keys.set(inputType, key);
-      }
-    });
-    return this
+  step(delta) {
+    console.warn('Step not defined');
   }
 
   /**
-   * Converts the action instance to an object.
-   * @returns {Object}
+   * Instantiates the physics world.
    */
-  toObject() {
-    const exportObj = {};
-    exportObj.keys = {};
-    this.keys.forEach((key, inputType) => exportObj.keys[inputType] = key);
-    return exportObj;
+  createWorld() {
+    console.warn('Create world not defined');
   }
 
   /**
-   * Detects if the action is empty.
-   * @returns {boolean}
+   * Iterates through all registered entities and updates them.
    */
-  isEmpty() {
-    return this.keys.size == 0;
+  updateEntities(delta) {
+    this.registeredEntities.forEach((entity) => entity.update(delta));
+  }
+
+  /**
+   * Registers an entity to partake in physics simulations.
+   */
+  registerEntity(entity) {
+    if (!entity || !entity.physicsObject) {
+      console.error('Must pass in an entity');
+    }
+    this.registeredEntities.set(entity.uuid, entity);
+  }
+
+  /**
+   * Unregisters an entity from partaking in physics simulations.
+   */
+  unregisterEntity(entity) {
+    console.warn('Unregister entity not defined');
+  }
+
+  /**
+   * Registers a component to partake in physics simulations. This
+   * differs from an entity in that it is a single body unattached
+   * to a mesh.
+   */
+  registerComponent(body) {
+    console.warn('Unregister entity not defined');
+  }
+
+  /**
+   * Unregisters a component to partake in physics simulations.
+   */
+  unregisterComponent(body) {
+    console.warn('Unregister component not defined');
+  }
+
+  /**
+   * Ends the physics simulation. Is only called client-side.
+   */
+  terminate() {
+    clearInterval(this.updateInterval);
+    instance$2 = null;
+  }
+}
+
+/**
+ * @author rogerscg / https://github.com/rogerscg
+ */
+
+const VELOCITY_ITERATIONS = 8;
+const POSITION_ITERATIONS = 3;
+
+/**
+ * API implementation for Box2D.
+ */
+class Box2DPhysics extends Physics {
+  /** @override */
+  createWorld() {
+    const world = new box2d.b2World(new box2d.b2Vec2(0.0, 0.0));
+    this.contactListener = new EraContactListener();
+    world.SetContactListener(this.contactListener);
+    return world;
+  }
+
+  /** @override */
+  step(delta) {
+    this.world.Step(delta, VELOCITY_ITERATIONS, POSITION_ITERATIONS);
+  }
+
+  /** @override */
+  unregisterEntity(entity) {
+    if (!entity || !entity.actions) {
+      console.error('Must pass in an entity');
+    }
+    this.registeredEntities.delete(entity.uuid);
+    this.world.DestroyBody(entity.physicsObject);
+  }
+
+  /** @override */
+  registerComponent(body) {
+    console.warn('Unregister entity not defined');
+  }
+
+  /** @override */
+  unregisterComponent(body) {
+    this.world.DestroyBody(body);
+  }
+
+  /**
+   * Registers a fixture for contact event handling.
+   */
+  registerContactHandler(fixture, handler) {
+    if (!this.contactListener) {
+      console.warn('No contact listener installed!');
+      return;
+    }
+    this.contactListener.registerHandler(fixture, handler);
   }
 }
 
@@ -1465,7 +1800,7 @@ class Action {
 
 const CONTROLS_KEY = 'era_bindings';
 
-let instance$2 = null;
+let instance$3 = null;
 
 /**
  * The controls core for the game. Input handlers are created here. Once the
@@ -1476,10 +1811,10 @@ class Controls extends Plugin {
    * Enforces singleton controls instance.
    */
   static get() {
-    if (!instance$2) {
-      instance$2 = new Controls();
+    if (!instance$3) {
+      instance$3 = new Controls();
     }
-    return instance$2;
+    return instance$3;
   }
 
   constructor() {
@@ -1981,7 +2316,7 @@ class Controls extends Plugin {
  * @author rogerscg / https://github.com/rogerscg
  */
 
-let instance$3 = null;
+let instance$4 = null;
 
 /**
  * Core implementation for loading 3D models for use in-game.
@@ -1993,10 +2328,10 @@ class Models {
    * @returns {Models}
    */
   static get() {
-    if (!instance$3) {
-      instance$3 = new Models();
+    if (!instance$4) {
+      instance$4 = new Models();
     }
-    return instance$3;
+    return instance$4;
   }
 
   constructor() {
@@ -2070,208 +2405,6 @@ class Models {
       return null;
     }
     return this.storage.get(name).clone();
-  }
-}
-
-/**
- * @author rogerscg / https://github.com/rogerscg
- */
-
-/**
- * Class for creating contact listeners.
- */
-class EraContactListener {
-  constructor() {
-    // A registry of shape and body contact callbacks.
-    this.contactCallbacks = new Map();
-  }
-
-  /** 
-   * Registers a new callback.
-   */
-  registerHandler(fixture, handler) {
-    this.contactCallbacks.set(fixture, handler);
-  }
-
-  /** @override */
-  BeginContact(contact) {
-    const event = {
-      type: 'begin',
-      contact
-    };
-    this.determineCallbacks(contact, event);
-    
-  }
-
-  /** @override */
-  EndContact(contact) {
-    const event = {
-      type: 'end',
-      contact
-    };
-    this.determineCallbacks(contact, event);
-  }
-
-  /** @override */
-  PreSolve(contact, oldManifold) {}
-
-  /** @override */
-  PostSolve(contact, contactImpulse) {
-    const event = {
-      type: 'postsolve',
-      contact,
-      contactImpulse
-    };
-    this.determineCallbacks(contact, event); 
-  }
-
-  /**
-   * Determines if any callbacks should be made.
-   */
-  determineCallbacks(contact, event) {
-    const callbackA = this.contactCallbacks.get(contact.GetFixtureA());
-    if (callbackA) {
-      callbackA(event);
-    }
-    const callbackB = this.contactCallbacks.get(contact.GetFixtureB());
-    if (callbackB) {
-      callbackB(event);
-    }
-  }
-}
-
-/**
- * @author rogerscg / https://github.com/rogerscg
- */
-
-const velocityIterations = 8;
-const positionIterations = 3;
-
-let instance$4 = null;
-
-/**
- * Core implementation for managing the game's physics. The
- * actual physics engine is provided by box2d.
- */
-class Physics extends Plugin {
-  /**
-   * Enforces singleton physics instance.
-   */
-  static get() {
-    if (!instance$4) {
-      instance$4 = new Physics();
-    }
-    return instance$4;
-  }
-
-  constructor() {
-    super();
-    this.registeredEntities = new Map();
-    this.world = this.createWorld();
-    this.lastTime = performance.now();
-    this.physicalMaterials = new Map();
-    this.contactMaterials = new Map();
-    this.stepsPerSecond = 120;
-
-    // A registry of shape and body contact callbacks.
-    this.pairCallbacks = new Map();
-  }
-
-  /** @override */
-  reset() {
-    this.terminate();
-    // TODO: Clean up physics bodies.
-  }
-
-  /** @override */
-  update(forcedTime) {
-    const currTime = performance.now();
-    let delta = (currTime - this.lastTime) / 1000;
-    this.lastTime = currTime;
-    if (delta <= 0) {
-      return;
-    }
-    this.world.Step(delta, velocityIterations, positionIterations);
-    this.updateEntities(delta);
-  }
-
-  getWorld() {
-    return this.world;
-  }
-
-  /**
-   * Instantiates the physics world.
-   */
-  createWorld() {
-    const world = new box2d.b2World(new box2d.b2Vec2(0.0, 0.0));
-    this.contactListener = new EraContactListener();
-    world.SetContactListener(this.contactListener);
-    return world;
-  }
-
-  /**
-   * Iterates through all registered entities and updates them.
-   */
-  updateEntities(delta) {
-    this.registeredEntities.forEach((entity) => {
-      entity.update(delta);
-    });
-  }
-
-  /**
-   * Registers a fixture for contact event handling.
-   */
-  registerContactHandler(fixture, handler) {
-    if (!this.contactListener) {
-      console.warn('No contact listener installed!');
-      return;
-    }
-    this.contactListener.registerHandler(fixture, handler);
-  }
-
-  /**
-   * Registers an entity to partake in physics simulations.
-   */
-  registerEntity(entity) {
-    if (!entity || !entity.physicsObject) {
-      console.error('Must pass in an entity');
-    }
-    this.registeredEntities.set(entity.uuid, entity);
-  }
-
-  /**
-   * Unregisters an entity from partaking in physics simulations.
-   */
-  unregisterEntity(entity) {
-    if (!entity || !entity.actions) {
-      console.error('Must pass in an entity');
-    }
-    this.registeredEntities.delete(entity.uuid);
-    this.world.DestroyBody(entity.physicsObject);
-  }
-
-  /**
-   * Registers a component to partake in physics simulations. This
-   * differs from an entity in that it is a single body unattached
-   * to a mesh.
-   */
-  registerComponent(body) {
-    // Does nothing at the moment.
-  }
-
-  /**
-   * Unregisters a component to partake in physics simulations.
-   */
-  unregisterComponent(body) {
-    this.world.DestroyBody(body);
-  }
-
-  /**
-   * Ends the physics simulation. Is only called client-side.
-   */
-  terminate() {
-    clearInterval(this.updateInterval);
-    instance$4 = null;
   }
 }
 
@@ -2961,6 +3094,17 @@ class Network {
     this.connectionResolve = null;
     this.socket = null;
     this.token = null;
+    this.name = null;
+  }
+
+  /**
+   * Give the server a name.
+   * @param {string} name
+   * @returns {Network}
+   */
+  withName(name) {
+    this.name = name;
+    return this;
   }
 
   /**
@@ -3190,6 +3334,36 @@ class Network {
 }
 
 /**
+ * @author rogerscg / https://github.com/rogerscg
+ */
+
+ /**
+  * A map of all network instances, keyed by their server name. This is useful
+  * when a client has to track multiple servers with which it communicates.
+  */
+class NetworkRegistry extends Map {
+  /**
+   * Creates a new network instance for a server.
+   * @param {string} name
+   * @param {string} protocol
+   * @param {string} host
+   * @param {number} port
+   * @returns {Network}
+   */
+  registerNewServer(name, protocol, host, port) {
+    if (this.has(name)) {
+      console.warn(`Server with name ${name} already registered.`);
+      return this.get(name);
+    }
+    const server = new Network(protocol, host, port).withName(name);
+    this.set(name, server);
+    return server;
+  }
+}
+
+var network_registry = new NetworkRegistry();
+
+/**
  * @author mrdoob / http://mrdoob.com/
  * @author jetienne / http://jetienne.com/
  * @author rogerscg / https://github.com/rogerscg
@@ -3397,10 +3571,11 @@ class FpsStats extends Stats {
     }, false);
     
 
-    this.fpsPanel = this.addPanel(new Panel('FPS', '#0ff', '#002'));
-    this.msPanel = this.addPanel(new Panel('MS', '#0f0', '#020'));
+    this.fpsPanel = this.addPanel(new Panel('FPS', '#0ff', '#002', true));
+    this.msPanel = this.addPanel(new Panel('MS', '#0f0', '#020', false));
+    this.timerPanel = this.addPanel(new Panel('Render', '#ff3800', '#210', false));
     if (self.performance && self.performance.memory) {
-      this.memPanel = this.addPanel(new Panel('MB', '#f08', '#201'));
+      this.memPanel = this.addPanel(new Panel('MB', '#f08', '#201', true));
     }
     this.showPanel(0);
     return container;
@@ -3429,7 +3604,11 @@ class FpsStats extends Stats {
   end() {
     this.frames++;
     const time = (performance || Date).now();
-    this.msPanel.update(time - this.beginTime, 200);
+    this.msPanel.update(time - this.beginTime, 30);
+    const engStats = EngineTimer$1.export();
+    if (engStats) {
+      this.timerPanel.update(engStats.avg, 30);
+    }
     if (time >= this.prevTime + 1000) {
       this.fps = (this.frames * 1000) / (time - this.prevTime);
       this.fpsPanel.update(this.fps, 100);
@@ -3464,12 +3643,13 @@ const GRAPH_HEIGHT = 30 * PR;
  * An individual panel on the FPS stats component.
  */
 class Panel {
-  constructor(name, fg, bg) {
+  constructor(name, fg, bg, shouldRound) {
     this.name = name;
     this.fg = fg;
     this.bg = bg;
     this.min = Infinity;
     this.max = 0;
+    this.shouldRound = shouldRound;
     this.createDom();
   }
 
@@ -3503,12 +3683,13 @@ class Panel {
     const context = this.context;
     this.min = Math.min(this.min, value);
     this.max = Math.max(this.max, value);
+    const roundedValue = this.shouldRound ? Math.round(value) : value.toFixed(2);
 
     context.fillStyle = this.bg;
     context.globalAlpha = 1;
     context.fillRect(0, 0, WIDTH$1, GRAPH_Y);
     context.fillStyle = this.fg;
-    context.fillText(`${Math.round(value)} ${this.name} (${Math.round(this.min)}-${Math.round(this.max)})`, TEXT_X, TEXT_Y);
+    context.fillText(`${roundedValue} ${this.name} (${Math.round(this.min)}-${Math.round(this.max)})`, TEXT_X, TEXT_Y);
 
     context.drawImage(canvas, GRAPH_X + PR, GRAPH_Y, GRAPH_WIDTH - PR, GRAPH_HEIGHT, GRAPH_X, GRAPH_Y, GRAPH_WIDTH - PR, GRAPH_HEIGHT);
 
@@ -3520,4 +3701,4 @@ class Panel {
   }
 }
 
-export { Action, Audio, Bindings, Controls, Engine, EngineResetEvent, Entity, Environment, EraEvent, Events, Light, Models, Network, Physics, Plugin, RendererStats$1 as RendererStats, Settings$1 as Settings, SettingsEvent, Skybox, createUUID, disableShadows, dispose, extractMeshes, extractMeshesByName, getHexColorRatio, lerp, loadJsonFromFile$1 as loadJsonFromFile, shuffleArray, toDegrees, toRadians, vectorToAngle };
+export { Action, Audio, Bindings, Box2DPhysics, Controls, Engine, EngineResetEvent, Entity, Environment, EraEvent, Events, Light, Models, Network, network_registry as NetworkRegistry, Physics, Plugin, RendererStats$1 as RendererStats, Settings$1 as Settings, SettingsEvent, Skybox, createUUID, disableShadows, dispose, extractMeshes, extractMeshesByName, getHexColorRatio, lerp, loadJsonFromFile$1 as loadJsonFromFile, shuffleArray, toDegrees, toRadians, vectorToAngle };
