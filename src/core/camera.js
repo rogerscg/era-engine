@@ -10,6 +10,18 @@ class Camera {
     return instance;
   }
 
+  constructor() {
+    this.cameras = new Map();
+    window.addEventListener('resize', this.onWindowResize.bind(this), false);
+  }
+
+  /**
+   * Iterates over all cameras and resizes them.
+   */
+  onWindowResize() {
+    this.cameras.forEach((camera) => camera.userData.resize());
+  }
+
   /**
    * Builds a default perspective camera.
    * @returns {THREE.PerspectiveCamera}
@@ -23,6 +35,11 @@ class Camera {
     const far = 1000;
     const camera = new THREE.PerspectiveCamera(viewAngle, aspect, near, far);
     camera.rotation.order = 'YXZ';
+    camera.userData.resize = () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+    };
+    this.cameras.set(camera.uuid, camera);
     return camera;
   }
 
@@ -39,6 +56,14 @@ class Camera {
                     width / -2, width / 2, height / 2, height / -2, near, far);
     camera.zoom = 16;
     camera.updateProjectionMatrix();
+    camera.userData.resize = () => {
+      camera.left = window.innerWidth / -2;
+      camera.right = window.innerWidth / 2;
+      camera.top = window.innerHeight / 2;
+      camera.bottom = window.innerHeight / -2;
+      camera.updateProjectionMatrix();
+    };
+    this.cameras.set(camera.uuid, camera);
     return camera;
   }
 }

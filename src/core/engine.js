@@ -136,18 +136,7 @@ class Engine {
    * Adjusts the game container and camera for the new window size.
    */
   onWindowResize(e) {
-    this.camera.aspect = window.innerWidth / window.innerHeight;
-    this.camera.updateProjectionMatrix();
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-  }
-
-  enableRenderStats() {
-    this.rendererStats = new RendererStats(this.renderer);
-  }
-
-  disableRenderStats() {
-    document.body.removeChild(this.rendererStats.domElement);
-    this.rendererStats = null;
   }
   
   /**

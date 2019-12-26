@@ -1,6 +1,6 @@
 import {Entity} from '/src/era.js';
 
-const SIDE = 20;
+const SIDE = 50;
 const GEOMETRY = new THREE.BoxGeometry(SIDE, SIDE, SIDE);
 const MATERIAL = new THREE.MeshLambertMaterial({color: 0x999999});
 
