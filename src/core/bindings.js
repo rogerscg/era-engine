@@ -2,6 +2,8 @@
  * @author rogerscg / https://github.com/rogerscg
  */
 
+const SPLIT_SCREEN_REG = RegExp("[a-zA-Z]+-[0-9]*");
+
 /**
  * A bindings object, used for better control of custom bindings.
  */
@@ -24,9 +26,14 @@ class Bindings {
   /**
    * Returns all actions associated with a given key.
    * @param {?} key
+   * @param {number} playerNumber
    * @returns {Array<Action>}
    */
-  getActionsForKey(key) {
+  getActionsForKey(key, playerNumber) {
+    // If the input is for a given player number, mutate the key to include it.
+    if (playerNumber != null) {
+      key = `${key}-${playerNumber}`;
+    }
     return this.keysToActions.get(key);
   }
 
@@ -84,7 +91,14 @@ class Bindings {
     this.keysToActions.clear();
     this.actions.forEach((action) => {
       const keys = action.getKeys();
-      keys.forEach((key) => {
+      // TODO: For local co-op/split screen, set player-specific bindings.
+      keys.forEach((key, inputType) => {
+        // Get if this key is for a specific player, denoted by a "-[0-9]".
+        if (SPLIT_SCREEN_REG.test(inputType)) {
+          // This is a split-screen binding, add the player number to the key.
+          const playerNumber = inputType.split('-').pop();
+          key = `${key}-${playerNumber}`;
+        }
         if (!this.keysToActions.has(key)) {
           this.keysToActions.set(key, new Array());
         }
@@ -196,9 +210,33 @@ class Action {
    */
   load(actionObj) {
     for (let inputType in actionObj.keys) {
-      this.keys.set(inputType, actionObj.keys[inputType]);
+      const inputs = actionObj.keys[inputType];
+      // Check if there are multiple inputs for the given input type.
+      if (Array.isArray(inputs)) {
+        this.loadMultipleKeys(inputType, inputs, actionObj.split_screen);
+      } else {
+        this.keys.set(inputType, actionObj.keys[inputType]);
+      }
     }
     return this;
+  }
+
+  /**
+   * Loads multiple inputs for the given input type.
+   * @param {string} inputType
+   * @param {Array} inputs
+   * @param {boolean} isSplitScreen 
+   */
+  loadMultipleKeys(inputType, inputs, isSplitScreen = false) {
+    if(isSplitScreen) {
+      inputs.forEach((input, player) => {
+        const inputKey = `${inputType}-${player}`;
+        this.keys.set(inputKey, input);
+      });
+    } else {
+      // TODO: Allow for multiple inputs.
+      console.log('Load multiple inputs');
+    }
   }
 
   /**
@@ -211,7 +249,7 @@ class Action {
         this.keys.set(inputType, key);
       }
     });
-    return this
+    return this;
   }
 
   /**
@@ -221,6 +259,7 @@ class Action {
   toObject() {
     const exportObj = {};
     exportObj.keys = {};
+    // TODO: For local co-op/split screen, export player-specific bindings.
     this.keys.forEach((key, inputType) => exportObj.keys[inputType] = key);
     return exportObj;
   }

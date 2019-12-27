@@ -60,6 +60,7 @@ class Entity extends THREE.Object3D {
     this.inputDevice = 'keyboard';
     this.registeredCameras = new Set();
     this.physicsWorld = null;
+    this.playerNumber = null;
     this.mouseMovement = {
       x: 0,
       y: 0
@@ -69,6 +70,20 @@ class Entity extends THREE.Object3D {
   withPhysics() {
     this.physicsEnabled = true;
     return this;
+  }
+
+  /**
+   * Sets the entity to be attached to a certain local player, used explicitly
+   * for split-screen/local co-op experiences.
+   * @param {number} playerNumber
+   */
+  setPlayerNumber(playerNumber) {
+    this.playerNumber = playerNumber;
+    return this;
+  }
+
+  getPlayerNumber() {
+    return this.playerNumber;
   }
 
   /**

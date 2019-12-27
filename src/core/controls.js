@@ -421,7 +421,7 @@ class Controls extends Plugin {
     this.registeredEntities.forEach((entity) => {
       // Get the bindings for the entity.
       const bindings = this.registeredBindings.get(entity.getControlsId());
-      const actions = bindings.getActionsForKey(key);
+      const actions = bindings.getActionsForKey(key, entity.getPlayerNumber());
       if (!actions) {
         return;
       }

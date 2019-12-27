@@ -1,18 +1,65 @@
-import { Camera, Controls, Entity, toDegrees } from '/src/era.js';
+import { Bindings, Camera, Controls, Entity, toDegrees } from '/src/era.js';
 
+const DISABLE_DEACTIVATION = 4;
 const FORCE_STRENGTH = 5;
 const RADIUS = 2;
 
 const GEOMETRY = new THREE.SphereGeometry(RADIUS, 32, 32);
 const MATERIAL = new THREE.MeshLambertMaterial({color: 0xff0000});
 
+const CONTROLS_ID = 'Ball';
+
+const BALL_BINDINGS = {
+  BACKWARD: {
+    keys: {
+      keyboard: [83, 71, 75, 40],
+      controller: 'axes1',
+    },
+    split_screen: true,
+  },
+  FORWARD: {
+    keys: {
+      keyboard: [87, 84, 73, 38],
+      controller: 'axes1',
+    },
+    split_screen: true,
+  },
+  LEFT: {
+    keys: {
+      keyboard: [65, 70, 74, 37],
+      controller: 'axes0',
+    },
+    split_screen: true,
+  },
+  RIGHT: {
+    keys: {
+      keyboard: [68, 72, 76, 39],
+      controller: 'axes0',
+    },
+    split_screen: true,
+  },
+};
+
 class Ball extends Entity {
-  constructor() {
+  static GetBindings() {
+    return new Bindings(CONTROLS_ID).load(BALL_BINDINGS);
+  }
+  
+  /**
+   * @param {number} playerNumber 
+   */
+  constructor(playerNumber) {
     super();
+    this.playerNumber = playerNumber;
     this.forceVector = new Ammo.btVector3(0, 0, 0)
     this.rotationEuler = new THREE.Euler();
     this.rotationEuler.order = 'YXZ';
     this.rotationQuat = new THREE.Quaternion();
+  }
+
+  /** @override */
+  getControlsId() {
+    return CONTROLS_ID;
   }
 
   /** @override */
@@ -31,6 +78,7 @@ class Ball extends Entity {
     const motionState = new Ammo.btDefaultMotionState(transform);
     const bodyInfo = new Ammo.btRigidBodyConstructionInfo(mass, motionState, shape, localInertia);
     const body = new Ammo.btRigidBody(bodyInfo);
+    body.setActivationState(DISABLE_DEACTIVATION);
     return body;
   }
 

@@ -40,11 +40,13 @@ async function start() {
   scene.add(stage);
   physics.registerEntity(stage);
 
-  // Create ball.
-  const ball = new Ball().withPhysics().build();
-  scene.add(ball);
-  physics.registerEntity(ball);
-  Controls.get().registerEntity(ball);
+  // Create characters.
+  for (let i = 0; i < 4; i++) {
+    const ball = new Ball().withPhysics().setPlayerNumber(i).build();
+    scene.add(ball);
+    physics.registerEntity(ball); 
+    Controls.get().registerEntity(ball);
+  }
 
   engine.attachCamera(stage);
 }
