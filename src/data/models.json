@@ -1,5 +1,6 @@
 {
   "example": {
-    "scale": 1
+    "scale": 1,
+    "extension": "obj"
   }
 }

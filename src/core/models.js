@@ -63,8 +63,9 @@ class Models {
    * @async
    */
   async loadModel(directory, name, options) {
+    const extension = options.extension;
     // TODO: Handle different model file types.
-    const path = `${directory}${name}.gltf`;
+    const path = `${directory}${name}.${extension}`;
     return new Promise((resolve) => {
       const loader = new THREE.GLTFLoader();
       loader.load(path, (gltf) => {

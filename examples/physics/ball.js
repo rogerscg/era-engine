@@ -9,6 +9,8 @@ const MATERIAL = new THREE.MeshLambertMaterial({color: 0xff0000});
 
 const CONTROLS_ID = 'Ball';
 
+const COLORS = [0xff0000, 0x00ff00, 0x0000ff, 0xff9900];
+
 const BALL_BINDINGS = {
   BACKWARD: {
     keys: {
@@ -64,7 +66,9 @@ class Ball extends Entity {
 
   /** @override */
   generateMesh() {
-    return new THREE.Mesh(GEOMETRY, MATERIAL);
+    const material = MATERIAL.clone();
+    material.color.setHex(COLORS[this.playerNumber]);
+    return new THREE.Mesh(GEOMETRY, material);
   }
 
   /** @override */
