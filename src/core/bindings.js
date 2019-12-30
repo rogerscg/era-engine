@@ -228,14 +228,14 @@ class Action {
    * @param {boolean} isSplitScreen 
    */
   loadMultipleKeys(inputType, inputs, isSplitScreen = false) {
-    if(isSplitScreen) {
+    if (isSplitScreen) {
       inputs.forEach((input, player) => {
         const inputKey = `${inputType}-${player}`;
         this.keys.set(inputKey, input);
       });
     } else {
       // TODO: Allow for multiple inputs.
-      console.log('Load multiple inputs');
+      console.warn('Loading multiple inputs for same player not implemented');
     }
   }
 

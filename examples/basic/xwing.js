@@ -10,7 +10,7 @@ const XWING_BINDINGS = {
   SPRINT: {
     keys: {
       keyboard: 16,
-      controller: '+axes3',
+      controller: '-axes3',
     }
   },
   FIRE: {
@@ -92,7 +92,7 @@ class XWing extends Entity {
    */
   updateRoll() {
     if (this.getActionValue(this.bindings.LEFT)) {
-      this.rotate(-1 * Math.abs(.2 * this.getActionValue(this.bindings.LEFT)));
+      this.rotate(-.2 * this.getActionValue(this.bindings.LEFT));
     } else if (this.getActionValue(this.bindings.RIGHT)) {
       this.rotate(.2 * this.getActionValue(this.bindings.RIGHT));
     } else {

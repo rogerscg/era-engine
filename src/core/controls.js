@@ -288,18 +288,19 @@ class Controls extends Plugin {
    */
   controllerTick() {
     if (this.hasController) {
-      const rawControllerInput = this.getRawControllerInput();
-      // Fires an event with key and value
-      // Key -> button1, axes2,..
-      // Value -> Range from 0 to 1
-      for (let key of Object.keys(rawControllerInput)) {
-        // Used for setting controls.
-        // TODO: Polish this when creating bindings example.
-        Events.get().fireEvent('raw-controller-input', {
-          key: key,
-          value: rawControllerInput[key]
-        });
-        this.setActions(key, rawControllerInput[key], 'controller');
+      // Iterate over all gamepads.
+      for (let i = 0; i < navigator.getGamepads().length; i++) {
+        const controller = navigator.getGamepads()[i];
+        if (!controller) {
+          continue;
+        }
+        const rawControllerInput = this.getRawControllerInput(controller);
+        // Fires an event with key and value
+        // Key -> button1, axes2,..
+        // Value -> Range from 0 to 1
+        for (let key of Object.keys(rawControllerInput)) {
+          this.setActions(key, rawControllerInput[key], 'controller', i);
+        }
       }
     }
   }
@@ -317,13 +318,12 @@ class Controls extends Plugin {
 
   /**
    * Checks raw input (no keybind overrides)
+   * @param {Gamepad} controller
    * @returns {Object}
    */
-  getRawControllerInput() {
+  getRawControllerInput(controller) {
     let input = {};
-    if(this.hasController) {
-      const controller = navigator.getGamepads()[0];
-
+    if (this.hasController) {
       // Check if the controller is in both deadzones.
       let isOutOfDeadzone = false;
       controller.axes.forEach((val, i) => {
@@ -411,32 +411,47 @@ class Controls extends Plugin {
    * @param {String | Number} key 
    * @param {Number} value
    * @param {String=} inputDevice defaults to keyboard
+   * @param {Number=} gamepadNumber used to ensure the gamepad is associated
+   *                    with the player.
    */
-  setActions(key, value, inputDevice = 'keyboard') {
+  setActions(key, value, inputDevice = 'keyboard', gamepadNumber = null) {
     if (!this.controlsEnabled) {
       return;
     }
+    const isController = inputDevice === 'controller';
     // Check if we should also set the direction-specific axes actions.
-    if (inputDevice === 'controller' &&
+    if (isController &&
         key.indexOf('axes') >= 0 &&
         !key.startsWith('+') &&
         !key.startsWith('-')) {
+      const absValue = Math.abs(value);
       if (value > 0) {
-        this.setActions('+' + key, value, inputDevice);
-        this.setActions('-' + key, 0, inputDevice);
+        this.setActions('+' + key, absValue, inputDevice, gamepadNumber);
+        this.setActions('-' + key, 0, inputDevice, gamepadNumber);
       } else if (value < 0) {
-        this.setActions('-' + key, value, inputDevice);
-        this.setActions('+' + key, 0, inputDevice);
+        this.setActions('-' + key, absValue, inputDevice, gamepadNumber);
+        this.setActions('+' + key, 0, inputDevice, gamepadNumber);
       } else {
-        this.setActions('+' + key, value, inputDevice);
-        this.setActions('-' + key, value, inputDevice);
+        this.setActions('+' + key, absValue, inputDevice, gamepadNumber);
+        this.setActions('-' + key, absValue, inputDevice, gamepadNumber);
       }
     }
     // Broadcast actions to all entities.
     this.registeredEntities.forEach((entity) => {
+      let playerNumber = entity.getPlayerNumber();
+      // Check gamepad association.
+      if (isController &&
+          entity.getPlayerNumber() != null &&
+          gamepadNumber != entity.getPlayerNumber()) {
+        return;
+      }
+      if (isController) {
+        // No longer need to check for player number.
+        playerNumber = null;
+      }
       // Get the bindings for the entity.
       const bindings = this.registeredBindings.get(entity.getControlsId());
-      const actions = bindings.getActionsForKey(key, entity.getPlayerNumber());
+      const actions = bindings.getActionsForKey(key, playerNumber);
       if (!actions) {
         return;
       }
