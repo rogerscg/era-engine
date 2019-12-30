@@ -2,6 +2,8 @@
  * @author rogerscg / https://github.com/rogerscg
  */
 
+const SPLIT_SCREEN_REG = RegExp("[a-zA-Z]+-[0-9]*");
+
 /**
  * A bindings object, used for better control of custom bindings.
  */
@@ -24,9 +26,14 @@ class Bindings {
   /**
    * Returns all actions associated with a given key.
    * @param {?} key
+   * @param {number} playerNumber
    * @returns {Array<Action>}
    */
-  getActionsForKey(key) {
+  getActionsForKey(key, playerNumber) {
+    // If the input is for a given player number, mutate the key to include it.
+    if (playerNumber != null) {
+      key = `${key}-${playerNumber}`;
+    }
     return this.keysToActions.get(key);
   }
 
@@ -84,7 +91,14 @@ class Bindings {
     this.keysToActions.clear();
     this.actions.forEach((action) => {
       const keys = action.getKeys();
-      keys.forEach((key) => {
+      // TODO: For local co-op/split screen, set player-specific bindings.
+      keys.forEach((key, inputType) => {
+        // Get if this key is for a specific player, denoted by a "-[0-9]".
+        if (SPLIT_SCREEN_REG.test(inputType)) {
+          // This is a split-screen binding, add the player number to the key.
+          const playerNumber = inputType.split('-').pop();
+          key = `${key}-${playerNumber}`;
+        }
         if (!this.keysToActions.has(key)) {
           this.keysToActions.set(key, new Array());
         }
@@ -196,9 +210,33 @@ class Action {
    */
   load(actionObj) {
     for (let inputType in actionObj.keys) {
-      this.keys.set(inputType, actionObj.keys[inputType]);
+      const inputs = actionObj.keys[inputType];
+      // Check if there are multiple inputs for the given input type.
+      if (Array.isArray(inputs)) {
+        this.loadMultipleKeys(inputType, inputs, actionObj.split_screen);
+      } else {
+        this.keys.set(inputType, actionObj.keys[inputType]);
+      }
     }
     return this;
+  }
+
+  /**
+   * Loads multiple inputs for the given input type.
+   * @param {string} inputType
+   * @param {Array} inputs
+   * @param {boolean} isSplitScreen 
+   */
+  loadMultipleKeys(inputType, inputs, isSplitScreen = false) {
+    if(isSplitScreen) {
+      inputs.forEach((input, player) => {
+        const inputKey = `${inputType}-${player}`;
+        this.keys.set(inputKey, input);
+      });
+    } else {
+      // TODO: Allow for multiple inputs.
+      console.log('Load multiple inputs');
+    }
   }
 
   /**
@@ -211,7 +249,7 @@ class Action {
         this.keys.set(inputType, key);
       }
     });
-    return this
+    return this;
   }
 
   /**
@@ -221,6 +259,7 @@ class Action {
   toObject() {
     const exportObj = {};
     exportObj.keys = {};
+    // TODO: For local co-op/split screen, export player-specific bindings.
     this.keys.forEach((key, inputType) => exportObj.keys[inputType] = key);
     return exportObj;
   }
@@ -1035,7 +1074,6 @@ const RendererTypes = Types;
  */
 
 let instance = null;
-
 /**
  * Engine core for the game.
  */
@@ -1073,6 +1111,20 @@ class Engine {
   }
 
   /**
+   * Sets the camera on the engine.
+   * @param {THREE.Camera} camera
+   * @returns {Engine}
+   */
+  setCamera(camera) {
+    if (this.camera) {
+      this.camera.userData.active = false;
+    }
+    this.camera = camera;
+    camera.userData.active = true;
+    return this;
+  }
+
+  /**
    * Starts the engine. This is separate from the constructor as it
    * is asynchronous.
    */
@@ -1081,12 +1133,13 @@ class Engine {
       return;
     }
     this.started = true;
-    this.clock = new THREE.Clock();
     this.scene = new THREE.Scene();
     if (!this.renderer) {
       this.renderer = this.createRenderer();
     }
-    this.camera = this.createCamera();
+    if (!this.camera) {
+      console.error('No camera provided');
+    }
     this.rendering = true;
     requestAnimationFrame(() => this.render());
   }
@@ -1153,34 +1206,8 @@ class Engine {
   /**
    * Adjusts the game container and camera for the new window size.
    */
-  onWindowResize(e) {
-    this.camera.aspect = window.innerWidth / window.innerHeight;
-    this.camera.updateProjectionMatrix();
+  onWindowResize() {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-  }
-
-  /**
-   * Creates the scene camera.
-   */
-  createCamera() {
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-    const viewAngle = 70;
-    const aspect = width / height;
-    const near = 1;
-    const far = 1000;
-    const camera = new THREE.PerspectiveCamera(viewAngle, aspect, near, far);
-    camera.rotation.order = 'YXZ';
-    return camera;
-  }
-
-  enableRenderStats() {
-    this.rendererStats = new RendererStats(this.renderer);
-  }
-
-  disableRenderStats() {
-    document.body.removeChild(this.rendererStats.domElement);
-    this.rendererStats = null;
   }
   
   /**
@@ -1237,6 +1264,7 @@ class Engine {
  */
 class Plugin {
   constructor() {
+    this.uuid = createUUID();
     this.install();
     SettingsEvent.listen(this.handleSettingsChange.bind(this));
   }
@@ -1558,238 +1586,82 @@ class Audio extends Plugin {
   }
 }
 
-/**
- * @author rogerscg / https://github.com/rogerscg
- */
-
-/**
- * Class for creating contact listeners.
- */
-class EraContactListener {
-  constructor() {
-    // A registry of shape and body contact callbacks.
-    this.contactCallbacks = new Map();
-  }
-
-  /** 
-   * Registers a new callback.
-   */
-  registerHandler(fixture, handler) {
-    this.contactCallbacks.set(fixture, handler);
-  }
-
-  /** @override */
-  BeginContact(contact) {
-    const event = {
-      type: 'begin',
-      contact
-    };
-    this.determineCallbacks(contact, event);
-    
-  }
-
-  /** @override */
-  EndContact(contact) {
-    const event = {
-      type: 'end',
-      contact
-    };
-    this.determineCallbacks(contact, event);
-  }
-
-  /** @override */
-  PreSolve(contact, oldManifold) {}
-
-  /** @override */
-  PostSolve(contact, contactImpulse) {
-    const event = {
-      type: 'postsolve',
-      contact,
-      contactImpulse
-    };
-    this.determineCallbacks(contact, event); 
-  }
-
-  /**
-   * Determines if any callbacks should be made.
-   */
-  determineCallbacks(contact, event) {
-    const callbackA = this.contactCallbacks.get(contact.GetFixtureA());
-    if (callbackA) {
-      callbackA(event);
-    }
-    const callbackB = this.contactCallbacks.get(contact.GetFixtureB());
-    if (callbackB) {
-      callbackB(event);
-    }
-  }
-}
-
-/**
- * @author rogerscg / https://github.com/rogerscg
- */
-
 let instance$2 = null;
 /**
- * Core implementation for managing the game's physics. The
- * actual physics engine is provided by the user.
+ * Manages camera contruction.
  */
-class Physics extends Plugin {
-  /**
-   * Enforces singleton physics instance.
-   */
+class Camera {
   static get() {
     if (!instance$2) {
-      instance$2 = new Physics();
+      instance$2 = new Camera();
     }
     return instance$2;
   }
 
   constructor() {
-    super();
-    this.registeredEntities = new Map();
-    this.world = this.createWorld();
-    this.lastTime = performance.now();
-  }
-
-  /** @override */
-  reset() {
-    this.terminate();
-    // TODO: Clean up physics bodies.
-  }
-
-  /** @override */
-  update() {
-    const currTime = performance.now();
-    let delta = (currTime - this.lastTime) / 1000;
-    this.lastTime = currTime;
-    if (delta <= 0) {
-      return;
-    }
-    this.step(delta);
-    this.updateEntities(delta);
-  }
-
-  getWorld() {
-    return this.world;
+    this.cameras = new Map();
+    window.addEventListener('resize', this.onWindowResize.bind(this), false);
   }
 
   /**
-   * Steps the physics world.
-   * @param {number} delta
+   * Iterates over all cameras and resizes them.
    */
-  step(delta) {
-    console.warn('Step not defined');
+  onWindowResize() {
+    this.cameras.forEach((camera) => camera.userData.resize());
   }
 
   /**
-   * Instantiates the physics world.
+   * Returns the active camera.
+   * @returns {THREE.Camera}
    */
-  createWorld() {
-    console.warn('Create world not defined');
+  getActiveCamera() {
+    const cameras = [...this.cameras.values()];
+    return cameras.filter((camera) => camera.userData.active)[0];
   }
 
   /**
-   * Iterates through all registered entities and updates them.
+   * Builds a default perspective camera.
+   * @returns {THREE.PerspectiveCamera}
    */
-  updateEntities(delta) {
-    this.registeredEntities.forEach((entity) => entity.update(delta));
+  buildPerspectiveCamera() {
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    const viewAngle = 70;
+    const aspect = width / height;
+    const near = 1;
+    const far = 1000;
+    const camera = new THREE.PerspectiveCamera(viewAngle, aspect, near, far);
+    camera.rotation.order = 'YXZ';
+    camera.userData.resize = () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+    };
+    this.cameras.set(camera.uuid, camera);
+    return camera;
   }
 
   /**
-   * Registers an entity to partake in physics simulations.
+   * Builds a default isometric camera.
+   * @returns {THREE.OrthgraphicCamera}
    */
-  registerEntity(entity) {
-    if (!entity || !entity.physicsObject) {
-      console.error('Must pass in an entity');
-    }
-    this.registeredEntities.set(entity.uuid, entity);
-  }
-
-  /**
-   * Unregisters an entity from partaking in physics simulations.
-   */
-  unregisterEntity(entity) {
-    console.warn('Unregister entity not defined');
-  }
-
-  /**
-   * Registers a component to partake in physics simulations. This
-   * differs from an entity in that it is a single body unattached
-   * to a mesh.
-   */
-  registerComponent(body) {
-    console.warn('Unregister entity not defined');
-  }
-
-  /**
-   * Unregisters a component to partake in physics simulations.
-   */
-  unregisterComponent(body) {
-    console.warn('Unregister component not defined');
-  }
-
-  /**
-   * Ends the physics simulation. Is only called client-side.
-   */
-  terminate() {
-    clearInterval(this.updateInterval);
-    instance$2 = null;
-  }
-}
-
-/**
- * @author rogerscg / https://github.com/rogerscg
- */
-
-const VELOCITY_ITERATIONS = 8;
-const POSITION_ITERATIONS = 3;
-
-/**
- * API implementation for Box2D.
- */
-class Box2DPhysics extends Physics {
-  /** @override */
-  createWorld() {
-    const world = new box2d.b2World(new box2d.b2Vec2(0.0, 0.0));
-    this.contactListener = new EraContactListener();
-    world.SetContactListener(this.contactListener);
-    return world;
-  }
-
-  /** @override */
-  step(delta) {
-    this.world.Step(delta, VELOCITY_ITERATIONS, POSITION_ITERATIONS);
-  }
-
-  /** @override */
-  unregisterEntity(entity) {
-    if (!entity || !entity.actions) {
-      console.error('Must pass in an entity');
-    }
-    this.registeredEntities.delete(entity.uuid);
-    this.world.DestroyBody(entity.physicsObject);
-  }
-
-  /** @override */
-  registerComponent(body) {
-    console.warn('Unregister entity not defined');
-  }
-
-  /** @override */
-  unregisterComponent(body) {
-    this.world.DestroyBody(body);
-  }
-
-  /**
-   * Registers a fixture for contact event handling.
-   */
-  registerContactHandler(fixture, handler) {
-    if (!this.contactListener) {
-      console.warn('No contact listener installed!');
-      return;
-    }
-    this.contactListener.registerHandler(fixture, handler);
+  buildIsometricCamera() {
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    const near = 1;
+    const far = 1000;
+    const camera = new THREE.OrthographicCamera(
+                    width / -2, width / 2, height / 2, height / -2, near, far);
+    camera.zoom = 16;
+    camera.updateProjectionMatrix();
+    camera.userData.resize = () => {
+      camera.left = window.innerWidth / -2;
+      camera.right = window.innerWidth / 2;
+      camera.top = window.innerHeight / 2;
+      camera.bottom = window.innerHeight / -2;
+      camera.updateProjectionMatrix();
+    };
+    this.cameras.set(camera.uuid, camera);
+    return camera;
   }
 }
 
@@ -2207,7 +2079,7 @@ class Controls extends Plugin {
     this.registeredEntities.forEach((entity) => {
       // Get the bindings for the entity.
       const bindings = this.registeredBindings.get(entity.getControlsId());
-      const actions = bindings.getActionsForKey(key);
+      const actions = bindings.getActionsForKey(key, entity.getPlayerNumber());
       if (!actions) {
         return;
       }
@@ -2375,23 +2247,86 @@ class Models {
    * @async
    */
   async loadModel(directory, name, options) {
-    // TODO: Handle different model file types.
-    const path = `${directory}${name}.gltf`;
+    // Defaults to GLTF.
+    const extension = options.extension ? options.extension : 'gltf';
+    const path = `${directory}${name}.${extension}`;
+    let root;
+    switch (extension) {
+      case 'gltf':
+        root = await this.loadGltfModel(path);
+        break;
+      case 'obj':
+        root = await this.loadObjModel(path);
+        break;
+    }
+    // Scale the model based on options.
+    if (options.scale) {
+      root.scale.setScalar(options.scale);
+    }
+    // Set the model in storage.
+    this.storage.set(name, root);
+    return root;
+  }
+
+  /**
+   * Loads a GLTF model.
+   * @param {string} path 
+   * @async
+   */
+  async loadGltfModel(path) {
     return new Promise((resolve) => {
       const loader = new THREE.GLTFLoader();
       loader.load(path, (gltf) => {
-        if (options.scale) {
-          gltf.scene.scale.setScalar(options.scale);
-        }
-        if (options.side == 2) {
-          extractMeshes(gltf.scene)
-            .forEach((mesh) => mesh.material.side = THREE.DoubleSide);
-        }
-        this.storage.set(name, gltf.scene);
-        resolve();
+        resolve(gltf.scene);
       }, () => {}, (err) => {
         throw new Error(err);
       });
+    });
+  }
+
+  /**
+   * Loads a Obj model.
+   * @param {string} path 
+   * @async
+   */
+  async loadObjModel(path) {
+    let materials = null;
+    try {
+      materials = await this.loadObjMaterials(path);
+    } catch (e) {}
+    const root = await this.loadObjGeometry(path, materials);
+    return root;
+  }
+
+  /**
+   * 
+   * @param {string} path 
+   * @param {?} materials 
+   */
+  loadObjGeometry(path, materials) {
+    return new Promise((resolve) => {
+      const objLoader = new THREE.OBJLoader();
+      if (materials) {
+        objLoader.setMaterials(materials);
+      }
+      objLoader.load(path, resolve);
+    });
+  }
+
+  /**
+   * Loads an obj files respective materials.
+   * @param {string} path
+   * @async
+   */
+  loadObjMaterials(path) {
+    const mtlLoader = new THREE.MTLLoader();
+    // Modify .obj path to look for .mtl.
+    path = path.slice(0, path.lastIndexOf('.')) + '.mtl';
+    return new Promise((resolve, reject) => {
+      mtlLoader.load(path, (materials) => {
+        materials.preload();
+        resolve(materials);
+      }, () => {}, () => reject());
     });
   }
 
@@ -2405,6 +2340,150 @@ class Models {
       return null;
     }
     return this.storage.get(name).clone();
+  }
+}
+
+/**
+ * @author rogerscg / https://github.com/rogerscg
+ */
+
+let instance$5 = null;
+/**
+ * Core implementation for managing the game's physics. The
+ * actual physics engine is provided by the user.
+ */
+class Physics extends Plugin {
+  /**
+   * Enforces singleton physics instance.
+   */
+  static get() {
+    if (!instance$5) {
+      instance$5 = new Physics();
+    }
+    return instance$5;
+  }
+
+  constructor() {
+    super();
+    this.registeredEntities = new Map();
+    this.world = this.createWorld();
+    this.lastTime = performance.now();
+  }
+
+  /** @override */
+  reset() {
+    this.terminate();
+    // TODO: Clean up physics bodies.
+  }
+
+  /** @override */
+  update() {
+    const currTime = performance.now();
+    let delta = (currTime - this.lastTime);
+    this.lastTime = currTime;
+    if (delta <= 0) {
+      return;
+    }
+    this.step(delta);
+    this.updateEntities(delta);
+  }
+
+  getWorld() {
+    return this.world;
+  }
+
+  /**
+   * Steps the physics world.
+   * @param {number} delta
+   */
+  step(delta) {
+    console.warn('Step not defined');
+  }
+
+  /**
+   * Instantiates the physics world.
+   */
+  createWorld() {
+    console.warn('Create world not defined');
+  }
+
+  /**
+   * Iterates through all registered entities and updates them.
+   */
+  updateEntities(delta) {
+    this.registeredEntities.forEach((entity) => entity.update(delta));
+  }
+
+  /**
+   * Registers an entity to partake in physics simulations.
+   * @param {Entity} entity
+   */
+  registerEntity(entity) {
+    if (!entity || !entity.physicsBody) {
+      console.error('Must pass in an entity');
+      return false;
+    }
+    this.registeredEntities.set(entity.uuid, entity);
+    entity.registerPhysicsWorld(this);
+    return true;
+  }
+
+  /**
+   * Unregisters an entity from partaking in physics simulations.
+   * @param {Entity} entity
+   */
+  unregisterEntity(entity) {
+    if (!entity || !entity.physicsBody) {
+      console.error('Must pass in an entity');
+      return false;
+    }
+    this.registeredEntities.delete(entity.uuid);
+    entity.unregisterPhysicsWorld(this);
+    return true;
+  }
+
+  /**
+   * Registers a component to partake in physics simulations. This
+   * differs from an entity in that it is a single body unattached
+   * to a mesh.
+   */
+  registerComponent(body) {
+    console.warn('Unregister entity not defined');
+  }
+
+  /**
+   * Unregisters a component to partake in physics simulations.
+   */
+  unregisterComponent(body) {
+    console.warn('Unregister component not defined');
+  }
+
+  /**
+   * Ends the physics simulation. Is only called client-side.
+   */
+  terminate() {
+    clearInterval(this.updateInterval);
+    instance$5 = null;
+  }
+
+  /**
+   * Gets the position of the given entity. Must be implemented by
+   * engine-specific implementations.
+   * @param {Entity} entity
+   * @returns {Object}
+   */
+  getPosition(entity) {
+    console.warn('getPosition(entity) not implemented');
+  }
+
+  /**
+   * Gets the rotation of the given entity. Must be implemented by
+   * engine-specific implementations.
+   * @param {Entity} entity
+   * @returns {Object}
+   */
+  getRotation(entity) {
+    console.warn('getRotation(entity) not implemented');
   }
 }
 
@@ -2462,6 +2541,8 @@ class Entity extends THREE.Object3D {
     this.bindings = Controls.get().getBindings(this.getControlsId());
     this.inputDevice = 'keyboard';
     this.registeredCameras = new Set();
+    this.physicsWorld = null;
+    this.playerNumber = null;
     this.mouseMovement = {
       x: 0,
       y: 0
@@ -2471,6 +2552,20 @@ class Entity extends THREE.Object3D {
   withPhysics() {
     this.physicsEnabled = true;
     return this;
+  }
+
+  /**
+   * Sets the entity to be attached to a certain local player, used explicitly
+   * for split-screen/local co-op experiences.
+   * @param {number} playerNumber
+   */
+  setPlayerNumber(playerNumber) {
+    this.playerNumber = playerNumber;
+    return this;
+  }
+
+  getPlayerNumber() {
+    return this.playerNumber;
   }
 
   /**
@@ -2499,7 +2594,7 @@ class Entity extends THREE.Object3D {
     }
     this.cameraArm = this.createCameraArm();
     if (this.physicsEnabled) {
-      this.generatePhysicsBody();
+      this.physicsBody = this.generatePhysicsBody();
     }
     Engine.get().registerEntity(this);
     return this;
@@ -2514,6 +2609,25 @@ class Entity extends THREE.Object3D {
       this.parent.remove(this);
     }
     Engine.get().unregisterEntity(this);
+  }
+
+  /**
+   * Registers a physics instance to the entity. This is used for communicating
+   * with the physics engine.
+   * @param {Physics} physics
+   */
+  registerPhysicsWorld(physics) {
+    this.physicsWorld = physics;
+  }
+
+  /**
+   * Unregisters a physics instance from the entity.
+   * @param {Physics} physics
+   */
+  unregisterPhysicsWorld(physics) {
+    if (this.physicsWorld && this.physicsWorld.uuid == physics.uuid) {
+      this.physicsWorld = null;
+    }
   }
 
   /**
@@ -2592,6 +2706,7 @@ class Entity extends THREE.Object3D {
     if (!body)
       return null;
     const precision = 4;
+    // TODO: make this engine-agnostic.
     return [
       [body.angularVelocity.toFixed(precision)],
       body.interpolatedPosition.map((x) => x.toFixed(precision)),
@@ -2664,13 +2779,23 @@ class Entity extends THREE.Object3D {
    * synchronized.
    */
   update() {
-    if (!this.mesh || !this.physicsBody) {
+    if (!this.mesh || !this.physicsBody || !this.physicsWorld) {
       return;
     }
-    // TODO: Don't make this so physics-engine-dependent.
-    this.mesh.position.x = this.physicsBody.interpolatedPosition[0];
-    this.mesh.position.z = this.physicsBody.interpolatedPosition[1];
-    this.mesh.rotation.y = -this.physicsBody.interpolatedAngle;
+    const position = this.physicsWorld.getPosition(this);
+    const rotation = this.physicsWorld.getRotation(this);
+    if (position.x != null) {
+      this.position.x = position.x;
+    }
+    if (position.y != null) {
+      this.position.y = position.y;
+    }
+    if (position.z != null) {
+      this.position.z = position.z;
+    }
+    if (rotation.w != null) {
+      this.mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
+    }
   }
 
   /** 
@@ -2679,6 +2804,7 @@ class Entity extends THREE.Object3D {
   consumeUpdate(physics) {
     if (!physics)
       return;
+      // TODO: make this engine-agnostic.
     const [angVelo, pos, velo, rot] = physics;
     this.physicsBody.angularVelocity = angVelo;
     this.physicsBody.angle = rot;
@@ -2707,7 +2833,7 @@ class Entity extends THREE.Object3D {
  * @author rogerscg / https://github.com/rogerscg
  */
 
-let instance$5 = null;
+let instance$6 = null;
 
 /**
  * Light core for the game engine. Creates and manages light
@@ -2718,10 +2844,10 @@ class Light extends Plugin {
    * Enforces singleton light instance.
    */
   static get() {
-    if (!instance$5) {
-      instance$5 = new Light();
+    if (!instance$6) {
+      instance$6 = new Light();
     }
-    return instance$5;
+    return instance$6;
   }
 
   constructor() {
@@ -2742,8 +2868,7 @@ class Light extends Plugin {
    * Creates the ambient lighting. Use this for easing/darkening shadows.
    */
   createAmbientLight(ambientConfig) {
-    const ambientLight =
-          new THREE.AmbientLight(parseInt(ambientConfig.color, 16));
+    const ambientLight = new THREE.AmbientLight(ambientConfig.color);
     ambientLight.intensity = ambientConfig.intensity;
     return ambientLight;
   }
@@ -3410,7 +3535,7 @@ const FPS_CONTAINER_CSS = `
  /**
   * A plugin wrapper for WebGL renderer stats and FPS in Three.js.
   */
-class RendererStats$1 extends Plugin {
+class RendererStats extends Plugin {
   /**
    * @param {THREE.WebGLRenderer} renderer
    */
@@ -3714,4 +3839,212 @@ class Panel {
   }
 }
 
-export { Action, Audio, Bindings, Box2DPhysics, Controls, Engine, EngineResetEvent, Entity, Environment, EraEvent, Events, Light, Models, Network, network_registry as NetworkRegistry, Physics, Plugin, RendererStats$1 as RendererStats, Settings$1 as Settings, SettingsEvent, Skybox, createUUID, disableShadows, dispose, extractMeshes, extractMeshesByName, getHexColorRatio, lerp, loadJsonFromFile$1 as loadJsonFromFile, shuffleArray, toDegrees, toRadians, vectorToAngle };
+/**
+ * @author rogerscg / https://github.com/rogerscg
+ */
+
+const MAX_SUBSTEPS = 10;
+
+// Initialize Ammo.
+window.Ammo ? Ammo() : null;
+
+/**
+ * API implementation for Ammo.js, a Bullet port to JavaScript.
+ * https://github.com/kripken/ammo.js
+ */
+class AmmoPhysics extends Physics {
+  constructor() {
+    super();
+    this.posTrans = new Ammo.btTransform();
+    this.rotTrans = new Ammo.btTransform();
+  }
+
+  /** @override */
+  createWorld() {
+    const config = new Ammo.btDefaultCollisionConfiguration();
+    const dispatcher = new Ammo.btCollisionDispatcher(config);
+    const broadphase = new Ammo.btDbvtBroadphase();
+    const solver = new Ammo.btSequentialImpulseConstraintSolver();
+    const world =
+      new Ammo.btDiscreteDynamicsWorld(dispatcher, broadphase, solver, config);
+    world.setGravity(new Ammo.btVector3(0, -10, 0));
+    return world;
+  }
+
+  /** @override */
+  step(delta) {
+    delta /= 1000;
+    this.world.stepSimulation(delta, MAX_SUBSTEPS);
+  }
+
+  /** @override */
+  registerEntity(entity) {
+    if (!super.registerEntity(entity)) {
+      return;
+    }
+    this.world.addRigidBody(entity.physicsBody);
+  }
+
+  /** @override */
+  unregisterEntity(entity) {
+    if (!super.unregisterEntity(entity)) {
+      return;
+    }
+    this.world.removeRigidBody(entity.physicsBody);
+  }
+
+  /** @override */
+  registerComponent(body) {
+    console.warn('Unregister entity not defined');
+  }
+
+  /** @override */
+  unregisterComponent(body) {
+    this.world.removeRigidBody(body);
+  }
+
+  /** @override */
+  getPosition(entity) {
+    entity.physicsBody.getMotionState().getWorldTransform(this.posTrans);
+    return {
+      x: this.posTrans.getOrigin().x(),
+      y: this.posTrans.getOrigin().y(),
+      z: this.posTrans.getOrigin().z()
+    };
+  }
+
+  /** @override */
+  getRotation(entity) {
+    entity.physicsBody.getMotionState().getWorldTransform(this.rotTrans);
+    return {
+      x: this.rotTrans.getRotation().x(),
+      y: this.rotTrans.getRotation().y(),
+      z: this.rotTrans.getRotation().z(),
+      w: this.rotTrans.getRotation().w(),
+    }
+  }
+}
+
+/**
+ * @author rogerscg / https://github.com/rogerscg
+ */
+
+/**
+ * Class for creating contact listeners.
+ */
+class EraContactListener {
+  constructor() {
+    // A registry of shape and body contact callbacks.
+    this.contactCallbacks = new Map();
+  }
+
+  /** 
+   * Registers a new callback.
+   */
+  registerHandler(fixture, handler) {
+    this.contactCallbacks.set(fixture, handler);
+  }
+
+  /** @override */
+  BeginContact(contact) {
+    const event = {
+      type: 'begin',
+      contact
+    };
+    this.determineCallbacks(contact, event);
+    
+  }
+
+  /** @override */
+  EndContact(contact) {
+    const event = {
+      type: 'end',
+      contact
+    };
+    this.determineCallbacks(contact, event);
+  }
+
+  /** @override */
+  PreSolve(contact, oldManifold) {}
+
+  /** @override */
+  PostSolve(contact, contactImpulse) {
+    const event = {
+      type: 'postsolve',
+      contact,
+      contactImpulse
+    };
+    this.determineCallbacks(contact, event); 
+  }
+
+  /**
+   * Determines if any callbacks should be made.
+   */
+  determineCallbacks(contact, event) {
+    const callbackA = this.contactCallbacks.get(contact.GetFixtureA());
+    if (callbackA) {
+      callbackA(event);
+    }
+    const callbackB = this.contactCallbacks.get(contact.GetFixtureB());
+    if (callbackB) {
+      callbackB(event);
+    }
+  }
+}
+
+/**
+ * @author rogerscg / https://github.com/rogerscg
+ */
+
+const VELOCITY_ITERATIONS = 8;
+const POSITION_ITERATIONS = 3;
+
+/**
+ * API implementation for Box2D.
+ */
+class Box2DPhysics extends Physics {
+  /** @override */
+  createWorld() {
+    const world = new box2d.b2World(new box2d.b2Vec2(0.0, 0.0));
+    this.contactListener = new EraContactListener();
+    world.SetContactListener(this.contactListener);
+    return world;
+  }
+
+  /** @override */
+  step(delta) {
+    this.world.Step(delta, VELOCITY_ITERATIONS, POSITION_ITERATIONS);
+  }
+
+  /** @override */
+  unregisterEntity(entity) {
+    if (!entity || !entity.actions) {
+      console.error('Must pass in an entity');
+    }
+    this.registeredEntities.delete(entity.uuid);
+    this.world.DestroyBody(entity.physicsObject);
+  }
+
+  /** @override */
+  registerComponent(body) {
+    console.warn('Unregister entity not defined');
+  }
+
+  /** @override */
+  unregisterComponent(body) {
+    this.world.DestroyBody(body);
+  }
+
+  /**
+   * Registers a fixture for contact event handling.
+   */
+  registerContactHandler(fixture, handler) {
+    if (!this.contactListener) {
+      console.warn('No contact listener installed!');
+      return;
+    }
+    this.contactListener.registerHandler(fixture, handler);
+  }
+}
+
+export { Action, AmmoPhysics, Audio, Bindings, Box2DPhysics, Camera, Controls, Engine, EngineResetEvent, Entity, Environment, EraEvent, Events, Light, Models, Network, network_registry as NetworkRegistry, Physics, Plugin, RendererStats, Settings$1 as Settings, SettingsEvent, Skybox, createUUID, disableShadows, dispose, extractMeshes, extractMeshesByName, getHexColorRatio, lerp, loadJsonFromFile$1 as loadJsonFromFile, shuffleArray, toDegrees, toRadians, vectorToAngle };

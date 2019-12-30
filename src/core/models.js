@@ -63,24 +63,86 @@ class Models {
    * @async
    */
   async loadModel(directory, name, options) {
-    const extension = options.extension;
-    // TODO: Handle different model file types.
+    // Defaults to GLTF.
+    const extension = options.extension ? options.extension : 'gltf';
     const path = `${directory}${name}.${extension}`;
+    let root;
+    switch (extension) {
+      case 'gltf':
+        root = await this.loadGltfModel(path);
+        break;
+      case 'obj':
+        root = await this.loadObjModel(path);
+        break;
+    }
+    // Scale the model based on options.
+    if (options.scale) {
+      root.scale.setScalar(options.scale);
+    }
+    // Set the model in storage.
+    this.storage.set(name, root);
+    return root;
+  }
+
+  /**
+   * Loads a GLTF model.
+   * @param {string} path 
+   * @async
+   */
+  async loadGltfModel(path) {
     return new Promise((resolve) => {
       const loader = new THREE.GLTFLoader();
       loader.load(path, (gltf) => {
-        if (options.scale) {
-          gltf.scene.scale.setScalar(options.scale);
-        }
-        if (options.side == 2) {
-          extractMeshes(gltf.scene)
-            .forEach((mesh) => mesh.material.side = THREE.DoubleSide);
-        }
-        this.storage.set(name, gltf.scene);
-        resolve();
+        resolve(gltf.scene);
       }, () => {}, (err) => {
         throw new Error(err);
       });
+    });
+  }
+
+  /**
+   * Loads a Obj model.
+   * @param {string} path 
+   * @async
+   */
+  async loadObjModel(path) {
+    let materials = null;
+    try {
+      materials = await this.loadObjMaterials(path);
+    } catch (e) {}
+    const root = await this.loadObjGeometry(path, materials);
+    return root;
+  }
+
+  /**
+   * 
+   * @param {string} path 
+   * @param {?} materials 
+   */
+  loadObjGeometry(path, materials) {
+    return new Promise((resolve) => {
+      const objLoader = new THREE.OBJLoader();
+      if (materials) {
+        objLoader.setMaterials(materials);
+      }
+      objLoader.load(path, resolve);
+    });
+  }
+
+  /**
+   * Loads an obj files respective materials.
+   * @param {string} path
+   * @async
+   */
+  loadObjMaterials(path) {
+    const mtlLoader = new THREE.MTLLoader();
+    // Modify .obj path to look for .mtl.
+    path = path.slice(0, path.lastIndexOf('.')) + '.mtl';
+    return new Promise((resolve, reject) => {
+      mtlLoader.load(path, (materials) => {
+        materials.preload();
+        resolve(materials);
+      }, () => {}, () => reject());
     });
   }
 
