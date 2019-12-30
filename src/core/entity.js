@@ -13,25 +13,25 @@ const ENTITY_BINDINGS = {
   BACKWARD: {
     keys: {
       keyboard: 83,
-      controller: 'axes1',
+      controller: '-axes1',
     }
   },
   FORWARD: {
     keys: {
       keyboard: 87,
-      controller: 'axes1',
+      controller: '+axes1',
     }
   },
   LEFT: {
     keys: {
       keyboard: 65,
-      controller: 'axes0',
+      controller: '-axes0',
     }
   },
   RIGHT: {
     keys: {
       keyboard: 68,
-      controller: 'axes0',
+      controller: '+axes0',
     }
   },
 };

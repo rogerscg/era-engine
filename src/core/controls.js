@@ -68,7 +68,9 @@ class Controls extends Plugin {
   }
 
   /** @override */
-  update() {}
+  update() {
+    this.controllerTick();
+  }
 
   /**
    * Loads custom controls bindings from local storage.
@@ -285,22 +287,20 @@ class Controls extends Plugin {
    * If none have a value, don't send anything.
    */
   controllerTick() {
-    if(this.hasController) {
+    if (this.hasController) {
       const rawControllerInput = this.getRawControllerInput();
-
       // Fires an event with key and value
       // Key -> button1, axes2,..
       // Value -> Range from 0 to 1
-
-      for(let key of Object.keys(rawControllerInput)) {
-        // Used for setting controls
-        Events.get().fireEvent('raw-controller-input', { key: key, value: rawControllerInput[key] })
-        this.setActions(key, rawControllerInput[key], 'controller')
+      for (let key of Object.keys(rawControllerInput)) {
+        // Used for setting controls.
+        // TODO: Polish this when creating bindings example.
+        Events.get().fireEvent('raw-controller-input', {
+          key: key,
+          value: rawControllerInput[key]
+        });
+        this.setActions(key, rawControllerInput[key], 'controller');
       }
-
-      setTimeout(() => {
-        window.requestAnimationFrame(this.controllerTick.bind(this));
-      }, 5)
     }
   }
 
@@ -332,24 +332,22 @@ class Controls extends Plugin {
         }
       });
 
-
-      for(let i = 0; i < controller.axes.length; i++) {
-        // REVERSE AXES (align force direction with buttons)
-        let val = -controller.axes[i];
+      for (let i = 0; i < controller.axes.length; i++) {
+        let val = controller.axes[i];
         val = isOutOfDeadzone ? val : 0;
         input[`axes${i}`] = val;
       }
 
-      for(let i = 0; i < controller.buttons.length; i++) {
+      for (let i = 0; i < controller.buttons.length; i++) {
         let val = controller.buttons[i].value;
         val = Math.abs(val) > this.movementDeadzone ? val : 0;
         input[`button${i}`] = val;
       }
 
-      for(let key of Object.keys(input)) {
+      for (let key of Object.keys(input)) {
         // Only send 0 if the one before that wasn't 0
         const previousHadValue = this.previousInput[key] && this.previousInput[key] !== 0
-        if(input[key] === 0 && !previousHadValue) {
+        if (input[key] === 0 && !previousHadValue) {
           delete input[key];
         }
       }
@@ -409,7 +407,7 @@ class Controls extends Plugin {
   }
 
   /**
-   * Set the actions values controlled by the specified key
+   * Set the actions values controlled by the specified key.
    * @param {String | Number} key 
    * @param {Number} value
    * @param {String=} inputDevice defaults to keyboard
@@ -418,6 +416,23 @@ class Controls extends Plugin {
     if (!this.controlsEnabled) {
       return;
     }
+    // Check if we should also set the direction-specific axes actions.
+    if (inputDevice === 'controller' &&
+        key.indexOf('axes') >= 0 &&
+        !key.startsWith('+') &&
+        !key.startsWith('-')) {
+      if (value > 0) {
+        this.setActions('+' + key, value, inputDevice);
+        this.setActions('-' + key, 0, inputDevice);
+      } else if (value < 0) {
+        this.setActions('-' + key, value, inputDevice);
+        this.setActions('+' + key, 0, inputDevice);
+      } else {
+        this.setActions('+' + key, value, inputDevice);
+        this.setActions('-' + key, value, inputDevice);
+      }
+    }
+    // Broadcast actions to all entities.
     this.registeredEntities.forEach((entity) => {
       // Get the bindings for the entity.
       const bindings = this.registeredBindings.get(entity.getControlsId());
