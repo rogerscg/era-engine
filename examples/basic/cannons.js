@@ -3,7 +3,7 @@
  */
 
 import Laser from "./laser.js";
-import {Audio, Engine} from "/src/era.js";
+import {Audio, Engine} from "../../src/era.js";
 
 const COOLDOWN_TIME = 150;
 

@@ -2,7 +2,7 @@
  * @author rogerscg / https://github.com/rogerscg
  */
 
-import { Audio } from "/src/era.js";
+import { Audio } from "../../src/era.js";
 
 // Needed due to weird model.
 const SCALE = 100;

@@ -2,7 +2,7 @@
  * @author rogerscg / https://github.com/rogerscg
  */
 
-import {Entity} from '/src/era.js';
+import {Entity} from '../../src/era.js';
 
 const GEOMETRY = new THREE.CubeGeometry(.3, .3, 8);
 const MATERIAL = new THREE.MeshLambertMaterial({color: 0xff2222});

@@ -1,4 +1,4 @@
-import {Entity} from '/src/era.js';
+import {Entity} from '../../src/era.js';
 
 const SIDE = 50;
 const GEOMETRY = new THREE.BoxGeometry(SIDE, SIDE, SIDE);

@@ -4,7 +4,7 @@
 
 import Cannons from './cannons.js';
 import Engines from './engines.js';
-import {Bindings, Controls, Entity} from '/src/era.js';
+import {Bindings, Controls, Entity} from '../../src/era.js';
 
 const XWING_BINDINGS = {
   SPRINT: {

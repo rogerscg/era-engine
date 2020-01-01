@@ -1,4 +1,4 @@
-import { Bindings, Camera, Controls, Entity } from '/src/era.js';
+import { Bindings, Camera, Controls, Entity } from '../../src/era.js';
 
 const DISABLE_DEACTIVATION = 4;
 const FORCE_STRENGTH = 5;
