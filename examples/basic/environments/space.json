@@ -1,6 +1,6 @@
 {
   "skybox": {
-    "directory": "/examples/basic/textures/skybox/",
+    "directory": "textures/skybox/",
     "file": "starfield",
     "extension": "tga"
   },
