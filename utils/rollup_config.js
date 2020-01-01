@@ -20,5 +20,15 @@ export default [
 				file: 'build/era.js'
 			}
 		]
+	},
+	{
+		input: 'src/era.js',
+		plugins: [],
+		output: [
+			{
+				format: 'esm',
+				file: 'build/era.module.js'
+			}
+		]
 	}
 ];
