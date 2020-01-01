@@ -10,12 +10,13 @@ const XWING_BINDINGS = {
   SPRINT: {
     keys: {
       keyboard: 16,
-      controller: 'button5',
+      controller: '-axes3',
     }
   },
   FIRE: {
     keys: {
       keyboard: 32,
+      controller: 'button5',
     }
   },
 };
@@ -78,7 +79,7 @@ class XWing extends Entity {
       this.cannons.fire();
     }
     if (this.engines) {
-      if (this.getActionValue(this.bindings.SPRINT)) {
+      if (this.getActionValue(this.bindings.SPRINT) > .5) {
         this.engines.boost(true);
       } else {
         this.engines.boost(false);
@@ -91,9 +92,9 @@ class XWing extends Entity {
    */
   updateRoll() {
     if (this.getActionValue(this.bindings.LEFT)) {
-      this.rotate(-.2);
+      this.rotate(-.2 * this.getActionValue(this.bindings.LEFT));
     } else if (this.getActionValue(this.bindings.RIGHT)) {
-      this.rotate(.2);
+      this.rotate(.2 * this.getActionValue(this.bindings.RIGHT));
     } else {
       this.rotate(0);
     }

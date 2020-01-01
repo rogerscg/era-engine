@@ -3,40 +3,37 @@ import { Bindings, Camera, Controls, Entity } from '/src/era.js';
 const DISABLE_DEACTIVATION = 4;
 const FORCE_STRENGTH = 5;
 const RADIUS = 2;
-
 const GEOMETRY = new THREE.SphereGeometry(RADIUS, 32, 32);
 const MATERIAL = new THREE.MeshLambertMaterial({color: 0xff0000});
-
 const CONTROLS_ID = 'Ball';
-
 const COLORS = [0xff0000, 0x00ff00, 0x0000ff, 0xff9900];
 
 const BALL_BINDINGS = {
   BACKWARD: {
     keys: {
       keyboard: [83, 71, 75, 40],
-      controller: 'axes1',
+      controller: '+axes1',
     },
     split_screen: true,
   },
   FORWARD: {
     keys: {
       keyboard: [87, 84, 73, 38],
-      controller: 'axes1',
+      controller: '-axes1',
     },
     split_screen: true,
   },
   LEFT: {
     keys: {
       keyboard: [65, 70, 74, 37],
-      controller: 'axes0',
+      controller: '-axes0',
     },
     split_screen: true,
   },
   RIGHT: {
     keys: {
       keyboard: [68, 72, 76, 39],
-      controller: 'axes0',
+      controller: '+axes0',
     },
     split_screen: true,
   },
@@ -101,16 +98,16 @@ class Ball extends Entity {
     // TODO: This seems like a useful utility, move to base entity.
     const inputVector = {x: 0, z: 0};
     if (this.getActionValue(this.bindings.FORWARD)) {
-      inputVector.x -= 1;
+      inputVector.x -= this.getActionValue(this.bindings.FORWARD);
     }
     if (this.getActionValue(this.bindings.BACKWARD)) {
-      inputVector.x += 1;
+      inputVector.x += this.getActionValue(this.bindings.BACKWARD);
     }
     if (this.getActionValue(this.bindings.RIGHT)) {
-      inputVector.z += 1;
+      inputVector.z += this.getActionValue(this.bindings.RIGHT);
     }
     if (this.getActionValue(this.bindings.LEFT)) {
-      inputVector.z -= 1;
+      inputVector.z -= this.getActionValue(this.bindings.LEFT);
     }
     const camera = Camera.get().getActiveCamera();
     let angle = 0;
