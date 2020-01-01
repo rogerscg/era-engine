@@ -32,7 +32,7 @@ async function start() {
 
   // Create environment.
   const environment =
-    await new Environment().loadFromFile('/examples/physics/environment.json');
+    await new Environment().loadFromFile('environment.json');
   scene.add(environment);
 
   // Create stage.

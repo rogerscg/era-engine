@@ -19,10 +19,10 @@ async function start() {
   await Settings.load();
 
   // Load models.
-  await Models.get().loadAllFromFile('/examples/basic/models/models.json');
+  await Models.get().loadAllFromFile('models/models.json');
 
   // Load sounds.
-  await Audio.get().loadAllFromFile('/examples/basic/sounds/sounds.json');
+  await Audio.get().loadAllFromFile('sounds/sounds.json');
 
   // Create engine and load models.
   const engine = Engine.get().setCamera(Camera.get().buildPerspectiveCamera());
@@ -35,7 +35,7 @@ async function start() {
   // Create environment.
   const environment = 
     await new Environment()
-            .loadFromFile('/examples/basic/environments/space.json');
+            .loadFromFile('environments/space.json');
   scene.add(environment);
 
   // Create X-Wing.
