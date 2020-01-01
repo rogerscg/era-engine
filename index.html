@@ -2,26 +2,124 @@
 
 <head>
   <title>ERA Engine</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://fonts.googleapis.com/css?family=Jura:400,500" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css?family=Raleway:100,200,400" rel="stylesheet">
   <style>
-    #container {
-      position: fixed;
-      bottom: 0;
-      left: 0;
+    body {
+      font-family: 'Raleway', sans-serif;
+      margin: 0;
+      font-size: 18px;
+      color: #222;
+    }
+
+    a {
+      color: #0645AD;
+      text-decoration: none;
+    }
+    
+    a:visited {
+      color: #0645AD; 
+    }
+
+    .header {
+      background: linear-gradient(180deg, #111111, #333333);
+      font-family: 'Jura', sans-serif;
+      padding: 40px;
+      color: white;
+      font-weight: 100;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-weight: 400;
+      font-size: 64px;
+      margin: 10px;
+    }
+
+    .github-ribbon {
+      display: inline-block;
+      position: absolute;
       right: 0;
       top: 0;
+      width: 149px;
+      height: 149px;
+      cursor: pointer;
+      background-image: url("https://github.blog/wp-content/uploads/2008/12/forkme_right_white_ffffff.png?resize=149%2C149");
+      background-repeat: no-repeat;
     }
+
+    .content {
+      max-width: 1000px;
+      margin: auto;
+      padding: 20px;
+      font-size: 24px;
+      line-height: 32px;
+    }
+
+    .example-tile {
+      display: inline-block;
+      width: 200px;
+      height: 200px;
+      overflow: hidden;
+      border-radius: 10px;
+      margin: 5px;
+      position: relative;
+      box-shadow: 2px 2px 5px 0px rgba(0, 0, 0, .3);
+    }
+
+    .example-tile img {
+      width: 100%;
+      height: 100%;
+      border-radius: 10px;
+    }
+
+    .example-tile a {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .example-title {
+      width: 100%;
+    padding-top: 10px;
+    padding-bottom: 5px;
+    position: absolute;
+    bottom: 0;
+    color: white;
+    text-align: center;
+    background: linear-gradient(0deg, #555555, transparent);
+  }
   </style>
+
 </head>
 
 <body>
-  <div id="container"></div>
+  
+  <div class="header">
+    <h1>ERA Engine</h1>
+    <div class="sub-header">A Three.js Engine Wrapper</div>
+    <a target="_blank" class="github-ribbon" href="https://github.com/rogerscg/era-engine"></a>
+  </div>
+  <div class="content">
+    <p>A simple wrapper around Three.js and peripherals such as physics engines, TWEEN,
+      etc. to aid the creation of games or other visuals. Used by <a href="https://store.steampowered.com/app/707680/Slapshot/">Slapshot</a>
+      and <a href="https://earthrevivalact.herokuapp.com/">Earth Revival Act (ERA)</a></p>
+    <h2>Documentation</h2>
+    <p>A guide to using the ERA Engine can be found on our <a href="https://github.com/rogerscg/era-engine/wiki">GitHub wiki.</a></p>
+    <h2>Examples</h2>
+    <div class="example-tile">
+      <img src="public/images/X-Wing.png">
+      <div class="example-title">X-Wing</div>
+      <a href="examples/basic/"></a>
+    </div>
+    <div class="example-tile">
+      <img src="public/images/physics.png">
+      <div class="example-title">Physics Co-op</div>
+      <a href="examples/basic/"></a>
+    </div>
+  </div>
 </body>
-<script src="dependencies/box2d.js"></script>
-<script src="dependencies/jquery.min.js"></script>
-<script src="dependencies/socket.io.js"></script>
-<script src="dependencies/three.js"></script>
-<script src="dependencies/tween.js"></script>
-<script src="dependencies/GLTFLoader.js"></script>
-<script src="dependencies/PropertyBinding.js"></script>
-<script src="build/era.js"></script>
 </html>
