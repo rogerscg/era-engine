@@ -4,7 +4,6 @@
  */
 
 import Engine from './engine.js';
-import Events from './events.js';
 import Plugin from './plugin.js';
 import Settings from './settings.js';
 import SettingsEvent from '../events/settings_event.js';
