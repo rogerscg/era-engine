@@ -34,8 +34,7 @@ async function start() {
 
   // Create environment.
   const environment = 
-    await new Environment()
-            .loadFromFile('environments/space.json');
+    await new Environment().loadFromFile('environments/space.json');
   scene.add(environment);
 
   // Create X-Wing.

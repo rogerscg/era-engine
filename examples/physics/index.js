@@ -19,8 +19,7 @@ async function start() {
   await Settings.load();
 
   // Create engine and load models.
-  const engine = Engine.get()
-                  .setCamera(Camera.get().buildIsometricCamera());
+  const engine = Engine.get().setCamera(Camera.get().buildIsometricCamera());
   engine.start();
   const scene = engine.getScene();
 
