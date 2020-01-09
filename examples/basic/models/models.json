@@ -1,6 +1,6 @@
 {
-  "X-Wing": {
-    "scale": 0.01,
+  "xwing": {
+    "scale": 10.00,
     "extension": "gltf"
   }
 }

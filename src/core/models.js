@@ -1,7 +1,7 @@
 /**
  * @author rogerscg / https://github.com/rogerscg
  */
-
+import Animation from './animation.js';
 import {extractMeshes, loadJsonFromFile} from './util.js';
 
 let instance = null;
@@ -69,7 +69,9 @@ class Models {
     let root;
     switch (extension) {
       case 'gltf':
-        root = await this.loadGltfModel(path);
+        const gltf = await this.loadGltfModel(path);
+        root = gltf.scene;
+        Animation.get().setAnimations(name, gltf.animations);
         break;
       case 'obj':
         root = await this.loadObjModel(path);
@@ -93,7 +95,7 @@ class Models {
     return new Promise((resolve) => {
       const loader = new THREE.GLTFLoader();
       loader.load(path, (gltf) => {
-        resolve(gltf.scene);
+        resolve(gltf);
       }, () => {}, (err) => {
         throw new Error(err);
       });

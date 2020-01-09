@@ -6,11 +6,6 @@ import Laser from "./laser.js";
 import {Audio, Engine} from "../../src/era.js";
 
 const COOLDOWN_TIME = 150;
-
-// Needed due to weird model.
-const X_SHIFT = 40;
-const Y_SHIFT = -480;
-
 const WORLD_POS_VEC = new THREE.Vector3();
 
 /**
@@ -42,7 +37,7 @@ class Cannons extends THREE.Object3D {
     xs.forEach((x) => {
       ys.forEach((y) => {
         const emitter = new THREE.Object3D();
-        emitter.position.set(x + X_SHIFT, y + Y_SHIFT, this.z);
+        emitter.position.set(x, y, this.z);
         this.add(emitter);
         this.emitters.push(emitter);
       });

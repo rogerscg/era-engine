@@ -44,6 +44,7 @@ async function start() {
   // Attach camera to XWing.
   engine.attachCamera(xwing);
   Controls.get().registerEntity(xwing);
+  Controls.get().useOrbitControls();
 }
 
 document.addEventListener('DOMContentLoaded', start);

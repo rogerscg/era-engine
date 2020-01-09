@@ -4,7 +4,7 @@
 
 import {Entity} from '../../src/era.js';
 
-const GEOMETRY = new THREE.CubeGeometry(.3, .3, 8);
+const GEOMETRY = new THREE.CubeGeometry(.2, .2, 6);
 const MATERIAL = new THREE.MeshLambertMaterial({color: 0xff2222});
 const LIFETIME = 2000;
 const VELOCITY = 10;

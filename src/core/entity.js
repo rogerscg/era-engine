@@ -155,7 +155,7 @@ class Entity extends THREE.Object3D {
     if (!this.modelName) {
       return console.warn('Model name not provided');
     }
-    const scene = Models.get().storage.get(this.modelName).clone();
+    const scene = Models.get().createModel(this.modelName);
     return scene;
   }
 

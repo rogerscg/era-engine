@@ -4,7 +4,7 @@
 
 import Cannons from './cannons.js';
 import Engines from './engines.js';
-import {Bindings, Controls, Entity} from '../../src/era.js';
+import {Animation, Bindings, Controls, Entity} from '../../src/era.js';
 
 const XWING_BINDINGS = {
   SPRINT: {
@@ -19,9 +19,15 @@ const XWING_BINDINGS = {
       controller: 'button5',
     }
   },
+  ATTACK: {
+    keys: {
+      keyboard: 88,
+      controller: 'button0',
+    }
+  },
 };
 
-const CAMERA_DIST = 35;
+const CAMERA_DIST = 20;
 
 const CONTROLS_ID = 'X-Wing';
 
@@ -38,22 +44,22 @@ class XWing extends Entity {
 
   constructor() {
     super();
-    this.modelName = 'X-Wing';
+    this.modelName = 'xwing';
     this.rotateTarget = 0;
     this.rotateAnim = null;
     this.cannons = null;
     this.engines = null;
+    this.opened = false;
   }
 
   /** @override */
   build() {
     super.build();
     // Build cannons based on offsets.
-    this.cannons = new Cannons(970, 400, 220).build();
+    this.cannons = new Cannons(.53, .15, -.1).build();
     this.mesh.add(this.cannons);
     // Start engine.
-    this.engines = new Engines(190, 230, -1230).build();
-    this.mesh.add(this.engines);
+    this.engines = new Engines();
     this.engines.start();
     
     return this;
@@ -69,14 +75,21 @@ class XWing extends Entity {
     this.cameraArm.add(camera);
     this.cameraArm.rotation.y += Math.PI;
     camera.position.z = CAMERA_DIST;
-    camera.position.x = -.4;
+    camera.position.y += 5;
   }
 
   /** @override */
   update() {
     this.updateRoll();
     if (this.getActionValue(this.bindings.FIRE)) {
-      this.cannons.fire();
+      if (!this.opened) {
+        this.open();
+      } else {
+        this.cannons.fire();
+      }
+    }
+    if (this.getActionValue(this.bindings.ATTACK)) {
+      this.open();
     }
     if (this.engines) {
       if (this.getActionValue(this.bindings.SPRINT) > .5) {
@@ -115,6 +128,26 @@ class XWing extends Entity {
     this.rotateAnim = new TWEEN.Tween(this.mesh.rotation)
       .to({z: angle}, 250)
       .start();
+  }
+
+  /**
+   * Opens the X-Wing into attacking formation.
+   */
+  open() {
+    if (this.opening) {
+      return;
+    }
+    this.opening = true;
+    const clips = Animation.get().getClips(this.modelName);
+    const mixer = Animation.get().createAnimationMixer(this.modelName, this);
+    const clip = THREE.AnimationClip.findByName(clips, 'Take 01');
+    const action = mixer.clipAction(clip);
+    action.setLoop(THREE.LoopOnce);
+    action.play();
+    setTimeout(() => {
+      action.halt();
+      this.opened = true;
+    }, 4000);
   }
 }
 
