@@ -3,6 +3,7 @@
  */
 import EngineResetEvent from '../events/engine_reset_event.js';
 import EngineTimer from './engine_timer.js';
+import Settings from './settings.js';
 import {RendererTypes, rendererPool} from './renderer_pool.js';
 
 let instance = null;
@@ -28,6 +29,8 @@ class Engine {
     // A map of cameras to the entities on which they are attached.
     this.cameras = new Map();
     this.timer = EngineTimer;
+    // Load engine defaults.
+    Settings.loadEngineDefaults();
   }
 
   getScene() {

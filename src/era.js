@@ -34,3 +34,4 @@ export { default as SettingsEvent } from './events/settings_event.js';
 // Physics
 export { default as AmmoPhysics } from './physics/ammo_physics.js';
 export { default as Box2DPhysics } from './physics/box2d_physics.js';
+export { default as CannonPhysics } from './physics/cannon_physics.js';

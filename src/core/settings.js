@@ -70,8 +70,8 @@ class Settings extends Map {
     if (this.loaded) {
       return;
     }
-    this.loaded = true;
     this.loadEngineDefaults();
+    this.loaded = true;
     if (settingsPath) {
       await this.loadFromFile(settingsPath);
     }
@@ -85,6 +85,9 @@ class Settings extends Map {
    * that are dependent on settings.
    */
   loadEngineDefaults() {
+    if (this.loaded) {
+      return;
+    }
     for (let key in DEFAULT_SETTINGS) {
       const setting = new Setting(key, DEFAULT_SETTINGS[key]);
       super.set(setting.getName(), setting);
