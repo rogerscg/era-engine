@@ -175,7 +175,9 @@ class Models {
     if (!this.storage.has(name)) {
       return null;
     }
-    return this.storage.get(name);
+    const original = this.storage.get(name);
+    const clone = THREE.SkeletonUtils.clone(original);
+    return clone;
   }
 }
 
