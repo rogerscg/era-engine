@@ -2,6 +2,7 @@
  * @author rogerscg / https://github.com/rogerscg
  */
 
+import Animation from './animation.js';
 import Controls from './controls.js';
 import Engine from './engine.js';
 import Models from './models.js';
@@ -55,6 +56,8 @@ class Entity extends THREE.Object3D {
     this.modelName = null;
     this.physicsBody = null;
     this.physicsEnabled = false;
+    this.animationMixer = null;
+    this.animationClips = null;
     this.actions = new Map(); // Map of action -> value (0 - 1)
     this.bindings = Controls.get().getBindings(this.getControlsId());
     this.inputDevice = 'keyboard';
@@ -109,6 +112,9 @@ class Entity extends THREE.Object3D {
     this.mesh = this.generateMesh();
     if (this.mesh) {
       this.add(this.mesh);
+      this.animationMixer =
+        Animation.get().createAnimationMixer(this.modelName, this);
+      this.animationClips = Animation.get().getClips(this.modelName);
     }
     this.cameraArm = this.createCameraArm();
     if (this.physicsEnabled) {
@@ -344,6 +350,18 @@ class Entity extends THREE.Object3D {
    */
   registerComponent(body) {
     Physics.get().registerComponent(body);
+  }
+
+  /**
+   * Finds an animation clip by name.
+   * @param {string} name
+   * @returns {THREE.AnimationClip}
+   */
+  getAnimationClip(name) {
+    if (!name || !this.animationClips) {
+      return null;
+    }
+    return THREE.AnimationClip.findByName(this.animationClips, name);
   }
 }
 
