@@ -381,6 +381,13 @@ class Entity extends THREE.Object3D {
     action.play();
     return action;
   }
+
+  /**
+   * Stops all animations on the entity.
+   */
+  stopAllAnimation() {
+    this.animationMixer.stopAllAction();
+  }
 }
 
 export default Entity;

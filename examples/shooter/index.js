@@ -7,11 +7,11 @@ import Stage from './stage.js';
 import {
   CannonPhysics,
   Camera,
+  Controls,
   Engine,
   Environment,
   Models,
-  RendererStats,
-  Controls
+  RendererStats
 } from '../../src/era.js';
 
 async function start() {
@@ -43,6 +43,7 @@ async function start() {
   const character = new Character().build();
   scene.add(character);
   engine.attachCamera(character);
+  Controls.get().registerEntity(character);
   window.character = character;
 }
 

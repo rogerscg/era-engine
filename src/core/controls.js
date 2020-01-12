@@ -450,6 +450,10 @@ class Controls extends Plugin {
       }
       // Get the bindings for the entity.
       const bindings = this.registeredBindings.get(entity.getControlsId());
+      if (!bindings) {
+        console.warn('Bindings not defined for registered entity', entity);
+        return;
+      }
       const actions = bindings.getActionsForKey(key, playerNumber);
       if (!actions) {
         return;
