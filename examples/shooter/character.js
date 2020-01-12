@@ -9,11 +9,11 @@ class Character extends Entity {
   /** @override */
   positionCamera(camera) {
     this.cameraArm.add(camera);
-    camera.position.x = 10;
+    camera.position.x = 3;
     this.cameraArm.rotation.z = Math.PI / 6;
     this.cameraArm.rotation.y = Math.PI / 2;
     camera.lookAt(this.position);
-    camera.position.y = 4;
+    Promise.resolve().then(() => camera.position.y = 1.2);
   }
 }
 
