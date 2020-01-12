@@ -42,11 +42,8 @@ async function start() {
   // Create character.
   const character = new Character().build();
   scene.add(character);
-  window.character = character;
-
   engine.attachCamera(character);
-
-  Controls.get().useOrbitControls();
+  window.character = character;
 }
 
 document.addEventListener('DOMContentLoaded', start);

@@ -1,9 +1,10 @@
-import {Entity} from '../../src/era.js';
+import {Character as EraCharacter} from '../../src/era.js';
 
-class Character extends Entity {
+class Character extends EraCharacter {
   constructor() {
     super();
     this.modelName = 'robot';
+    this.idleAnimationName = 'MainCharacter|Idle';
   }
 
   /** @override */

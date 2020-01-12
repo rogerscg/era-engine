@@ -1,4 +1,9 @@
 {
+  "skybox": {
+    "directory": "skybox/",
+    "file": "bluecloud",
+    "extension": "jpg"
+  },
   "background": "cccccc",
   "lights": {
     "ambient": [

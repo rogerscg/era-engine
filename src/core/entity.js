@@ -363,6 +363,24 @@ class Entity extends THREE.Object3D {
     }
     return THREE.AnimationClip.findByName(this.animationClips, name);
   }
+
+  /**
+   * Plays an animation given a name.
+   * @param {string} name
+   * @returns {THREE.AnimationAction}
+   */
+  playAnimation(name) {
+    if (!name) {
+      return null;
+    }
+    const clip = this.getAnimationClip(name);
+    if (!clip) {
+      return null;
+    }
+    const action = this.animationMixer.clipAction(clip);
+    action.play();
+    return action;
+  }
 }
 
 export default Entity;
