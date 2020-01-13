@@ -2,7 +2,7 @@ import { Entity } from '../../src/era.js';
 
 const SIDE = 50;
 const GEOMETRY = new THREE.BoxGeometry(SIDE, SIDE, SIDE);
-const MATERIAL = new THREE.MeshLambertMaterial({ color: 0x999999 });
+const MATERIAL = new THREE.MeshLambertMaterial({ color: 0x555555 });
 
 /**
  * The stage for arena.

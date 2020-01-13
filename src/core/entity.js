@@ -51,23 +51,30 @@ class Entity extends THREE.Object3D {
   constructor() {
     super();
     this.uuid = createUUID();
+    this.modelName = null;
     this.mesh = null;
     this.cameraArm;
-    this.modelName = null;
+    this.registeredCameras = new Set();
+
+    // Physics properties.
     this.physicsBody = null;
     this.physicsEnabled = false;
+    this.physicsWorld = null;
+
+    // Animation properties.
     this.animationMixer = null;
     this.animationClips = null;
+    this.currentAction = null;
+
+    // Controls properties.
     this.actions = new Map(); // Map of action -> value (0 - 1)
     this.bindings = Controls.get().getBindings(this.getControlsId());
     this.inputDevice = 'keyboard';
-    this.registeredCameras = new Set();
-    this.physicsWorld = null;
     this.playerNumber = null;
     this.mouseMovement = {
       x: 0,
       y: 0
-    };
+    }; 
   }
 
   withPhysics() {
@@ -378,7 +385,12 @@ class Entity extends THREE.Object3D {
       return null;
     }
     const action = this.animationMixer.clipAction(clip);
+    action.reset();
+    if (this.currentAction) {
+      action.crossFadeFrom(this.currentAction, .2, true);
+    }
     action.play();
+    this.currentAction = action;
     return action;
   }
 
@@ -387,6 +399,7 @@ class Entity extends THREE.Object3D {
    */
   stopAllAnimation() {
     this.animationMixer.stopAllAction();
+    this.currentAction = null;
   }
 }
 

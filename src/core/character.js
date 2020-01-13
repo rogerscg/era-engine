@@ -49,7 +49,6 @@ class Character extends Entity {
       return;
     }
     this.state = 'idle';
-    this.stopAllAnimation();
     this.playAnimation(this.idleAnimationName);
   }
 
@@ -61,7 +60,6 @@ class Character extends Entity {
       return;
     }
     this.state = 'walking';
-    this.stopAllAnimation();
     this.playAnimation(this.walkingAnimationName);
   }
 
@@ -73,7 +71,6 @@ class Character extends Entity {
       return;
     }
     this.state = 'sprinting';
-    this.stopAllAnimation();
     this.playAnimation(this.sprintingAnimationName);
   }
 }
