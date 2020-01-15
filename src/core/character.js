@@ -41,6 +41,33 @@ class Character extends Entity {
     return this;
   }
 
+  /** @override */
+  update() {
+    super.update();
+    const inputVector = { x: 0, z: 0 };
+    if (this.getActionValue(this.bindings.FORWARD)) {
+      inputVector.x -= this.getActionValue(this.bindings.FORWARD);
+    }
+    if (this.getActionValue(this.bindings.BACKWARD)) {
+      inputVector.x += this.getActionValue(this.bindings.BACKWARD);
+    }
+    if (this.getActionValue(this.bindings.RIGHT)) {
+      inputVector.z += this.getActionValue(this.bindings.RIGHT);
+    }
+    if (this.getActionValue(this.bindings.LEFT)) {
+      inputVector.z -= this.getActionValue(this.bindings.LEFT);
+    }
+    if (this.getActionValue(this.bindings.FORWARD)) {
+      if (this.getActionValue(this.bindings.SPRINT)) {
+        this.sprint();
+      } else {
+        this.walk();
+      }
+    } else {
+      this.idle();
+    }
+  }
+
   /**
    * Sets the character in the idle state.
    */

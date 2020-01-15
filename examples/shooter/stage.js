@@ -1,6 +1,6 @@
 import { Entity } from '../../src/era.js';
 
-const SIDE = 50;
+const SIDE = 15;
 const GEOMETRY = new THREE.BoxGeometry(SIDE, SIDE, SIDE);
 const MATERIAL = new THREE.MeshLambertMaterial({ color: 0x555555 });
 
@@ -11,7 +11,6 @@ class Stage extends Entity {
   /** @override */
   generateMesh() {
     const ground = new THREE.Mesh(GEOMETRY, MATERIAL);
-    ground.position.y -= SIDE / 2;
     return ground;
   }
 
@@ -28,7 +27,8 @@ class Stage extends Entity {
   generatePhysicsBody() {
     const body = new CANNON.Body({
       mass: 0,
-      shape: new CANNON.Box(new CANNON.Vec3(SIDE, SIDE, SIDE)),
+      shape: new CANNON.Box(new CANNON.Vec3(SIDE / 2, SIDE / 2, SIDE / 2)),
+      position: new CANNON.Vec3(0, -SIDE / 2, 0),
     });
     return body;
   }

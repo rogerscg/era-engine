@@ -37,15 +37,7 @@ class Character extends EraCharacter {
 
   /** @override */
   update() {
-    if (this.getActionValue(this.bindings.FORWARD)) {
-      if (this.getActionValue(this.bindings.SPRINT)) {
-        this.sprint();
-      } else {
-        this.walk();
-      }
-    } else {
-      this.idle();
-    }
+    super.update();
   }
 }
 

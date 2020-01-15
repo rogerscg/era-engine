@@ -42,6 +42,9 @@ class Physics extends Plugin {
     }
     this.step(delta);
     this.updateEntities(delta);
+    if (this.debugRenderer) {
+      this.debugRenderer.update();
+    }
   }
 
   getWorld() {
@@ -140,6 +143,17 @@ class Physics extends Plugin {
    */
   getRotation(entity) {
     console.warn('getRotation(entity) not implemented');
+  }
+
+  /**
+   * Sets a debug renderer on the physics instance. This should be overriden by
+   * each engine-specific implementation for ease of use.
+   * @param {DebugRenderer} debugRenderer
+   * @returns {Physics}
+   */
+  withDebugRenderer(debugRenderer) {
+    this.debugRenderer = debugRenderer;
+    return this;
   }
 }
 

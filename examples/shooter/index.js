@@ -28,7 +28,7 @@ async function start() {
   new RendererStats(engine.getRenderer());
 
   // Create physics.
-  new CannonPhysics();
+  const physics = new CannonPhysics().withDebugRenderer();
 
   // Create environment.
   const environment =
@@ -38,13 +38,14 @@ async function start() {
   // Create arena.
   const stage = new Stage().withPhysics().build();
   scene.add(stage);
+  physics.registerEntity(stage);
 
   // Create character.
   const character = new Character().build();
   scene.add(character);
   engine.attachCamera(character);
   Controls.get().registerEntity(character);
-  window.character = character;
+  Controls.get().usePointerLockControls();
 }
 
 document.addEventListener('DOMContentLoaded', start);

@@ -1,6 +1,8 @@
 /**
  * @author rogerscg / https://github.com/rogerscg
  */
+import CannonDebugRenderer from "./cannon_debug_renderer.js";
+import Engine from '../core/engine.js';
 import Physics from "../core/physics.js";
 
 const MAX_SUBSTEPS = 10;
@@ -72,6 +74,16 @@ class CannonPhysics extends Physics {
       z: rotation.z,
       w: rotation.w,
     };
+  }
+
+  /** @override */
+  withDebugRenderer() {
+    const scene = Engine.get().getScene();
+    const world = this.getWorld();
+    if (!scene || !world) {
+      return console.warn('Debug renderer missing scene or world.');
+    }
+    return super.withDebugRenderer(new CannonDebugRenderer(scene, world));
   }
 }
 
