@@ -1,4 +1,4 @@
-import {Bindings, Character as EraCharacter, Controls} from '../../src/era.js';
+import {Bindings, Character as EraCharacter, Controls, vectorToAngle} from '../../src/era.js';
 
 const CONTROLS_ID = 'Character';
 
@@ -12,6 +12,7 @@ class Character extends EraCharacter {
     this.idleAnimationName = 'MainCharacter|Idle';
     this.walkingAnimationName = 'MainCharacter|Walk';
     this.sprintingAnimationName = 'MainCharacter|Sprint';
+    this.dummyVec3 = new CANNON.Vec3();
   }
 
   /** @override */
@@ -59,6 +60,31 @@ class Character extends EraCharacter {
   /** @override */
   update() {
     super.update();
+    // Update physics.
+    const inputVector = { x: 0, z: 0 };
+    if (this.getActionValue(this.bindings.FORWARD)) {
+      inputVector.z += this.getActionValue(this.bindings.FORWARD);
+    }
+    if (this.getActionValue(this.bindings.BACKWARD)) {
+      inputVector.z -= this.getActionValue(this.bindings.BACKWARD);
+    }
+    if (this.getActionValue(this.bindings.LEFT)) {
+      inputVector.x += this.getActionValue(this.bindings.LEFT);
+    }
+    if (this.getActionValue(this.bindings.RIGHT)) {
+      inputVector.x -= this.getActionValue(this.bindings.RIGHT);
+    }
+    this.physicsBody.velocity.z = inputVector.z * 5;
+    this.physicsBody.velocity.x = inputVector.x * 5;
+    if (this.getActionValue(this.bindings.SPRINT)) {
+      this.physicsBody.velocity.x *= 1.5;
+      this.physicsBody.velocity.z *= 1.5;
+    }
+    // Update body rotation.
+    if (inputVector.x || inputVector.z) {
+      const angle = vectorToAngle(inputVector.z, inputVector.x);
+      this.physicsBody.quaternion.setFromAxisAngle(CANNON.Vec3.UNIT_Y, angle);
+    }
   }
 }
 

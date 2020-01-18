@@ -46,7 +46,7 @@ async function start() {
   physics.registerEntity(character);
   engine.attachCamera(character);
   Controls.get().registerEntity(character);
-  Controls.get().useOrbitControls();
+  Controls.get().usePointerLockControls();
 }
 
 document.addEventListener('DOMContentLoaded', start);
