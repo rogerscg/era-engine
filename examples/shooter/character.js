@@ -26,6 +26,27 @@ class Character extends EraCharacter {
   }
 
   /** @override */
+  generatePhysicsBody() {
+    const totalHeight = 1.8;
+    const mass = 1;
+    const radius = .3;
+    const height = totalHeight - radius * 2;
+    const capsule = new CANNON.Body({mass});
+    const cylinderShape = new CANNON.Cylinder(radius, radius, height, 20);
+    const axis = new CANNON.Vec3(1, 0, 0);
+    const angle = Math.PI / 2;
+    const quat = new CANNON.Quaternion();
+    quat.setFromAxisAngle(axis, angle);
+    capsule.addShape(cylinderShape, new CANNON.Vec3(0, height / 2 + radius, 0), quat);
+    const sphereShape = new CANNON.Sphere(radius);
+    capsule.addShape(sphereShape, new CANNON.Vec3(0, radius, 0));
+    capsule.addShape(sphereShape, new CANNON.Vec3(0, height + radius, 0));
+    capsule.fixedRotation = true;
+    capsule.updateMassProperties();
+    return capsule;
+  }
+
+  /** @override */
   positionCamera(camera) {
     this.cameraArm.add(camera);
     camera.position.x = 3;

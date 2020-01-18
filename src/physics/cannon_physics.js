@@ -19,14 +19,14 @@ class CannonPhysics extends Physics {
   /** @override */
   createWorld() {
     const world = new CANNON.World();
-    world.gravity.set(0, 0, -9.82);
+    world.gravity.set(0, -9.82, 0);
     return world;
   }
 
   /** @override */
   step(delta) {
     delta /= 1000;
-    this.world.step(delta, delta, MAX_SUBSTEPS);
+    this.world.step(1 / 60, delta, MAX_SUBSTEPS);
   }
 
   /** @override */

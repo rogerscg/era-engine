@@ -41,11 +41,12 @@ async function start() {
   physics.registerEntity(stage);
 
   // Create character.
-  const character = new Character().build();
+  const character = new Character().withPhysics().build();
   scene.add(character);
+  physics.registerEntity(character);
   engine.attachCamera(character);
   Controls.get().registerEntity(character);
-  Controls.get().usePointerLockControls();
+  Controls.get().useOrbitControls();
 }
 
 document.addEventListener('DOMContentLoaded', start);

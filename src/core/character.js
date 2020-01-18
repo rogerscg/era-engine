@@ -98,7 +98,8 @@ class Character extends Entity {
       return;
     }
     this.state = 'sprinting';
-    this.playAnimation(this.sprintingAnimationName);
+    const action = this.playAnimation(this.sprintingAnimationName);
+    action.timeScale = 1.75;
   }
 }
 
