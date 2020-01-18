@@ -38,6 +38,7 @@ async function start() {
   // Create arena.
   const stage = new Stage().withPhysics().build();
   scene.add(stage);
+  // TODO: Create better stage for testing.
   physics.registerEntity(stage);
 
   // Create character.

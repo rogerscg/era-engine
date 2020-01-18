@@ -12,7 +12,7 @@ class Character extends EraCharacter {
     this.idleAnimationName = 'MainCharacter|Idle';
     this.walkingAnimationName = 'MainCharacter|Walk';
     this.sprintingAnimationName = 'MainCharacter|Sprint';
-    this.dummyVec3 = new CANNON.Vec3();
+    this.targetQuaternion = new CANNON.Quaternion();
   }
 
   /** @override */
@@ -81,10 +81,20 @@ class Character extends EraCharacter {
       this.physicsBody.velocity.z *= 1.5;
     }
     // Update body rotation.
+    // TODO: Get camera direction.
     if (inputVector.x || inputVector.z) {
       const angle = vectorToAngle(inputVector.z, inputVector.x);
-      this.physicsBody.quaternion.setFromAxisAngle(CANNON.Vec3.UNIT_Y, angle);
+      this.targetQuaternion.setFromAxisAngle(CANNON.Vec3.UNIT_Y, angle);
+      this.updateRotation();
     }
+  }
+
+  /**
+   * Updates the rotation of the character.
+   */
+  updateRotation() {
+    this.physicsBody.quaternion.slerp(
+      this.targetQuaternion, .1, this.physicsBody.quaternion);
   }
 }
 
