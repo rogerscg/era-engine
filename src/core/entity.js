@@ -2,6 +2,7 @@
  * @author rogerscg / https://github.com/rogerscg
  */
 
+import Animation from './animation.js';
 import Controls from './controls.js';
 import Engine from './engine.js';
 import Models from './models.js';
@@ -50,21 +51,28 @@ class Entity extends THREE.Object3D {
   constructor() {
     super();
     this.uuid = createUUID();
+    this.modelName = null;
     this.mesh = null;
     this.cameraArm;
-    this.modelName = null;
+    this.registeredCameras = new Set();
+
+    // Physics properties.
     this.physicsBody = null;
     this.physicsEnabled = false;
+    this.physicsWorld = null;
+
+    // Animation properties.
+    this.animationMixer = null;
+    this.animationClips = null;
+    this.currentAction = null;
+
+    // Controls properties.
     this.actions = new Map(); // Map of action -> value (0 - 1)
     this.bindings = Controls.get().getBindings(this.getControlsId());
     this.inputDevice = 'keyboard';
-    this.registeredCameras = new Set();
-    this.physicsWorld = null;
     this.playerNumber = null;
-    this.mouseMovement = {
-      x: 0,
-      y: 0
-    };
+    this.lastMouseMovement = new THREE.Vector2();
+    this.mouseMovement = new THREE.Vector2();
   }
 
   withPhysics() {
@@ -109,6 +117,9 @@ class Entity extends THREE.Object3D {
     this.mesh = this.generateMesh();
     if (this.mesh) {
       this.add(this.mesh);
+      this.animationMixer =
+        Animation.get().createAnimationMixer(this.modelName, this);
+      this.animationClips = Animation.get().getClips(this.modelName);
     }
     this.cameraArm = this.createCameraArm();
     if (this.physicsEnabled) {
@@ -243,10 +254,8 @@ class Entity extends THREE.Object3D {
    */
   clearInput() {
     this.actions.clear();
-    this.mouseMovement = {
-      x: 0,
-      y: 0
-    };
+    this.mouseMovement.set(0, 0);
+    this.lastMouseMovement.set(0, 0);
   }
 
   /**
@@ -274,12 +283,19 @@ class Entity extends THREE.Object3D {
   }
 
   /**
+   * Gets the last mouse movement registered. Does not directly read from mouse
+   * movement in order to better handle clearing.
+   */
+  getMouseMovement() {
+    return this.lastMouseMovement;
+  }
+
+  /**
    * Sets the mouse movement vector for the entity.
    */
   setMouseMovement(x, y) {
-    this.mouseMovement.x = x;
-    this.mouseMovement.y = y;
-    // TODO: Clear somehow.
+    this.mouseMovement.x += x;
+    this.mouseMovement.y += y;
   }
 
   /**
@@ -314,6 +330,8 @@ class Entity extends THREE.Object3D {
     if (rotation.w != null) {
       this.mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
     }
+    this.lastMouseMovement.copy(this.mouseMovement);
+    this.mouseMovement.set(0, 0);
   }
 
   /** 
@@ -344,6 +362,49 @@ class Entity extends THREE.Object3D {
    */
   registerComponent(body) {
     Physics.get().registerComponent(body);
+  }
+
+  /**
+   * Finds an animation clip by name.
+   * @param {string} name
+   * @returns {THREE.AnimationClip}
+   */
+  getAnimationClip(name) {
+    if (!name || !this.animationClips) {
+      return null;
+    }
+    return THREE.AnimationClip.findByName(this.animationClips, name);
+  }
+
+  /**
+   * Plays an animation given a name.
+   * @param {string} name
+   * @returns {THREE.AnimationAction}
+   */
+  playAnimation(name) {
+    if (!name) {
+      return null;
+    }
+    const clip = this.getAnimationClip(name);
+    if (!clip) {
+      return null;
+    }
+    const action = this.animationMixer.clipAction(clip);
+    action.reset();
+    if (this.currentAction) {
+      action.crossFadeFrom(this.currentAction, .2, true);
+    }
+    action.play();
+    this.currentAction = action;
+    return action;
+  }
+
+  /**
+   * Stops all animations on the entity.
+   */
+  stopAllAnimation() {
+    this.animationMixer.stopAllAction();
+    this.currentAction = null;
   }
 }
 

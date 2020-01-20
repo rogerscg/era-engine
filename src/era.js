@@ -10,6 +10,7 @@ export {Action, Bindings} from './core/bindings.js';
 export {default as Animation} from './core/animation.js';
 export {default as Audio} from './core/audio.js';
 export {default as Camera} from './core/camera.js';
+export {default as Character} from './core/character.js';
 export {default as Controls} from './core/controls.js';
 export {default as Engine} from './core/engine.js';
 export {default as Entity} from './core/entity.js';

@@ -4,7 +4,7 @@
 
 import Cannons from './cannons.js';
 import Engines from './engines.js';
-import {Animation, Bindings, Controls, Entity} from '../../src/era.js';
+import {Bindings, Controls, Entity} from '../../src/era.js';
 
 const XWING_BINDINGS = {
   SPRINT: {
@@ -138,10 +138,8 @@ class XWing extends Entity {
       return;
     }
     this.opening = true;
-    const clips = Animation.get().getClips(this.modelName);
-    const mixer = Animation.get().createAnimationMixer(this.modelName, this);
-    const clip = THREE.AnimationClip.findByName(clips, 'Take 01');
-    const action = mixer.clipAction(clip);
+    const clip = this.getAnimationClip('Take 01');
+    const action = this.animationMixer.clipAction(clip);
     action.setLoop(THREE.LoopOnce);
     action.play();
     setTimeout(() => {

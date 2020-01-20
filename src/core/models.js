@@ -76,10 +76,19 @@ class Models {
       case 'obj':
         root = await this.loadObjModel(path);
         break;
+      case 'fbx':
+        root = await this.loadFbxModel(path);
+        Animation.get().setAnimations(name, root.animations);
+        break;
     }
     // Scale the model based on options.
     if (options.scale) {
       root.scale.setScalar(options.scale);
+    }
+    // Remove lights.
+    const light = root.getObjectByProperty('type', 'PointLight');
+    if (light) {
+      light.parent.remove(light);
     }
     // Set the model in storage.
     this.storage.set(name, root);
@@ -149,6 +158,20 @@ class Models {
   }
 
   /**
+   * Loads a FBX model.
+   * @param {string} path 
+   * @async
+   */
+  async loadFbxModel(path) {
+    const loader = new THREE.FBXLoader();
+    return new Promise((resolve) => {
+		  loader.load(path, (object) => {
+        resolve(object);
+      }, () => {}, (err) => console.error(err));
+    }); 
+  }
+
+  /**
    * Creates a clone of a model from storage.
    * @param {string} name
    * @return {THREE.Object3D}
@@ -157,7 +180,9 @@ class Models {
     if (!this.storage.has(name)) {
       return null;
     }
-    return this.storage.get(name).clone();
+    const original = this.storage.get(name);
+    const clone = THREE.SkeletonUtils.clone(original);
+    return clone;
   }
 }
 

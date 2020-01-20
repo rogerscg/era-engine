@@ -56,6 +56,8 @@ class Controls extends Plugin {
 
     this.loadSettings();
     this.registerCustomBindings();
+
+    this.pointerLockEnabled = false;
     
     SettingsEvent.listen(this.loadSettings.bind(this));
   }
@@ -63,7 +65,7 @@ class Controls extends Plugin {
   /** @override */
   reset() {
     this.registeredEntities = new Map();
-    this.forcePointerLockState(undefined);
+    this.exitPointerLock();
   }
 
   /** @override */
@@ -359,50 +361,27 @@ class Controls extends Plugin {
    * Handles the mouse click event. Separate from mouse down and up.
    */
   onMouseClick(e) {
-    if (window.engine && engine.renderer &&
-        e.target == engine.renderer.domElement)
+    if (this.pointerLockEnabled) {
       this.requestPointerLock();
+    }
   }
 
   /**
    * Requests pointer lock on the renderer canvas.
    */
   requestPointerLock() {
-    if (this.pointerLockState === false) {
+    const renderer = Engine.get().getRenderer();
+    if (!renderer) {
       return;
     }
-    if (!window.engine || !window.engine.renderer) {
-      return;
-    }
-    engine.renderer.domElement.requestPointerLock();
+    renderer.domElement.requestPointerLock();
   }
 
   /**
    * Exits pointer lock.
    */
   exitPointerLock() {
-    if (this.pointerLockState === true) {
-      return;
-    }
     document.exitPointerLock();
-  }
-
-  /**
-   * Forces the pointer lock state. This is used for things like end-game
-   * screens or other non-game screens.
-   */
-  forcePointerLockState(state) {
-    this.pointerLockState = state;
-    switch (state) {
-      case true:
-        this.requestPointerLock();
-        break;
-      case false:
-        this.exitPointerLock();
-        break;
-      case undefined:
-        break;
-    }
   }
 
   /**
@@ -450,6 +429,10 @@ class Controls extends Plugin {
       }
       // Get the bindings for the entity.
       const bindings = this.registeredBindings.get(entity.getControlsId());
+      if (!bindings) {
+        console.warn('Bindings not defined for registered entity', entity);
+        return;
+      }
       const actions = bindings.getActionsForKey(key, playerNumber);
       if (!actions) {
         return;
@@ -507,6 +490,14 @@ class Controls extends Plugin {
   useOrbitControls() {
     new THREE.OrbitControls(
       Engine.get().getCamera(), Engine.get().getRenderer().domElement);
+  }
+
+  /**
+   * Creates pointer lock controls on the renderer.
+   */
+  usePointerLockControls() {
+    this.pointerLockEnabled = true;
+    this.requestPointerLock();
   }
 
   /**
