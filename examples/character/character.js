@@ -1,4 +1,12 @@
-import {Bindings, Character as EraCharacter, Controls, vectorToAngle, Engine, Camera} from '../../src/era.js';
+import {
+  Bindings,
+  Camera,
+  Character as EraCharacter,
+  Controls,
+  Engine,
+  lerp,
+  vectorToAngle
+} from '../../src/era.js';
 
 const CAPSULE_RADIUS = .25;
 const CONTROLS_ID = 'Character';
@@ -6,6 +14,7 @@ const HEIGHT = 1.8;
 const MASS = 1;
 // Offset used for smoother movement. Increase for larger vertical motion.
 const CAPSULE_OFFSET = .2;
+const LERP_FACTOR = .4;
 
 const RAYCAST_GEO = new THREE.BoxGeometry(.2, .2, .2);
 const RAYCAST_MATERIAL = new THREE.MeshLambertMaterial({ color: 0xFF0000 });
@@ -164,9 +173,11 @@ class Character extends EraCharacter {
       const diff = CAPSULE_OFFSET + HEIGHT / 2 - hitDistance;
       this.rayEndBox.position.y = this.rayStartBox.position.y - hitDistance;
       this.rayEndBox.material.color.setHex(0xFF8800);
-      // TODO: This should be lerped in order to provide smoother transitions.
-      this.physicsBody.position.y += diff;
-      this.physicsBody.interpolatedPosition.y += diff;
+      // Lerp new position.
+      const newY = this.physicsBody.position.y + diff;
+      const lerpedY = lerp(this.physicsBody.position.y, newY, LERP_FACTOR);
+      this.physicsBody.position.y = lerpedY;
+      this.physicsBody.interpolatedPosition.y = lerpedY;
       this.physicsBody.velocity.y = 0;
       this.grounded = true;
     } else {

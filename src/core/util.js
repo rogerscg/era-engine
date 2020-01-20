@@ -166,11 +166,11 @@ export {
   dispose,
   extractMeshes,
   extractMeshesByName,
+  getHexColorRatio,
+  lerp,
   loadJsonFromFile,
   shuffleArray,
   toDegrees,
   toRadians,
   vectorToAngle,
-  getHexColorRatio,
-  lerp,
 };
