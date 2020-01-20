@@ -29,6 +29,10 @@ class Engine {
     // A map of cameras to the entities on which they are attached.
     this.cameras = new Map();
     this.timer = EngineTimer;
+
+    // If a physics plugin is installed, don't update entities.
+    this.physicsInstalled = false;
+
     // Load engine defaults.
     Settings.loadEngineDefaults();
   }
@@ -57,6 +61,14 @@ class Engine {
     this.camera = camera;
     camera.userData.active = true;
     return this;
+  }
+
+  /**
+   * Informs the engine that a physics plugin has been installed.
+   * @param {boolean} installed
+   */
+  setUsingPhysics(installed) {
+    this.physicsInstalled = installed;
   }
 
   /**
@@ -113,8 +125,12 @@ class Engine {
     TWEEN.update(timeStamp);
     // Update all plugins.
     this.plugins.forEach((plugin) => plugin.update(timeStamp));
-    // Update all entities.
-    //this.entities.forEach((entity) => entity.update());
+    // Update all entities, if physics is not enabled. This is due to physics
+    // handling updates on its own.
+    // TODO: Separate physics updates from entity updates.
+    if (!this.physicsInstalled) {
+      this.entities.forEach((entity) => entity.update());
+    }
 
     // Check if the render loop should be halted.
     if (this.resetRender) {

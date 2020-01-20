@@ -36,8 +36,8 @@ class Character extends EraCharacter {
     this.rayStartBox = new THREE.Mesh(RAYCAST_GEO, RAYCAST_BLUE_MATERIAL);
     this.rayEndBox = new THREE.Mesh(RAYCAST_GEO, RAYCAST_MATERIAL);
     const scene = Engine.get().getScene();
-    //scene.add(this.rayStartBox);
-    //scene.add(this.rayEndBox);
+    scene.add(this.rayStartBox);
+    scene.add(this.rayEndBox);
   }
 
   /** @override */

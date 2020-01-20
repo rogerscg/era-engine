@@ -1,6 +1,7 @@
 /**
  * @author rogerscg / https://github.com/rogerscg
  */
+import Engine from './engine.js';
 import Plugin from './plugin.js';
 
 let instance = null;
@@ -24,6 +25,7 @@ class Physics extends Plugin {
     this.registeredEntities = new Map();
     this.world = this.createWorld();
     this.lastTime = performance.now();
+    Engine.get().setUsingPhysics(true);
   }
 
   /** @override */
