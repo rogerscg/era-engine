@@ -75,7 +75,12 @@ class Entity extends THREE.Object3D {
     this.mouseMovement = new THREE.Vector2();
   }
 
-  withPhysics() {
+  /**
+   * Enables physics generation with the given physics instance.
+   * @param {Physics=} physics
+   */
+  withPhysics(physics) {
+    this.physicsWorld = physics;
     this.physicsEnabled = true;
     return this;
   }

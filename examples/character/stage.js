@@ -30,6 +30,7 @@ class Stage extends Entity {
       shape: new CANNON.Box(new CANNON.Vec3(SIDE / 2, SIDE / 2, SIDE / 2)),
       position: new CANNON.Vec3(0, -SIDE / 2, 0),
     });
+    body.material = this.physicsWorld.createPhysicalMaterial('ground');
     return body;
   }
 }

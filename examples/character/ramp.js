@@ -22,6 +22,7 @@ class Ramp extends Entity {
       shape: new CANNON.Box(new CANNON.Vec3(SIDE / 2, SIDE / 2, SIDE / 2)),
       quaternion: quaternion,
     });
+    body.material = this.physicsWorld.createPhysicalMaterial('ground');
     return body;
   }
 }

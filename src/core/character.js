@@ -25,6 +25,7 @@ class Character extends Entity {
     this.sprintingAnimationName = null;
     // TODO: Make state a common practice in ERA.
     this.state = 'idle';
+    this.grounded = false;
   }
 
   /** @override */

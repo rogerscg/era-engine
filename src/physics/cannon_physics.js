@@ -14,6 +14,8 @@ const MAX_SUBSTEPS = 10;
 class CannonPhysics extends Physics {
   constructor() {
     super();
+    this.physicalMaterials = new Map();
+    this.contactMaterials = new Map();
   }
 
   /** @override */
@@ -84,6 +86,47 @@ class CannonPhysics extends Physics {
       return console.warn('Debug renderer missing scene or world.');
     }
     return super.withDebugRenderer(new CannonDebugRenderer(scene, world));
+  }
+
+  /**
+   * Creates a new physical material for the given name and options. If the
+   * physical material already exists, return the existing one.
+   */
+  createPhysicalMaterial(name, options) {
+    if (!this.physicalMaterials.has(name)) {
+      const material = new CANNON.Material(options);
+      this.physicalMaterials.set(name, material);
+    }
+    return this.physicalMaterials.get(name);
+  }
+
+  /**
+   * Creates a new contact material between two given names. If the contact
+   * material already exists, return the existing one.
+   */
+  createContactMaterial(name1, name2, options) {
+    // TODO: Allow for "pending" contact material if one of the materials has
+    // not been created yet.
+    const key = this.createContactKey(name1, name2);
+    if (!this.contactMaterials.has(key)) {
+      const mat1 = this.createPhysicalMaterial(name1);
+      const mat2 = this.createPhysicalMaterial(name2);
+      const contactMat = new CANNON.ContactMaterial(mat1, mat2, options);
+      this.contactMaterials.set(key, contactMat);
+      this.world.addContactMaterial(contactMat);
+    }
+    return this.contactMaterials.get(key);
+  }
+
+  /**
+   * Creates a combined string to use as a key for contact materials.
+   */
+  createContactKey(name1, name2) {
+    // Alphabetize, then concatenate.
+    if (name1 < name2) {
+      return `${name1},${name2}`;
+    }
+    return `${name2},${name1}`;
   }
 }
 

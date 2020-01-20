@@ -40,41 +40,41 @@ async function start() {
   scene.add(environment);
 
   // Create arena.
-  const stage = new Stage().withPhysics().build();
+  const stage = new Stage().withPhysics(physics).build();
   scene.add(stage);
   physics.registerEntity(stage);
 
   // Create stairs.
-  const stairs = new Stairs(.2, .4, 10, 2).withPhysics().build();
+  const stairs = new Stairs(.2, .4, 10, 2).withPhysics(physics).build();
   stairs.physicsBody.position.set(-5, 0, 6);
   scene.add(stairs);
   physics.registerEntity(stairs);
 
-  const stairs2 = new Stairs(.5, .8, 5, 2).withPhysics().build();
+  const stairs2 = new Stairs(.5, .8, 5, 2).withPhysics(physics).build();
   stairs2.physicsBody.position.set(-5, 0, 4);
   scene.add(stairs2);
   physics.registerEntity(stairs2);
 
   // Create ramp.
-  const ramp = new Ramp().withPhysics().build();
+  const ramp = new Ramp().withPhysics(physics).build();
   ramp.physicsBody.position.set(3, -1, -3);
   scene.add(ramp);
   physics.registerEntity(ramp);
 
   // Create sphere.
-  const sphere = new Sphere().withPhysics().build();
+  const sphere = new Sphere().withPhysics(physics).build();
   sphere.physicsBody.position.set(2, -1, 2);
   scene.add(sphere);
   physics.registerEntity(sphere);
 
   // Create some basic terrain.
-  const terrain = new Terrain().withPhysics().build();
+  const terrain = new Terrain().withPhysics(physics).build();
   terrain.physicsBody.position.set(7.5, -.125, 5);
   scene.add(terrain);
   physics.registerEntity(terrain);
 
   // Create character.
-  const character = new Character().withPhysics().build();
+  const character = new Character().withPhysics(physics).build();
   scene.add(character);
   physics.registerEntity(character);
   engine.attachCamera(character);

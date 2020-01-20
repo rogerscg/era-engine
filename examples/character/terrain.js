@@ -27,13 +27,14 @@ class Terrain extends Entity {
 
   /** @override */
   generatePhysicsBody() {
-    const heightfieldBody = new CANNON.Body();
+    const body = new CANNON.Body();
     const heightfieldShape = new CANNON.Heightfield(this.data, {
       elementSize: 1
     });
-    heightfieldBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0, 'XYZ');
-    heightfieldBody.addShape(heightfieldShape);
-    return heightfieldBody;
+    body.quaternion.setFromEuler(-Math.PI / 2, 0, 0, 'XYZ');
+    body.addShape(heightfieldShape);
+    body.material = this.physicsWorld.createPhysicalMaterial('ground');
+    return body;
   }
 
   /**

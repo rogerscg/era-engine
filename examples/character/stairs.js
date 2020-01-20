@@ -43,6 +43,7 @@ class Stairs extends Entity {
       const y = i * this.rise;
       body.addShape(step, new CANNON.Vec3(x, y, 0));
     }
+    body.material = this.physicsWorld.createPhysicalMaterial('ground');
     return body;
   }
 }

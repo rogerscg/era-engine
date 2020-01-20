@@ -1,6 +1,6 @@
 import {Bindings, Character as EraCharacter, Controls, vectorToAngle, Engine, Camera} from '../../src/era.js';
 
-const CAPSULE_RADIUS = .2;
+const CAPSULE_RADIUS = .25;
 const CONTROLS_ID = 'Character';
 const HEIGHT = 1.8;
 const MASS = 1;
@@ -55,6 +55,15 @@ class Character extends EraCharacter {
   generatePhysicsBody() {
     const capsule = new CANNON.Body({mass: MASS});
     capsule.collisionFilterGroup = 2;
+
+    // Create physics materials.
+    capsule.material = this.physicsWorld.createPhysicalMaterial('character', {
+      friction: 0,
+    });
+    this.physicsWorld.createContactMaterial('character', 'ground', {
+      friction: 0,
+      contactEquationStiffness: 1e8,
+    });
 
     // Create center portion of capsule.
     const height = HEIGHT - CAPSULE_RADIUS * 2 - CAPSULE_OFFSET;
@@ -118,11 +127,13 @@ class Character extends EraCharacter {
     inputVector.applyQuaternion(this.cameraQuaternion);
     inputVector.normalize();
 
-    this.physicsBody.velocity.x = inputVector.x * 2.5;
-    this.physicsBody.velocity.z = inputVector.z * 2.5;
-    if (this.getActionValue(this.bindings.SPRINT)) {
-      this.physicsBody.velocity.x *= 2.5;
-      this.physicsBody.velocity.z *= 2.5;
+    if (this.grounded) {
+      this.physicsBody.velocity.x = inputVector.x * 2.5;
+      this.physicsBody.velocity.z = inputVector.z * 2.5;
+      if (this.getActionValue(this.bindings.SPRINT)) {
+        this.physicsBody.velocity.x *= 2.5;
+        this.physicsBody.velocity.z *= 2.5;
+      }
     }
     // Update body rotation.
     if (inputVector.x || inputVector.z) {
@@ -157,7 +168,9 @@ class Character extends EraCharacter {
       this.physicsBody.position.y += diff;
       this.physicsBody.interpolatedPosition.y += diff;
       this.physicsBody.velocity.y = 0;
+      this.grounded = true;
     } else {
+      this.grounded = false;
       this.rayEndBox.material.color.setHex(0xFF0000);
     }
   }
