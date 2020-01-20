@@ -14,7 +14,7 @@ const HEIGHT = 1.8;
 const MASS = 1;
 // Offset used for smoother movement. Increase for larger vertical motion.
 const CAPSULE_OFFSET = .2;
-const LERP_FACTOR = .4;
+const LERP_FACTOR = .35;
 
 const RAYCAST_GEO = new THREE.BoxGeometry(.2, .2, .2);
 const RAYCAST_MATERIAL = new THREE.MeshLambertMaterial({ color: 0xFF0000 });
@@ -34,6 +34,7 @@ class Character extends EraCharacter {
     this.targetQuaternion = new CANNON.Quaternion();
     this.cameraQuaternion = new THREE.Quaternion();
     this.cameraEuler = new THREE.Euler();
+    this.cameraEuler.order = 'YXZ';
     this.cameraDirection = new THREE.Vector3();
     this.inputVector = new THREE.Vector3();
     this.startVec = new CANNON.Vec3();
@@ -44,6 +45,7 @@ class Character extends EraCharacter {
     this.ray.collisionFilterMask = ~2;
     this.rayStartBox = new THREE.Mesh(RAYCAST_GEO, RAYCAST_BLUE_MATERIAL);
     this.rayEndBox = new THREE.Mesh(RAYCAST_GEO, RAYCAST_MATERIAL);
+    // TODO: Check debug settings for this.
     const scene = Engine.get().getScene();
     scene.add(this.rayStartBox);
     scene.add(this.rayEndBox);
@@ -131,6 +133,9 @@ class Character extends EraCharacter {
     const camera = Camera.get().getActiveCamera();
     if (camera) {
       camera.getWorldQuaternion(this.cameraQuaternion);
+      this.cameraEuler.setFromQuaternion(this.cameraQuaternion);
+      this.cameraEuler.x = 0;
+      this.cameraQuaternion.setFromEuler(this.cameraEuler);
     }
     // TODO: This is incorrect due to Y-direction affecting camera quaternion.
     inputVector.applyQuaternion(this.cameraQuaternion);

@@ -80,7 +80,6 @@ async function start() {
   engine.attachCamera(character);
   Controls.get().registerEntity(character);
   Controls.get().usePointerLockControls();
-  window.character = character;
 }
 
 document.addEventListener('DOMContentLoaded', start);
