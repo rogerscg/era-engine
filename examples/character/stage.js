@@ -17,7 +17,7 @@ class Stage extends Entity {
   /** @override */
   positionCamera(camera) {
     this.cameraArm.add(camera);
-    camera.position.x = 135;
+    camera.position.x = 25;
     this.cameraArm.rotation.z = Math.PI / 6;
     this.cameraArm.rotation.y = -Math.PI / 4;
     camera.lookAt(this.position);

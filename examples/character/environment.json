@@ -8,17 +8,17 @@
   "lights": {
     "ambient": [
       {
-        "color": "cccccc",
-        "intensity": 0.2
+        "color": "eeeeee",
+        "intensity": 0.4
       }
     ],
     "directional": [
       {
         "x": -500,
         "y": 1500,
-        "z": 500,
+        "z": -500,
         "color": "eeeeee",
-        "intensity": 0.6
+        "intensity": 0.8
       }
     ]
   }

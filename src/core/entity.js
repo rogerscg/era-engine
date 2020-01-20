@@ -71,10 +71,8 @@ class Entity extends THREE.Object3D {
     this.bindings = Controls.get().getBindings(this.getControlsId());
     this.inputDevice = 'keyboard';
     this.playerNumber = null;
-    this.mouseMovement = {
-      x: 0,
-      y: 0
-    }; 
+    this.lastMouseMovement = new THREE.Vector2();
+    this.mouseMovement = new THREE.Vector2();
   }
 
   withPhysics() {
@@ -256,10 +254,8 @@ class Entity extends THREE.Object3D {
    */
   clearInput() {
     this.actions.clear();
-    this.mouseMovement = {
-      x: 0,
-      y: 0
-    };
+    this.mouseMovement.set(0, 0);
+    this.lastMouseMovement.set(0, 0);
   }
 
   /**
@@ -287,12 +283,19 @@ class Entity extends THREE.Object3D {
   }
 
   /**
+   * Gets the last mouse movement registered. Does not directly read from mouse
+   * movement in order to better handle clearing.
+   */
+  getMouseMovement() {
+    return this.lastMouseMovement;
+  }
+
+  /**
    * Sets the mouse movement vector for the entity.
    */
   setMouseMovement(x, y) {
-    this.mouseMovement.x = x;
-    this.mouseMovement.y = y;
-    // TODO: Clear somehow.
+    this.mouseMovement.x += x;
+    this.mouseMovement.y += y;
   }
 
   /**
@@ -327,6 +330,8 @@ class Entity extends THREE.Object3D {
     if (rotation.w != null) {
       this.mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
     }
+    this.lastMouseMovement.copy(this.mouseMovement);
+    this.mouseMovement.set(0, 0);
   }
 
   /** 

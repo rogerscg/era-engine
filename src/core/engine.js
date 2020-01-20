@@ -114,7 +114,7 @@ class Engine {
     // Update all plugins.
     this.plugins.forEach((plugin) => plugin.update(timeStamp));
     // Update all entities.
-    this.entities.forEach((entity) => entity.update());
+    //this.entities.forEach((entity) => entity.update());
 
     // Check if the render loop should be halted.
     if (this.resetRender) {

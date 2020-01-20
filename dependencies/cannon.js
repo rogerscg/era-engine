@@ -1329,6 +1329,7 @@ Ray.prototype.intersectWorld = function (world, options) {
     this.getAABB(tmpAABB);
     tmpArray.length = 0;
     world.broadphase.aabbQuery(world, tmpAABB, tmpArray);
+    console.log(tmpArray.length);
     this.intersectBodies(tmpArray);
 
     return this.hasHit;
