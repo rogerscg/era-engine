@@ -689,8 +689,8 @@
       if (this.loaded) {
         return;
       }
-      this.loaded = true;
       this.loadEngineDefaults();
+      this.loaded = true;
       if (settingsPath) {
         await this.loadFromFile(settingsPath);
       }
@@ -704,6 +704,9 @@
      * that are dependent on settings.
      */
     loadEngineDefaults() {
+      if (this.loaded) {
+        return;
+      }
       for (var key in DEFAULT_SETTINGS) {
         var setting = new Setting(key, DEFAULT_SETTINGS[key]);
         super.set(setting.getName(), setting);
@@ -1112,6 +1115,12 @@
       // A map of cameras to the entities on which they are attached.
       this.cameras = new Map();
       this.timer = EngineTimer$1;
+
+      // If a physics plugin is installed, don't update entities.
+      this.physicsInstalled = false;
+
+      // Load engine defaults.
+      Settings$1.loadEngineDefaults();
     }
 
     getScene() {
@@ -1138,6 +1147,14 @@
       this.camera = camera;
       camera.userData.active = true;
       return this;
+    }
+
+    /**
+     * Informs the engine that a physics plugin has been installed.
+     * @param {boolean} installed
+     */
+    setUsingPhysics(installed) {
+      this.physicsInstalled = installed;
     }
 
     /**
@@ -1194,8 +1211,12 @@
       TWEEN.update(timeStamp);
       // Update all plugins.
       this.plugins.forEach((plugin) => plugin.update(timeStamp));
-      // Update all entities.
-      this.entities.forEach((entity) => entity.update());
+      // Update all entities, if physics is not enabled. This is due to physics
+      // handling updates on its own.
+      // TODO: Separate physics updates from entity updates.
+      if (!this.physicsInstalled) {
+        this.entities.forEach((entity) => entity.update());
+      }
 
       // Check if the render loop should be halted.
       if (this.resetRender) {
@@ -1314,13 +1335,77 @@
     handleSettingsChange() {}
   }
 
+  var instance$1 = null;
+
+  /**
+   * The animation library stores animation data for loaded models.
+   */
+  class Animation extends Plugin {
+    static get() {
+      if (!instance$1) {
+        instance$1 = new Animation();
+      }
+      return instance$1;
+    }
+
+    constructor() {
+      super();
+      this.animations = new Map();
+      this.mixers = new Map();
+      this.lastUpdate = Date.now();
+    }
+
+    /** @override */
+    update() {
+      var currTime = Date.now();
+      var diff = currTime - this.lastUpdate;
+      this.mixers.forEach((mixer) => mixer.update(diff / 1000));
+      this.lastUpdate = currTime;
+    }
+
+    /**
+     * Stores animations for a given model name.
+     * @param {string} name
+     * @param {Array<THREE.AnimationClip>} animations
+     */
+    setAnimations(name, animations) {
+      if (!name || !animations) {
+        return;
+      }
+      this.animations.set(name, animations);
+    }
+
+    /**
+     * Creates an animation mixer for a given name and mesh.
+     * @param {string} name
+     * @param {THREE.Mesh} mesh
+     * @returns {THREE.AnimationMixer}
+     */
+    createAnimationMixer(name, mesh) {
+      if (!name || !mesh || !this.animations.has(name)) {
+        return null;
+      }
+      var mixer = new THREE.AnimationMixer(mesh);
+      this.mixers.set(mesh.uuid, mixer);
+      return mixer;
+    }
+
+    /**
+     * Returns all animation clips for a given name.
+     * @param {string} name
+     */
+    getClips(name) {
+      return this.animations.get(name);
+    }
+  }
+
   /**
    * @author rogerscg / https://github.com/rogerscg
    */
 
   var CROSSFADE_TIME = 500;
 
-  var instance$1 = null;
+  var instance$2 = null;
 
   /** 
    * Core implementation for all audio. Manages the loading, playback, and
@@ -1328,10 +1413,10 @@
    */
   class Audio extends Plugin {
     static get() {
-      if (!instance$1) {
-        instance$1 = new Audio();
+      if (!instance$2) {
+        instance$2 = new Audio();
       }
-      return instance$1;
+      return instance$2;
     }
 
     constructor() {
@@ -1608,16 +1693,16 @@
     }
   }
 
-  var instance$2 = null;
+  var instance$3 = null;
   /**
    * Manages camera contruction.
    */
   class Camera {
     static get() {
-      if (!instance$2) {
-        instance$2 = new Camera();
+      if (!instance$3) {
+        instance$3 = new Camera();
       }
-      return instance$2;
+      return instance$3;
     }
 
     constructor() {
@@ -1694,7 +1779,7 @@
 
   var CONTROLS_KEY = 'era_bindings';
 
-  var instance$3 = null;
+  var instance$4 = null;
 
   /**
    * The controls core for the game. Input handlers are created here. Once the
@@ -1705,10 +1790,10 @@
      * Enforces singleton controls instance.
      */
     static get() {
-      if (!instance$3) {
-        instance$3 = new Controls();
+      if (!instance$4) {
+        instance$4 = new Controls();
       }
-      return instance$3;
+      return instance$4;
     }
 
     constructor() {
@@ -1739,6 +1824,8 @@
 
       this.loadSettings();
       this.registerCustomBindings();
+
+      this.pointerLockEnabled = false;
       
       SettingsEvent.listen(this.loadSettings.bind(this));
     }
@@ -1746,7 +1833,7 @@
     /** @override */
     reset() {
       this.registeredEntities = new Map();
-      this.forcePointerLockState(undefined);
+      this.exitPointerLock();
     }
 
     /** @override */
@@ -2042,48 +2129,27 @@
      * Handles the mouse click event. Separate from mouse down and up.
      */
     onMouseClick(e) {
-      if (window.engine && engine.renderer &&
-          e.target == engine.renderer.domElement)
-        { this.requestPointerLock(); }
+      if (this.pointerLockEnabled) {
+        this.requestPointerLock();
+      }
     }
 
     /**
      * Requests pointer lock on the renderer canvas.
      */
     requestPointerLock() {
-      if (this.pointerLockState === false) {
+      var renderer = Engine.get().getRenderer();
+      if (!renderer) {
         return;
       }
-      if (!window.engine || !window.engine.renderer) {
-        return;
-      }
-      engine.renderer.domElement.requestPointerLock();
+      renderer.domElement.requestPointerLock();
     }
 
     /**
      * Exits pointer lock.
      */
     exitPointerLock() {
-      if (this.pointerLockState === true) {
-        return;
-      }
       document.exitPointerLock();
-    }
-
-    /**
-     * Forces the pointer lock state. This is used for things like end-game
-     * screens or other non-game screens.
-     */
-    forcePointerLockState(state) {
-      this.pointerLockState = state;
-      switch (state) {
-        case true:
-          this.requestPointerLock();
-          break;
-        case false:
-          this.exitPointerLock();
-          break;
-      }
     }
 
     /**
@@ -2134,6 +2200,10 @@
         }
         // Get the bindings for the entity.
         var bindings = this.registeredBindings.get(entity.getControlsId());
+        if (!bindings) {
+          console.warn('Bindings not defined for registered entity', entity);
+          return;
+        }
         var actions = bindings.getActionsForKey(key, playerNumber);
         if (!actions) {
           return;
@@ -2194,6 +2264,14 @@
     }
 
     /**
+     * Creates pointer lock controls on the renderer.
+     */
+    usePointerLockControls() {
+      this.pointerLockEnabled = true;
+      this.requestPointerLock();
+    }
+
+    /**
      * Registers a bindings set to the controls for a given entity. The provided
      * entity should be the static class, not an instance.
      * @param {Entity} entity
@@ -2243,7 +2321,7 @@
    * @author rogerscg / https://github.com/rogerscg
    */
 
-  var instance$4 = null;
+  var instance$5 = null;
 
   /**
    * Core implementation for loading 3D models for use in-game.
@@ -2255,10 +2333,10 @@
      * @returns {Models}
      */
     static get() {
-      if (!instance$4) {
-        instance$4 = new Models();
+      if (!instance$5) {
+        instance$5 = new Models();
       }
-      return instance$4;
+      return instance$5;
     }
 
     constructor() {
@@ -2308,15 +2386,26 @@
       var root;
       switch (extension) {
         case 'gltf':
-          root = await this.loadGltfModel(path);
+          var gltf = await this.loadGltfModel(path);
+          root = gltf.scene;
+          Animation.get().setAnimations(name, gltf.animations);
           break;
         case 'obj':
           root = await this.loadObjModel(path);
+          break;
+        case 'fbx':
+          root = await this.loadFbxModel(path);
+          Animation.get().setAnimations(name, root.animations);
           break;
       }
       // Scale the model based on options.
       if (options.scale) {
         root.scale.setScalar(options.scale);
+      }
+      // Remove lights.
+      var light = root.getObjectByProperty('type', 'PointLight');
+      if (light) {
+        light.parent.remove(light);
       }
       // Set the model in storage.
       this.storage.set(name, root);
@@ -2332,7 +2421,7 @@
       return new Promise((resolve) => {
         var loader = new THREE.GLTFLoader();
         loader.load(path, (gltf) => {
-          resolve(gltf.scene);
+          resolve(gltf);
         }, () => {}, (err) => {
           throw new Error(err);
         });
@@ -2386,6 +2475,20 @@
     }
 
     /**
+     * Loads a FBX model.
+     * @param {string} path 
+     * @async
+     */
+    async loadFbxModel(path) {
+      var loader = new THREE.FBXLoader();
+      return new Promise((resolve) => {
+  		  loader.load(path, (object) => {
+          resolve(object);
+        }, () => {}, (err) => console.error(err));
+      }); 
+    }
+
+    /**
      * Creates a clone of a model from storage.
      * @param {string} name
      * @return {THREE.Object3D}
@@ -2394,7 +2497,9 @@
       if (!this.storage.has(name)) {
         return null;
       }
-      return this.storage.get(name).clone();
+      var original = this.storage.get(name);
+      var clone = THREE.SkeletonUtils.clone(original);
+      return clone;
     }
   }
 
@@ -2402,7 +2507,7 @@
    * @author rogerscg / https://github.com/rogerscg
    */
 
-  var instance$5 = null;
+  var instance$6 = null;
   /**
    * Core implementation for managing the game's physics. The
    * actual physics engine is provided by the user.
@@ -2412,10 +2517,10 @@
      * Enforces singleton physics instance.
      */
     static get() {
-      if (!instance$5) {
-        instance$5 = new Physics();
+      if (!instance$6) {
+        instance$6 = new Physics();
       }
-      return instance$5;
+      return instance$6;
     }
 
     constructor() {
@@ -2423,6 +2528,7 @@
       this.registeredEntities = new Map();
       this.world = this.createWorld();
       this.lastTime = performance.now();
+      Engine.get().setUsingPhysics(true);
     }
 
     /** @override */
@@ -2441,6 +2547,9 @@
       }
       this.step(delta);
       this.updateEntities(delta);
+      if (this.debugRenderer) {
+        this.debugRenderer.update();
+      }
     }
 
     getWorld() {
@@ -2518,7 +2627,7 @@
      */
     terminate() {
       clearInterval(this.updateInterval);
-      instance$5 = null;
+      instance$6 = null;
     }
 
     /**
@@ -2539,6 +2648,17 @@
      */
     getRotation(entity) {
       console.warn('getRotation(entity) not implemented');
+    }
+
+    /**
+     * Sets a debug renderer on the physics instance. This should be overriden by
+     * each engine-specific implementation for ease of use.
+     * @param {DebugRenderer} debugRenderer
+     * @returns {Physics}
+     */
+    withDebugRenderer(debugRenderer) {
+      this.debugRenderer = debugRenderer;
+      return this;
     }
   }
 
@@ -2587,24 +2707,36 @@
     constructor() {
       super();
       this.uuid = createUUID();
+      this.modelName = null;
       this.mesh = null;
       this.cameraArm;
-      this.modelName = null;
+      this.registeredCameras = new Set();
+
+      // Physics properties.
       this.physicsBody = null;
       this.physicsEnabled = false;
+      this.physicsWorld = null;
+
+      // Animation properties.
+      this.animationMixer = null;
+      this.animationClips = null;
+      this.currentAction = null;
+
+      // Controls properties.
       this.actions = new Map(); // Map of action -> value (0 - 1)
       this.bindings = Controls.get().getBindings(this.getControlsId());
       this.inputDevice = 'keyboard';
-      this.registeredCameras = new Set();
-      this.physicsWorld = null;
       this.playerNumber = null;
-      this.mouseMovement = {
-        x: 0,
-        y: 0
-      };
+      this.lastMouseMovement = new THREE.Vector2();
+      this.mouseMovement = new THREE.Vector2();
     }
 
-    withPhysics() {
+    /**
+     * Enables physics generation with the given physics instance.
+     * @param {Physics=} physics
+     */
+    withPhysics(physics) {
+      this.physicsWorld = physics;
       this.physicsEnabled = true;
       return this;
     }
@@ -2646,6 +2778,9 @@
       this.mesh = this.generateMesh();
       if (this.mesh) {
         this.add(this.mesh);
+        this.animationMixer =
+          Animation.get().createAnimationMixer(this.modelName, this);
+        this.animationClips = Animation.get().getClips(this.modelName);
       }
       this.cameraArm = this.createCameraArm();
       if (this.physicsEnabled) {
@@ -2692,7 +2827,7 @@
       if (!this.modelName) {
         return console.warn('Model name not provided');
       }
-      var scene = Models.get().storage.get(this.modelName).clone();
+      var scene = Models.get().createModel(this.modelName);
       return scene;
     }
 
@@ -2779,10 +2914,8 @@
      */
     clearInput() {
       this.actions.clear();
-      this.mouseMovement = {
-        x: 0,
-        y: 0
-      };
+      this.mouseMovement.set(0, 0);
+      this.lastMouseMovement.set(0, 0);
     }
 
     /**
@@ -2810,12 +2943,19 @@
     }
 
     /**
+     * Gets the last mouse movement registered. Does not directly read from mouse
+     * movement in order to better handle clearing.
+     */
+    getMouseMovement() {
+      return this.lastMouseMovement;
+    }
+
+    /**
      * Sets the mouse movement vector for the entity.
      */
     setMouseMovement(x, y) {
-      this.mouseMovement.x = x;
-      this.mouseMovement.y = y;
-      // TODO: Clear somehow.
+      this.mouseMovement.x += x;
+      this.mouseMovement.y += y;
     }
 
     /**
@@ -2850,6 +2990,8 @@
       if (rotation.w != null) {
         this.mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
       }
+      this.lastMouseMovement.copy(this.mouseMovement);
+      this.mouseMovement.set(0, 0);
     }
 
     /** 
@@ -2884,13 +3026,149 @@
     registerComponent(body) {
       Physics.get().registerComponent(body);
     }
+
+    /**
+     * Finds an animation clip by name.
+     * @param {string} name
+     * @returns {THREE.AnimationClip}
+     */
+    getAnimationClip(name) {
+      if (!name || !this.animationClips) {
+        return null;
+      }
+      return THREE.AnimationClip.findByName(this.animationClips, name);
+    }
+
+    /**
+     * Plays an animation given a name.
+     * @param {string} name
+     * @returns {THREE.AnimationAction}
+     */
+    playAnimation(name) {
+      if (!name) {
+        return null;
+      }
+      var clip = this.getAnimationClip(name);
+      if (!clip) {
+        return null;
+      }
+      var action = this.animationMixer.clipAction(clip);
+      action.reset();
+      if (this.currentAction) {
+        action.crossFadeFrom(this.currentAction, .2, true);
+      }
+      action.play();
+      this.currentAction = action;
+      return action;
+    }
+
+    /**
+     * Stops all animations on the entity.
+     */
+    stopAllAnimation() {
+      this.animationMixer.stopAllAction();
+      this.currentAction = null;
+    }
+  }
+
+  var CHARACTER_BINDINGS = {
+    SPRINT: {
+      keys: {
+        keyboard: 16,
+        controller: '-axes3',
+      }
+    },
+  };
+
+  var CONTROLS_ID$1 = 'Character';
+
+  /**
+   * A special entity used for controlling an organic character, such as a human.
+   * This is different from a standard entity in its physics and animation
+   * behavior.
+   */
+  class Character extends Entity {
+    constructor() {
+      super();
+      this.idleAnimationName = null;
+      this.walkingAnimationName = null;
+      this.sprintingAnimationName = null;
+      // TODO: Make state a common practice in ERA.
+      this.state = 'idle';
+      this.grounded = false;
+    }
+
+    /** @override */
+    static GetBindings() {
+      return new Bindings(CONTROLS_ID$1)
+              .load(CHARACTER_BINDINGS)
+              .merge(Entity.GetBindings());
+    }
+
+    /** @override */
+    build() {
+      super.build();
+      this.playAnimation(this.idleAnimationName);
+      return this;
+    }
+
+    /** @override */
+    update() {
+      super.update();
+      if (this.getActionValue(this.bindings.FORWARD) ||
+          this.getActionValue(this.bindings.BACKWARD) ||
+          this.getActionValue(this.bindings.LEFT) ||
+          this.getActionValue(this.bindings.RIGHT)) {
+        if (this.getActionValue(this.bindings.SPRINT)) {
+          this.sprint();
+        } else {
+          this.walk();
+        }
+      } else {
+        this.idle();
+      }
+    }
+
+    /**
+     * Sets the character in the idle state.
+     */
+    idle() {
+      if (this.state == 'idle') {
+        return;
+      }
+      this.state = 'idle';
+      this.playAnimation(this.idleAnimationName);
+    }
+
+    /**
+     * Marks the character in a walking state.
+     */
+    walk() {
+      if (this.state == 'walking') {
+        return;
+      }
+      this.state = 'walking';
+      this.playAnimation(this.walkingAnimationName);
+    }
+
+    /**
+     * Marks the character in a sprint state.
+     */
+    sprint() {
+      if (this.state == 'sprinting') {
+        return;
+      }
+      this.state = 'sprinting';
+      var action = this.playAnimation(this.sprintingAnimationName);
+      action.timeScale = 1.75;
+    }
   }
 
   /**
    * @author rogerscg / https://github.com/rogerscg
    */
 
-  var instance$6 = null;
+  var instance$7 = null;
 
   /**
    * Light core for the game engine. Creates and manages light
@@ -2901,10 +3179,10 @@
      * Enforces singleton light instance.
      */
     static get() {
-      if (!instance$6) {
-        instance$6 = new Light();
+      if (!instance$7) {
+        instance$7 = new Light();
       }
-      return instance$6;
+      return instance$7;
     }
 
     constructor() {
@@ -3246,6 +3524,43 @@
       var extension = skyboxData.extension;
       await skybox.load(directory, file, extension);
       this.add(skybox);
+    }
+  }
+
+  /**
+   * Represents a game that will be run on the engine. The purpose of a game
+   * mode is to better control the state of a game as well as assist conditions to
+   * start and end a game. Developers should extend GameMode to create their own
+   * games.
+   */
+  class GameMode {
+    constructor() {}
+
+    /**
+     * Loads a game mode for the first time. This should include loading necessary
+     * models, environment, stages, etc.
+     */
+    async load() {}
+
+    /**
+     * Starts the game mode. At this point, all necessary components of the game
+     * mode should be readily available.
+     */
+    async start() {}
+
+    /**
+     * Ends the game mode. The end function should perform any clean up necessary
+     * for the objects created during the game, **not** the items loaded in the
+     * load method. This is to prevent any issues with restarting the game mode.
+     */
+    async end() {}
+
+    /**
+     * Restarts the game mode by calling the `end` function, then `start`.
+     */
+    async restart() {
+      await this.end();
+      await this.start();
     }
   }
 
@@ -4089,12 +4404,389 @@
     }
   }
 
+  /**
+   * Interface for creating a debug renderer for a specific physics engine.
+   * @interface
+   */
+  class DebugRenderer {
+    /**
+     * @param {THREE.Scene} scene
+     * @param {*} world
+     */
+    constructor(scene, world) {
+      this.scene = scene;
+      this.world = world;
+    }
+
+    /**
+     * Updates the debug renderer.
+     */
+    update() {}
+  }
+
+  /**
+   * Adds Three.js primitives into the scene where all the Cannon bodies and
+   * shapes are.
+   */
+  class CannonDebugRenderer extends DebugRenderer {
+    /**
+     * @param {THREE.Scene} scene
+     * @param {CANNON.World} world
+     */
+    constructor(scene, world) {
+      super(scene, world);
+      this._meshes = [];
+
+      this._material = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
+      this._sphereGeometry = new THREE.SphereGeometry(1);
+      this._boxGeometry = new THREE.BoxGeometry(1, 1, 1);
+      this._planeGeometry = new THREE.PlaneGeometry(10, 10, 10, 10);
+      this._cylinderGeometry = new THREE.CylinderGeometry(1, 1, 10, 10);
+
+      this.tmpVec0 = new CANNON.Vec3();
+      this.tmpVec1 = new CANNON.Vec3();
+      this.tmpVec2 = new CANNON.Vec3();
+      this.tmpQuat0 = new CANNON.Vec3();
+    }
+
+    /** @override */
+    update() {
+      var bodies = this.world.bodies;
+      var meshes = this._meshes;
+      var shapeWorldPosition = this.tmpVec0;
+      var shapeWorldQuaternion = this.tmpQuat0;
+
+      var meshIndex = 0;
+
+      bodies.forEach((body) => {
+        body.shapes.forEach((shape, shapeIndex) => {
+          this._updateMesh(meshIndex, body, shape);
+          var mesh = meshes[meshIndex];
+          if (mesh) {
+            // Get world position
+            body.quaternion.vmult(body.shapeOffsets[shapeIndex], shapeWorldPosition);
+            body.position.vadd(shapeWorldPosition, shapeWorldPosition);
+
+            // Get world quaternion
+            body.quaternion.mult(body.shapeOrientations[shapeIndex], shapeWorldQuaternion);
+
+            // Copy to meshes
+            mesh.position.copy(shapeWorldPosition);
+            mesh.quaternion.copy(shapeWorldQuaternion);
+          }
+          meshIndex++;
+        });
+      });
+
+      for (var i = meshIndex; i < meshes.length; i++) {
+        var mesh = meshes[i];
+        if (mesh) {
+          this.scene.remove(mesh);
+        }
+      }
+
+      meshes.length = meshIndex;
+    }
+
+    _updateMesh(index, body, shape) {
+      var mesh = this._meshes[index];
+      if (!this._typeMatch(mesh, shape)) {
+        if (mesh) {
+          this.scene.remove(mesh);
+        }
+        mesh = this._meshes[index] = this._createMesh(shape);
+      }
+      this._scaleMesh(mesh, shape);
+    }
+
+    _typeMatch(mesh, shape) {
+      if (!mesh) {
+        return false;
+      }
+      var geo = mesh.geometry;
+      return (
+        (geo instanceof THREE.SphereGeometry && shape instanceof CANNON.Sphere) ||
+        (geo instanceof THREE.BoxGeometry && shape instanceof CANNON.Box) ||
+        (geo instanceof THREE.PlaneGeometry && shape instanceof CANNON.Plane) ||
+        (geo.id === shape.geometryId && shape instanceof CANNON.ConvexPolyhedron) ||
+        (geo.id === shape.geometryId && shape instanceof CANNON.Trimesh) ||
+        (geo.id === shape.geometryId && shape instanceof CANNON.Heightfield)
+      );
+    }
+
+    _createMesh(shape) {
+      var mesh;
+      var material = this._material;
+
+      switch (shape.type) {
+
+        case CANNON.Shape.types.SPHERE:
+          mesh = new THREE.Mesh(this._sphereGeometry, material);
+          break;
+
+        case CANNON.Shape.types.BOX:
+          mesh = new THREE.Mesh(this._boxGeometry, material);
+          break;
+
+        case CANNON.Shape.types.PLANE:
+          mesh = new THREE.Mesh(this._planeGeometry, material);
+          break;
+
+        case CANNON.Shape.types.CONVEXPOLYHEDRON:
+          // Create mesh
+          var geo = new THREE.Geometry();
+
+          // Add vertices
+          for (var i = 0; i < shape.vertices.length; i++) {
+            var v = shape.vertices[i];
+            geo.vertices.push(new THREE.Vector3(v.x, v.y, v.z));
+          }
+
+          for (var i = 0; i < shape.faces.length; i++) {
+            var face = shape.faces[i];
+
+            // add triangles
+            var a = face[0];
+            for (var j = 1; j < face.length - 1; j++) {
+              var b = face[j];
+              var c = face[j + 1];
+              geo.faces.push(new THREE.Face3(a, b, c));
+            }
+          }
+          geo.computeBoundingSphere();
+          geo.computeFaceNormals();
+
+          mesh = new THREE.Mesh(geo, material);
+          shape.geometryId = geo.id;
+          break;
+
+        case CANNON.Shape.types.TRIMESH:
+          var geometry = new THREE.Geometry();
+          var v0 = this.tmpVec0;
+          var v1 = this.tmpVec1;
+          var v2 = this.tmpVec2;
+          for (var i = 0; i < shape.indices.length / 3; i++) {
+            shape.getTriangleVertices(i, v0, v1, v2);
+            geometry.vertices.push(
+              new THREE.Vector3(v0.x, v0.y, v0.z),
+              new THREE.Vector3(v1.x, v1.y, v1.z),
+              new THREE.Vector3(v2.x, v2.y, v2.z)
+            );
+            var j = geometry.vertices.length - 3;
+            geometry.faces.push(new THREE.Face3(j, j + 1, j + 2));
+          }
+          geometry.computeBoundingSphere();
+          geometry.computeFaceNormals();
+          mesh = new THREE.Mesh(geometry, material);
+          shape.geometryId = geometry.id;
+          break;
+
+        case CANNON.Shape.types.HEIGHTFIELD:
+          var geometry = new THREE.Geometry();
+
+          var v0 = this.tmpVec0;
+          var v1 = this.tmpVec1;
+          var v2 = this.tmpVec2;
+          for (var xi = 0; xi < shape.data.length - 1; xi++) {
+            for (var yi = 0; yi < shape.data[xi].length - 1; yi++) {
+              for (var k = 0; k < 2; k++) {
+                shape.getConvexTrianglePillar(xi, yi, k === 0);
+                v0.copy(shape.pillarConvex.vertices[0]);
+                v1.copy(shape.pillarConvex.vertices[1]);
+                v2.copy(shape.pillarConvex.vertices[2]);
+                v0.vadd(shape.pillarOffset, v0);
+                v1.vadd(shape.pillarOffset, v1);
+                v2.vadd(shape.pillarOffset, v2);
+                geometry.vertices.push(
+                  new THREE.Vector3(v0.x, v0.y, v0.z),
+                  new THREE.Vector3(v1.x, v1.y, v1.z),
+                  new THREE.Vector3(v2.x, v2.y, v2.z)
+                );
+                var i = geometry.vertices.length - 3;
+                geometry.faces.push(new THREE.Face3(i, i + 1, i + 2));
+              }
+            }
+          }
+          geometry.computeBoundingSphere();
+          geometry.computeFaceNormals();
+          mesh = new THREE.Mesh(geometry, material);
+          shape.geometryId = geometry.id;
+          break;
+      }
+
+      if (mesh) {
+        this.scene.add(mesh);
+      }
+
+      return mesh;
+    }
+
+    _scaleMesh(mesh, shape) {
+      switch (shape.type) {
+
+        case CANNON.Shape.types.SPHERE:
+          var radius = shape.radius;
+          mesh.scale.set(radius, radius, radius);
+          break;
+
+        case CANNON.Shape.types.BOX:
+          mesh.scale.copy(shape.halfExtents);
+          mesh.scale.multiplyScalar(2);
+          break;
+
+        case CANNON.Shape.types.CONVEXPOLYHEDRON:
+          mesh.scale.set(1, 1, 1);
+          break;
+
+        case CANNON.Shape.types.TRIMESH:
+          mesh.scale.copy(shape.scale);
+          break;
+
+        case CANNON.Shape.types.HEIGHTFIELD:
+          mesh.scale.set(1, 1, 1);
+          break;
+      }
+    }
+  }
+
+  /**
+   * @author rogerscg / https://github.com/rogerscg
+   */
+
+  var MAX_SUBSTEPS$1 = 10;
+
+  /**
+   * API implementation for Cannon.js, a pure JavaScript physics engine.
+   * https://github.com/schteppe/cannon.js
+   */
+  class CannonPhysics extends Physics {
+    constructor() {
+      super();
+      this.physicalMaterials = new Map();
+      this.contactMaterials = new Map();
+    }
+
+    /** @override */
+    createWorld() {
+      var world = new CANNON.World();
+      world.gravity.set(0, -9.82, 0);
+      return world;
+    }
+
+    /** @override */
+    step(delta) {
+      delta /= 1000;
+      this.world.step(1 / 60, delta, MAX_SUBSTEPS$1);
+    }
+
+    /** @override */
+    registerEntity(entity) {
+      if (!super.registerEntity(entity)) {
+        return;
+      }
+      this.world.addBody(entity.physicsBody);
+    }
+
+    /** @override */
+    unregisterEntity(entity) {
+      if (!super.unregisterEntity(entity)) {
+        return;
+      }
+      this.world.removeBody(entity.physicsBody);
+    }
+
+    /** @override */
+    registerComponent(body) {
+      console.warn('Unregister entity not defined');
+    }
+
+    /** @override */
+    unregisterComponent(body) {
+      console.warn('Unregister component not defined');
+    }
+
+    /** @override */
+    getPosition(entity) {
+      var position = entity.physicsBody.position;
+      return {
+        x: position.x,
+        y: position.y,
+        z: position.z
+      };
+    }
+
+    /** @override */
+    getRotation(entity) {
+      var rotation = entity.physicsBody.quaternion;
+      return {
+        x: rotation.x,
+        y: rotation.y,
+        z: rotation.z,
+        w: rotation.w,
+      };
+    }
+
+    /** @override */
+    withDebugRenderer() {
+      var scene = Engine.get().getScene();
+      var world = this.getWorld();
+      if (!scene || !world) {
+        return console.warn('Debug renderer missing scene or world.');
+      }
+      return super.withDebugRenderer(new CannonDebugRenderer(scene, world));
+    }
+
+    /**
+     * Creates a new physical material for the given name and options. If the
+     * physical material already exists, return the existing one.
+     */
+    createPhysicalMaterial(name, options) {
+      if (!this.physicalMaterials.has(name)) {
+        var material = new CANNON.Material(options);
+        this.physicalMaterials.set(name, material);
+      }
+      return this.physicalMaterials.get(name);
+    }
+
+    /**
+     * Creates a new contact material between two given names. If the contact
+     * material already exists, return the existing one.
+     */
+    createContactMaterial(name1, name2, options) {
+      // TODO: Allow for "pending" contact material if one of the materials has
+      // not been created yet.
+      var key = this.createContactKey(name1, name2);
+      if (!this.contactMaterials.has(key)) {
+        var mat1 = this.createPhysicalMaterial(name1);
+        var mat2 = this.createPhysicalMaterial(name2);
+        var contactMat = new CANNON.ContactMaterial(mat1, mat2, options);
+        this.contactMaterials.set(key, contactMat);
+        this.world.addContactMaterial(contactMat);
+      }
+      return this.contactMaterials.get(key);
+    }
+
+    /**
+     * Creates a combined string to use as a key for contact materials.
+     */
+    createContactKey(name1, name2) {
+      // Alphabetize, then concatenate.
+      if (name1 < name2) {
+        return (name1 + "," + name2);
+      }
+      return (name2 + "," + name1);
+    }
+  }
+
   exports.Action = Action;
   exports.AmmoPhysics = AmmoPhysics;
+  exports.Animation = Animation;
   exports.Audio = Audio;
   exports.Bindings = Bindings;
   exports.Box2DPhysics = Box2DPhysics;
   exports.Camera = Camera;
+  exports.CannonPhysics = CannonPhysics;
+  exports.Character = Character;
   exports.Controls = Controls;
   exports.Engine = Engine;
   exports.EngineResetEvent = EngineResetEvent;
@@ -4102,6 +4794,7 @@
   exports.Environment = Environment;
   exports.EraEvent = EraEvent;
   exports.Events = Events;
+  exports.GameMode = GameMode;
   exports.Light = Light;
   exports.Models = Models;
   exports.Network = Network;

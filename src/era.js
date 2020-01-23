@@ -16,6 +16,7 @@ export {default as Engine} from './core/engine.js';
 export {default as Entity} from './core/entity.js';
 export {default as Environment} from './core/environment.js';
 export {default as Events} from './core/events.js';
+export {default as GameMode} from './core/game_mode.js';
 export {default as Light} from './core/light.js';
 export {default as Models} from './core/models.js';
 export {default as Network} from './core/network.js';

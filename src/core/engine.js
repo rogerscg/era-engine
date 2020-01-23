@@ -26,12 +26,18 @@ class Engine {
     this.rendering = false;
     this.plugins = new Set();
     this.entities = new Set();
+    this.scene = new THREE.Scene();
+    this.renderer = this.createRenderer();
     // A map of cameras to the entities on which they are attached.
     this.cameras = new Map();
     this.timer = EngineTimer;
+    this.camera = null;
 
     // If a physics plugin is installed, don't update entities.
     this.physicsInstalled = false;
+
+    // The current game mode running.
+    this.currentGameMode = null;
 
     // Load engine defaults.
     Settings.loadEngineDefaults();
@@ -80,9 +86,11 @@ class Engine {
       return;
     }
     this.started = true;
-    this.scene = new THREE.Scene();
+    if (!this.scene) {
+      console.error('No scene provided');
+    }
     if (!this.renderer) {
-      this.renderer = this.createRenderer();
+      console.error('No renderer provided');
     }
     if (!this.camera) {
       console.error('No camera provided');
@@ -145,6 +153,8 @@ class Engine {
 
   /**
    * Creates the three.js renderer and sets options.
+   * TODO: This is too restricting from a developer's point of view. Refactor
+   *   this to give more flexibility.
    */
   createRenderer() {
     const renderer = rendererPool.get(RendererTypes.GAME);
@@ -188,6 +198,7 @@ class Engine {
 
   /**
    * Attaches the main camera to the given entity.
+   * TODO: Move this to the camera lib.
    * @param {Entity} entity
    */
   attachCamera(entity) {
@@ -203,6 +214,16 @@ class Engine {
     this.cameras.set(camera, entity);
   }
 
+  /**
+   * Loads and starts a game mode.
+   * @param {GameMode} gameMode
+   * @async
+   */
+  async startGameMode(gameMode) {
+    await gameMode.load();
+    await gameMode.start();
+    this.start();
+  }
 }
 
 export default Engine;
