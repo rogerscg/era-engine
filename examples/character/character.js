@@ -115,6 +115,9 @@ class Character extends EraCharacter {
     super.update();
     this.updateCamera();
     // Update physics.
+    if (this.frozen) {
+      return;
+    }
     const inputVector = this.inputVector;
     inputVector.set(0, 0, 0);
     if (this.getActionValue(this.bindings.FORWARD)) {

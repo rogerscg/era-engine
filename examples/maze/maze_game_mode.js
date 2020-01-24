@@ -1,4 +1,5 @@
 import Character from './character.js';
+import Level from './level.js';
 import {
   Camera,
   CannonPhysics,
@@ -8,7 +9,12 @@ import {
   GameMode,
   Models
 } from '../../src/era.js';
-import Stage from './stage.js';
+
+const LEVELS = [
+  'level_1',
+  'level_2',
+  'level_3',
+];
 
 /**
  * Game mode for solving mazes.
@@ -18,7 +24,12 @@ class MazeGameMode extends GameMode {
     super();
     this.scene = null;
     this.physics = null;
+    this.character = null;
+    this.levels = null;
+    this.levelIndex = 0;
+    this.currentLevel = null;
   }
+
   /** @override */
   async load() {
     // Load models.
@@ -36,19 +47,36 @@ class MazeGameMode extends GameMode {
       await new Environment().loadFromFile('environment.json');
     this.scene.add(environment);
 
-    // Create stage.
-    // TODO: Load levels.
-    const stage = new Stage().withPhysics(this.physics).build();
-    this.scene.add(stage);
-    this.physics.registerEntity(stage);
-
     // Create character.
-    const character = new Character().withPhysics(this.physics).build();
-    this.scene.add(character);
-    this.physics.registerEntity(character);
-    Engine.get().attachCamera(character);
-    Controls.get().registerEntity(character);
-    Controls.get().usePointerLockControls();
+    this.character = new Character().withPhysics(this.physics).build();
+    this.character.freeze();
+    this.scene.add(this.character);
+    this.physics.registerEntity(this.character);
+    Controls.get().registerEntity(this.character);
+    Controls.get().useOrbitControls();
+
+    // Load levels.
+    await this.loadLevel(this.levelIndex);
+  }
+
+  /** @override */
+  async start() {
+    this.character.unfreeze();
+  }
+
+  /**
+   * Loads an individual level.
+   * @param {number} levelIndex
+   * @async
+   */
+  async loadLevel(levelIndex) {
+    const level = new Level(LEVELS[levelIndex]).withPhysics(this.physics);
+    this.currentLevel = level;
+    await level.load();
+    level.build();
+    this.scene.add(level);
+    this.physics.registerEntity(level);
+    Engine.get().attachCamera(level);
   }
 }
 

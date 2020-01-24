@@ -157,6 +157,15 @@ class Physics extends Plugin {
     this.debugRenderer = debugRenderer;
     return this;
   }
+
+  /**
+   * Autogenerates a physics body based on the given mesh.
+   * @param {THREE.Object3D} mesh
+   * @returns {?} The physics body.
+   */
+  autogeneratePhysicsBody(mesh) {
+    console.warn('Autogenerating physics bodies not supported.');
+  }
 }
 
 export default Physics;

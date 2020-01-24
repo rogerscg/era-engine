@@ -1,5 +1,5 @@
 {
-  "background": "cccccc",
+  "background": "112233",
   "lights": {
     "ambient": [
       {
@@ -9,7 +9,7 @@
     ],
     "directional": [
       {
-        "x": -500,
+        "x": 500,
         "y": 1500,
         "z": -500,
         "color": "eeeeee",

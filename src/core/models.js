@@ -62,7 +62,7 @@ class Models {
    * @param {Object} options
    * @async
    */
-  async loadModel(directory, name, options) {
+  async loadModel(directory, name, options = {}) {
     // Defaults to GLTF.
     const extension = options.extension ? options.extension : 'gltf';
     const path = `${directory}${name}.${extension}`;

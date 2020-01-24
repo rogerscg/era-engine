@@ -60,6 +60,7 @@ class Entity extends THREE.Object3D {
     this.physicsBody = null;
     this.physicsEnabled = false;
     this.physicsWorld = null;
+    this.autogeneratePhysics = false;
 
     // Animation properties.
     this.animationMixer = null;
@@ -227,9 +228,22 @@ class Entity extends THREE.Object3D {
    * entity.
    */
   generatePhysicsBody() {
-    if (this.physicsEnabled) {
-      return console.warn('generatePhysicsBody not implemented for entity');
+    if (!this.physicsEnabled) {
+      return;
     }
+    if (this.autogeneratePhysics) {
+      return this.autogeneratePhysicsBody();
+    }
+    console.warn('generatePhysicsBody not implemented for entity');
+  }
+
+  /**
+   * Creates a physics body based on extra data provided from the model, such as
+   * userData. This only works for a select number of objects, so please use
+   * this carefully.
+   */
+  autogeneratePhysicsBody() {
+    return this.physicsWorld.autogeneratePhysicsBody(this.mesh);
   }
 
   /**

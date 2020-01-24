@@ -45,10 +45,6 @@ class Character extends EraCharacter {
     this.ray.collisionFilterMask = ~2;
     this.rayStartBox = new THREE.Mesh(RAYCAST_GEO, RAYCAST_BLUE_MATERIAL);
     this.rayEndBox = new THREE.Mesh(RAYCAST_GEO, RAYCAST_MATERIAL);
-    // TODO: Check debug settings for this.
-    const scene = Engine.get().getScene();
-    scene.add(this.rayStartBox);
-    scene.add(this.rayEndBox);
   }
 
   /** @override */
@@ -95,6 +91,13 @@ class Character extends EraCharacter {
     // Prevent capsule from tipping over.
     capsule.fixedRotation = true;
     capsule.updateMassProperties();
+
+    // Add raycast debug to scene.
+    if (this.physicsWorld.debugRenderer) {
+      const scene = Engine.get().getScene();
+      scene.add(this.rayStartBox);
+      scene.add(this.rayEndBox);
+    }
     return capsule;
   }
 
@@ -115,6 +118,9 @@ class Character extends EraCharacter {
     super.update();
     this.updateCamera();
     // Update physics.
+    if (this.frozen) {
+      return;
+    }
     const inputVector = this.inputVector;
     inputVector.set(0, 0, 0);
     if (this.getActionValue(this.bindings.FORWARD)) {
