@@ -26,7 +26,7 @@ class MazeGameMode extends GameMode {
     this.physics = null;
     this.character = null;
     this.levels = null;
-    this.levelIndex = 2;
+    this.levelIndex = 0;
     this.currentLevel = null;
   }
 
@@ -61,6 +61,11 @@ class MazeGameMode extends GameMode {
 
   /** @override */
   async start() {
+    const spawnPoint = this.currentLevel.getSpawnPoint();
+    if (spawnPoint) {
+      this.character.physicsBody.position.copy(spawnPoint.position);
+      this.character.physicsBody.quaternion.copy(spawnPoint.quaternion);
+    }
     this.character.unfreeze();
   }
 

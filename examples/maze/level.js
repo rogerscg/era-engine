@@ -18,6 +18,7 @@ class Level extends Entity {
     this.cameraArm.add(camera);
     camera.position.x = 20;
     this.cameraArm.rotation.z = Math.PI / 4;
+    this.cameraArm.rotation.y = Math.PI / 2;
     camera.lookAt(this.position);
   }
 
@@ -27,6 +28,15 @@ class Level extends Entity {
    */
   async load() {
     await Models.get().loadModel('', this.modelName);
+    // TODO: Load spawn and objective.
+  }
+
+  /**
+   * Gets the spawn point for the level.
+   * @returns {THREE.Object3D}
+   */
+  getSpawnPoint() {
+    return this.getObjectByName('Spawn');
   }
 }
 
