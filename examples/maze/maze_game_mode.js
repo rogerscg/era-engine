@@ -26,7 +26,7 @@ class MazeGameMode extends GameMode {
     this.physics = null;
     this.character = null;
     this.levels = null;
-    this.levelIndex = 0;
+    this.levelIndex = 2;
     this.currentLevel = null;
   }
 
