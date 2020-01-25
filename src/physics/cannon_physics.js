@@ -106,6 +106,13 @@ class CannonPhysics extends Physics {
     return body;
   }
 
+  /** @override */
+  registerContactHandler(entity) {
+    entity.physicsBody.addEventListener('collide', (e) => {
+      entity.handleCollision(e);
+    });
+  }
+
   /**
    * Generates a box shape and attaches it to the root body.
    * @param {CANNON.Body} body

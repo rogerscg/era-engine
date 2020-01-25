@@ -75,7 +75,13 @@ class MazeGameMode extends GameMode {
    * @async
    */
   async loadLevel(levelIndex) {
-    const level = new Level(LEVELS[levelIndex]).withPhysics(this.physics);
+    const levelName = LEVELS[levelIndex];
+    // If the level does not exist, the player has completed the game.
+    if (!levelName) {
+      console.log('game over');
+      return;
+    }
+    const level = new Level(levelName).withPhysics(this.physics);
     this.currentLevel = level;
     await level.load();
     level.build();

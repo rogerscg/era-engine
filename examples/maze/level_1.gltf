@@ -325,7 +325,7 @@
     ],
     "meshes" : [
         {
-            "name" : "Cube.007",
+            "name" : "Cube.005",
             "primitives" : [
                 {
                     "attributes" : {
@@ -337,7 +337,7 @@
             ]
         },
         {
-            "name" : "Cube.005",
+            "name" : "Cube.008",
             "primitives" : [
                 {
                     "attributes" : {
@@ -373,7 +373,7 @@
             ]
         },
         {
-            "name" : "Cube.008",
+            "name" : "Cube.007",
             "primitives" : [
                 {
                     "attributes" : {
@@ -390,7 +390,7 @@
             "extras" : {
                 "physics" : "BOX"
             },
-            "mesh" : 1,
+            "mesh" : 0,
             "name" : "Cube",
             "scale" : [
                 1.0,
@@ -430,7 +430,7 @@
             "extras" : {
                 "physics" : "BOX"
             },
-            "mesh" : 0,
+            "mesh" : 4,
             "name" : "Cube.002",
             "scale" : [
                 1.0,
@@ -447,7 +447,7 @@
             "extras" : {
                 "physics" : "BOX"
             },
-            "mesh" : 4,
+            "mesh" : 1,
             "name" : "Cube.003",
             "rotation" : [
                 0.0,
@@ -480,6 +480,14 @@
             ]
         },
         {
+            "name" : "Objective",
+            "translation" : [
+                -8.0,
+                1.0,
+                -0.0
+            ]
+        },
+        {
             "name" : "Spawn",
             "translation" : [
                 8.0,
@@ -493,12 +501,13 @@
         {
             "name" : "Scene",
             "nodes" : [
-                5,
+                6,
                 0,
                 4,
                 1,
                 2,
-                3
+                3,
+                5
             ]
         }
     ]

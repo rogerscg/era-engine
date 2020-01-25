@@ -1317,7 +1317,7 @@
     ],
     "meshes" : [
         {
-            "name" : "Cube.026",
+            "name" : "Cube.029",
             "primitives" : [
                 {
                     "attributes" : {
@@ -1329,7 +1329,7 @@
             ]
         },
         {
-            "name" : "Cube",
+            "name" : "Cube.031",
             "primitives" : [
                 {
                     "attributes" : {
@@ -1341,7 +1341,7 @@
             ]
         },
         {
-            "name" : "Cube.027",
+            "name" : "Cube.021",
             "primitives" : [
                 {
                     "attributes" : {
@@ -1353,7 +1353,7 @@
             ]
         },
         {
-            "name" : "Cube.029",
+            "name" : "Cube.025",
             "primitives" : [
                 {
                     "attributes" : {
@@ -1365,7 +1365,7 @@
             ]
         },
         {
-            "name" : "Cube.025",
+            "name" : "Cube.018",
             "primitives" : [
                 {
                     "attributes" : {
@@ -1377,7 +1377,7 @@
             ]
         },
         {
-            "name" : "Cube.021",
+            "name" : "Cube.028",
             "primitives" : [
                 {
                     "attributes" : {
@@ -1413,7 +1413,7 @@
             ]
         },
         {
-            "name" : "Cube.031",
+            "name" : "Cube.016",
             "primitives" : [
                 {
                     "attributes" : {
@@ -1425,7 +1425,7 @@
             ]
         },
         {
-            "name" : "Cube.022",
+            "name" : "Cube.020",
             "primitives" : [
                 {
                     "attributes" : {
@@ -1437,7 +1437,7 @@
             ]
         },
         {
-            "name" : "Cube.005",
+            "name" : "Cube.019",
             "primitives" : [
                 {
                     "attributes" : {
@@ -1449,7 +1449,7 @@
             ]
         },
         {
-            "name" : "Cube.019",
+            "name" : "Cube.022",
             "primitives" : [
                 {
                     "attributes" : {
@@ -1461,7 +1461,7 @@
             ]
         },
         {
-            "name" : "Cube.020",
+            "name" : "Cube.007",
             "primitives" : [
                 {
                     "attributes" : {
@@ -1473,7 +1473,7 @@
             ]
         },
         {
-            "name" : "Cube.018",
+            "name" : "Cube.030",
             "primitives" : [
                 {
                     "attributes" : {
@@ -1485,7 +1485,7 @@
             ]
         },
         {
-            "name" : "Cube.007",
+            "name" : "Cube.005",
             "primitives" : [
                 {
                     "attributes" : {
@@ -1497,7 +1497,7 @@
             ]
         },
         {
-            "name" : "Cube.016",
+            "name" : "Cube.024",
             "primitives" : [
                 {
                     "attributes" : {
@@ -1509,7 +1509,7 @@
             ]
         },
         {
-            "name" : "Cube.017",
+            "name" : "Cube",
             "primitives" : [
                 {
                     "attributes" : {
@@ -1521,7 +1521,7 @@
             ]
         },
         {
-            "name" : "Cube.028",
+            "name" : "Cube.026",
             "primitives" : [
                 {
                     "attributes" : {
@@ -1533,7 +1533,7 @@
             ]
         },
         {
-            "name" : "Cube.008",
+            "name" : "Cube.017",
             "primitives" : [
                 {
                     "attributes" : {
@@ -1545,7 +1545,7 @@
             ]
         },
         {
-            "name" : "Cube.030",
+            "name" : "Cube.008",
             "primitives" : [
                 {
                     "attributes" : {
@@ -1557,7 +1557,7 @@
             ]
         },
         {
-            "name" : "Cube.024",
+            "name" : "Cube.027",
             "primitives" : [
                 {
                     "attributes" : {
@@ -1574,7 +1574,7 @@
             "extras" : {
                 "physics" : "BOX"
             },
-            "mesh" : 10,
+            "mesh" : 14,
             "name" : "Cube",
             "scale" : [
                 1.0,
@@ -1614,7 +1614,7 @@
             "extras" : {
                 "physics" : "BOX"
             },
-            "mesh" : 14,
+            "mesh" : 12,
             "name" : "Cube.002",
             "scale" : [
                 1.0,
@@ -1631,7 +1631,7 @@
             "extras" : {
                 "physics" : "BOX"
             },
-            "mesh" : 18,
+            "mesh" : 19,
             "name" : "Cube.003",
             "rotation" : [
                 0.0,
@@ -1654,7 +1654,7 @@
             "extras" : {
                 "physics" : "BOX"
             },
-            "mesh" : 15,
+            "mesh" : 8,
             "name" : "Cube.004",
             "rotation" : [
                 0.0,
@@ -1677,7 +1677,7 @@
             "extras" : {
                 "physics" : "BOX"
             },
-            "mesh" : 16,
+            "mesh" : 18,
             "name" : "Cube.005",
             "scale" : [
                 0.550000011920929,
@@ -1694,7 +1694,7 @@
             "extras" : {
                 "physics" : "BOX"
             },
-            "mesh" : 13,
+            "mesh" : 4,
             "name" : "Cube.006",
             "rotation" : [
                 0.0,
@@ -1717,7 +1717,7 @@
             "extras" : {
                 "physics" : "BOX"
             },
-            "mesh" : 11,
+            "mesh" : 10,
             "name" : "Cube.007",
             "rotation" : [
                 0.0,
@@ -1740,7 +1740,7 @@
             "extras" : {
                 "physics" : "BOX"
             },
-            "mesh" : 12,
+            "mesh" : 9,
             "name" : "Cube.008",
             "scale" : [
                 0.10000002384185791,
@@ -1757,7 +1757,7 @@
             "extras" : {
                 "physics" : "BOX"
             },
-            "mesh" : 5,
+            "mesh" : 2,
             "name" : "Cube.009",
             "rotation" : [
                 0.0,
@@ -1780,7 +1780,7 @@
             "extras" : {
                 "physics" : "BOX"
             },
-            "mesh" : 9,
+            "mesh" : 11,
             "name" : "Cube.010",
             "rotation" : [
                 0.0,
@@ -1826,7 +1826,7 @@
             "extras" : {
                 "physics" : "BOX"
             },
-            "mesh" : 20,
+            "mesh" : 15,
             "name" : "Cube.012",
             "scale" : [
                 0.20000000298023224,
@@ -1843,7 +1843,7 @@
             "extras" : {
                 "physics" : "BOX"
             },
-            "mesh" : 4,
+            "mesh" : 3,
             "name" : "Cube.013",
             "rotation" : [
                 0.0,
@@ -1866,7 +1866,7 @@
             "extras" : {
                 "physics" : "BOX"
             },
-            "mesh" : 0,
+            "mesh" : 17,
             "name" : "Cube.014",
             "scale" : [
                 0.10000002384185791,
@@ -1883,7 +1883,7 @@
             "extras" : {
                 "physics" : "BOX"
             },
-            "mesh" : 2,
+            "mesh" : 20,
             "name" : "Cube.015",
             "scale" : [
                 0.20000000298023224,
@@ -1900,7 +1900,7 @@
             "extras" : {
                 "physics" : "BOX"
             },
-            "mesh" : 17,
+            "mesh" : 5,
             "name" : "Cube.016",
             "scale" : [
                 0.10000002384185791,
@@ -1917,7 +1917,7 @@
             "extras" : {
                 "physics" : "BOX"
             },
-            "mesh" : 3,
+            "mesh" : 0,
             "name" : "Cube.017",
             "rotation" : [
                 0.0,
@@ -1940,7 +1940,7 @@
             "extras" : {
                 "physics" : "BOX"
             },
-            "mesh" : 19,
+            "mesh" : 13,
             "name" : "Cube.018",
             "rotation" : [
                 0.0,
@@ -1963,7 +1963,7 @@
             "extras" : {
                 "physics" : "BOX"
             },
-            "mesh" : 8,
+            "mesh" : 1,
             "name" : "Cube.019",
             "scale" : [
                 0.10000002384185791,
@@ -1981,12 +1981,26 @@
                 "THREE_export" : 0,
                 "physics" : "BOX"
             },
-            "mesh" : 1,
+            "mesh" : 16,
             "name" : "Floor",
             "translation" : [
                 0.0,
                 -10.0,
                 -0.0
+            ]
+        },
+        {
+            "name" : "Objective",
+            "rotation" : [
+                0.0,
+                -0.7071068286895752,
+                -0.0,
+                0.7071067690849304
+            ],
+            "translation" : [
+                -5.0,
+                1.0,
+                7.0
             ]
         },
         {
@@ -2009,7 +2023,7 @@
         {
             "name" : "Scene",
             "nodes" : [
-                21,
+                22,
                 0,
                 20,
                 1,
@@ -2030,7 +2044,8 @@
                 16,
                 17,
                 18,
-                19
+                19,
+                21
             ]
         }
     ]

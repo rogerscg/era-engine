@@ -86,6 +86,7 @@ class Physics extends Plugin {
     }
     this.registeredEntities.set(entity.uuid, entity);
     entity.registerPhysicsWorld(this);
+    this.registerContactHandler(entity);
     return true;
   }
 
@@ -165,6 +166,14 @@ class Physics extends Plugin {
    */
   autogeneratePhysicsBody(mesh) {
     console.warn('Autogenerating physics bodies not supported.');
+  }
+
+  /**
+   * Registers an entity to receive contact events.
+   * @param {Entity} entity
+   */
+  registerContactHandler(entity) {
+    console.warn('Contact handler not supported by physics impl');
   }
 }
 

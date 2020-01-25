@@ -1,3 +1,4 @@
+import Objective from './objective.js';
 import {Entity, Models} from '../../src/era.js';
 
 /**
@@ -11,6 +12,7 @@ class Level extends Entity {
     super();
     this.modelName = levelName;
     this.autogeneratePhysics = true;
+    this.objective = null;
   }
 
   /** @override */
@@ -22,13 +24,34 @@ class Level extends Entity {
     camera.lookAt(this.position);
   }
 
+  /** @override */
+  build() {
+    super.build();
+    this.loadObjective();
+    return this;
+  }
+
   /**
    * Loads the objects necessary for the level.
    * @async
    */
   async load() {
+    // Load maze model.
     await Models.get().loadModel('', this.modelName);
-    // TODO: Load spawn and objective.
+  }
+
+  /**
+   * Loads the objective entity into the level.
+   */
+  loadObjective() {
+    this.objective = new Objective().withPhysics(this.physicsWorld).build();
+    const objectivePoint = this.getObjectByName('Objective');
+    if (!objectivePoint) {
+      return console.error('No objective point found.');
+    }
+    this.objective.physicsBody.position.copy(objectivePoint.position);
+    this.physicsWorld.registerEntity(this.objective);
+    this.add(this.objective);
   }
 
   /**

@@ -247,6 +247,12 @@ class Entity extends THREE.Object3D {
   }
 
   /**
+   * Handles a collision for the entity.
+   * @param {?} e
+   */
+  handleCollision(e) {}
+
+  /**
    * Serializes the physics aspect of the entity.
    */
   serializePhysics() {
