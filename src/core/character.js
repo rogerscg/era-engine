@@ -26,6 +26,7 @@ class Character extends Entity {
     // TODO: Make state a common practice in ERA.
     this.state = 'idle';
     this.grounded = false;
+    this.frozen = false;
   }
 
   /** @override */
@@ -45,6 +46,10 @@ class Character extends Entity {
   /** @override */
   update() {
     super.update();
+    if (this.frozen) {
+      this.idle();
+      return;
+    }
     if (this.getActionValue(this.bindings.FORWARD) ||
         this.getActionValue(this.bindings.BACKWARD) ||
         this.getActionValue(this.bindings.LEFT) ||
@@ -57,6 +62,20 @@ class Character extends Entity {
     } else {
       this.idle();
     }
+  }
+
+  /**
+   * Freezes the character, preventing it from updating.
+   */
+  freeze() {
+    this.frozen = true;
+  }
+
+  /** 
+   * Unfreezes the character, allowing updates.
+   */
+  unfreeze() {
+    this.frozen = false;
   }
 
   /**

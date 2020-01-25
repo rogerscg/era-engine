@@ -88,10 +88,6 @@ class Audio extends Plugin {
    */
   async loadSound(directory, name, options) {
     let extension = options.extension;
-    // Append a trailing slash to the directory if it doesn't exist.
-    if (!directory.endsWith('/')) {
-      directory += '/';
-    }
     // Insert a period if the extension doesn't have one.
     if (!extension.startsWith('.')) {
       extension = '.' + extension;

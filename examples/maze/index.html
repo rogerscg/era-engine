@@ -1,7 +1,7 @@
 <html>
 
 <head>
-  <title>Basic Example</title>
+  <title>Maze Example</title>
   <link rel="icon" href="/public/images/favicon.png" type="image/x-icon" />
   <style>
     #container {
@@ -11,21 +11,40 @@
       right: 0;
       top: 0;
     }
+
+    #game-over {
+      background: rgba(0, 0, 0, .4);
+      bottom: 0;
+      color: white;
+      display: none;
+      font-family: monospace;
+      font-size: 100px;
+      left: 0;
+      line-height: 70vh;
+      position: fixed;
+      right: 0;
+      text-align: center;
+      top: 0;
+      user-select: none;
+    }
   </style>
 </head>
 
 <body>
   <div id="container"></div>
+  <div id="game-over">GAME OVER</div>
 </body>
-<script src="../../dependencies/box2d.js"></script>
-<script src="../../dependencies/jquery.min.js"></script>
-<script src="../../dependencies/socket.io.js"></script>
+<script src="../../dependencies/cannon.js"></script>
 <script src="../../dependencies/three.js"></script>
 <script src="../../dependencies/tween.js"></script>
+<script src="../../dependencies/zlib.min.js"></script>
+<script src="../../dependencies/FBXLoader.js"></script>
 <script src="../../dependencies/GLTFLoader.js"></script>
 <script src="../../dependencies/OrbitControls.js"></script>
 <script src="../../dependencies/PropertyBinding.js"></script>
 <script src="../../dependencies/SkeletonUtils.js"></script>
 <script src="../../dependencies/TGALoader.js"></script>
+<script src="../../dependencies/tween.js"></script>
 <script type="module" src="index.js"></script>
+
 </html>

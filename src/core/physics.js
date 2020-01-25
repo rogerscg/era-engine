@@ -86,6 +86,7 @@ class Physics extends Plugin {
     }
     this.registeredEntities.set(entity.uuid, entity);
     entity.registerPhysicsWorld(this);
+    this.registerContactHandler(entity);
     return true;
   }
 
@@ -156,6 +157,23 @@ class Physics extends Plugin {
   withDebugRenderer(debugRenderer) {
     this.debugRenderer = debugRenderer;
     return this;
+  }
+
+  /**
+   * Autogenerates a physics body based on the given mesh.
+   * @param {THREE.Object3D} mesh
+   * @returns {?} The physics body.
+   */
+  autogeneratePhysicsBody(mesh) {
+    console.warn('Autogenerating physics bodies not supported.');
+  }
+
+  /**
+   * Registers an entity to receive contact events.
+   * @param {Entity} entity
+   */
+  registerContactHandler(entity) {
+    console.warn('Contact handler not supported by physics impl');
   }
 }
 
