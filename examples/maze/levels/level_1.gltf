@@ -323,9 +323,23 @@
             "uri" : "level_1.bin"
         }
     ],
+    "materials" : [
+        {
+            "name" : "Floor",
+            "pbrMetallicRoughness" : {
+                "baseColorFactor" : [
+                    0.6400000190734865,
+                    0.6400000190734865,
+                    0.6400000190734865,
+                    1.0
+                ],
+                "metallicFactor" : 0.0
+            }
+        }
+    ],
     "meshes" : [
         {
-            "name" : "Cube.005",
+            "name" : "Cube.007",
             "primitives" : [
                 {
                     "attributes" : {
@@ -337,7 +351,7 @@
             ]
         },
         {
-            "name" : "Cube.008",
+            "name" : "Cube.006",
             "primitives" : [
                 {
                     "attributes" : {
@@ -349,7 +363,7 @@
             ]
         },
         {
-            "name" : "Cube",
+            "name" : "Cube.008",
             "primitives" : [
                 {
                     "attributes" : {
@@ -361,7 +375,7 @@
             ]
         },
         {
-            "name" : "Cube.006",
+            "name" : "Cube.005",
             "primitives" : [
                 {
                     "attributes" : {
@@ -373,14 +387,15 @@
             ]
         },
         {
-            "name" : "Cube.007",
+            "name" : "Cube",
             "primitives" : [
                 {
                     "attributes" : {
                         "NORMAL" : 14,
                         "POSITION" : 13
                     },
-                    "indices" : 12
+                    "indices" : 12,
+                    "material" : 0
                 }
             ]
         }
@@ -390,7 +405,7 @@
             "extras" : {
                 "physics" : "BOX"
             },
-            "mesh" : 0,
+            "mesh" : 3,
             "name" : "Cube",
             "scale" : [
                 1.0,
@@ -407,7 +422,7 @@
             "extras" : {
                 "physics" : "BOX"
             },
-            "mesh" : 3,
+            "mesh" : 1,
             "name" : "Cube.001",
             "rotation" : [
                 0.0,
@@ -430,7 +445,7 @@
             "extras" : {
                 "physics" : "BOX"
             },
-            "mesh" : 4,
+            "mesh" : 0,
             "name" : "Cube.002",
             "scale" : [
                 1.0,
@@ -447,7 +462,7 @@
             "extras" : {
                 "physics" : "BOX"
             },
-            "mesh" : 1,
+            "mesh" : 2,
             "name" : "Cube.003",
             "rotation" : [
                 0.0,
@@ -471,7 +486,7 @@
                 "THREE_export" : 0,
                 "physics" : "BOX"
             },
-            "mesh" : 2,
+            "mesh" : 4,
             "name" : "Floor",
             "translation" : [
                 0.0,
