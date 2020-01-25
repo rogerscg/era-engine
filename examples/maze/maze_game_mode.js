@@ -44,7 +44,7 @@ class MazeGameMode extends GameMode {
     this.scene = Engine.get().getScene();
 
     // Create physics.
-    this.physics = new CannonPhysics().withDebugRenderer();
+    this.physics = new CannonPhysics();
     
     // Create environment.
     const environment =
@@ -57,7 +57,6 @@ class MazeGameMode extends GameMode {
     this.scene.add(this.character);
     this.physics.registerEntity(this.character);
     Controls.get().registerEntity(this.character);
-    Controls.get().useOrbitControls();
 
     // Load levels.
     await this.loadLevel(this.levelIndex);
@@ -67,11 +66,6 @@ class MazeGameMode extends GameMode {
   async start() {
     this.startLevel();
     this.character.unfreeze();
-  }
-
-  /** @override */
-  async end() {
-    console.log('game over');
   }
 
   /**
@@ -112,6 +106,7 @@ class MazeGameMode extends GameMode {
   async completeLevel() {
     this.levelIndex++;
     if (this.levelIndex >= LEVELS.length) {
+      this.character.freeze();
       return this.end();
     }
     this.currentLevel.destroy();

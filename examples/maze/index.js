@@ -18,6 +18,11 @@ async function start() {
   // Create maze game mode.
   const mazeGame = new MazeGameMode();
   engine.startGameMode(mazeGame);
+  mazeGame.onEnd(() => showGameOverScreen());
+}
+
+function showGameOverScreen() {
+  document.getElementById('game-over').style.display = 'inherit';
 }
 
 document.addEventListener('DOMContentLoaded', start);

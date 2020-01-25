@@ -43,7 +43,7 @@ class Level extends Entity {
    */
   async load() {
     // Load maze model.
-    await Models.get().loadModel('', this.modelName);
+    await Models.get().loadModel('levels/', this.modelName);
   }
 
   /**

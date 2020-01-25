@@ -9,9 +9,9 @@
     ],
     "directional": [
       {
-        "x": 500,
+        "x": -500,
         "y": 1500,
-        "z": -500,
+        "z": 500,
         "color": "eeeeee",
         "intensity": 0.8
       }
