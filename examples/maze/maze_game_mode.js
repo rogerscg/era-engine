@@ -1,6 +1,7 @@
 import Character from './character.js';
 import Level from './level.js';
 import {
+  Audio,
   Camera,
   CannonPhysics,
   Controls,
@@ -34,6 +35,9 @@ class MazeGameMode extends GameMode {
   async load() {
     // Load models.
     await Models.get().loadAllFromFile('models.json');
+
+    // Load audio.
+    await Audio.get().loadSound('', 'ding', {extension: 'mp3'});
     
     // Build camera and scene.
     Engine.get().setCamera(Camera.get().buildPerspectiveCamera());

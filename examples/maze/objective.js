@@ -1,4 +1,4 @@
-import {Entity} from '../../src/era.js';
+import {Audio, Entity} from '../../src/era.js';
 
 const WIDTH = 1;
 const HEIGHT = 1.5;
@@ -48,6 +48,7 @@ class Objective extends Entity {
     }
     this.completed = true;
     this.dispatchEvent('completed');
+    Audio.get().playSound('ding', .2);
   }
 }
 
