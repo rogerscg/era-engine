@@ -2,7 +2,7 @@
  * @author rogerscg / https://github.com/rogerscg
  */
 
-import {createUUID} from './util.js';
+import {createUUID} from '../core/util.js';
 
 /**
  * Core implementation for managing events and listeners. This

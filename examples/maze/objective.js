@@ -47,7 +47,7 @@ class Objective extends Entity {
       return;
     }
     this.completed = true;
-    console.log('mission complete');
+    this.dispatchEvent('completed');
   }
 }
 

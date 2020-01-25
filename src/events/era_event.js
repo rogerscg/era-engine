@@ -2,7 +2,7 @@
  * @author rogerscg / https://github.com/rogerscg
  */
 
-import Events from '../core/events.js';
+import Events from './events.js';
 
 /**
  * Superclass for all custom events within the engine. Utilizes the

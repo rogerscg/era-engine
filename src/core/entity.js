@@ -8,6 +8,7 @@ import Engine from './engine.js';
 import Models from './models.js';
 import Physics from './physics.js';
 import {Bindings} from './bindings.js';
+import {Object3DEventTarget} from '../events/event_target.js';
 import {createUUID} from './util.js';
 
 const ENTITY_BINDINGS = {
@@ -43,7 +44,7 @@ const CONTROLS_ID = 'Entity';
  * Super class for all entities within the game, mostly those
  * that are updated by the physics engine.
  */
-class Entity extends THREE.Object3D {
+class Entity extends Object3DEventTarget {
   static GetBindings() {
     return new Bindings(CONTROLS_ID).load(ENTITY_BINDINGS);
   }
@@ -143,6 +144,9 @@ class Entity extends THREE.Object3D {
     if (this.parent) {
       this.parent.remove(this);
     }
+    if (this.physicsWorld) {
+      this.physicsWorld.unregisterEntity(this);
+    }
     Engine.get().unregisterEntity(this);
   }
 
@@ -219,7 +223,6 @@ class Entity extends THREE.Object3D {
       return console.warn('Camera not registered on entity');
     }
     camera.parent.remove(camera);
-    add(camera);
     this.registeredCameras.delete(camera);
   }
 

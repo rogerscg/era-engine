@@ -44,7 +44,7 @@ class CannonPhysics extends Physics {
     if (!super.unregisterEntity(entity)) {
       return;
     }
-    this.world.removeBody(entity.physicsBody);
+    this.world.remove(entity.physicsBody);
   }
 
   /** @override */

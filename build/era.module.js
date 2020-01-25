@@ -1010,8 +1010,6 @@ class RendererPool {
       antialias: true,
       alpha: true,
     });
-    renderer.gammaOutput = true;
-    renderer.gammaInput = true;
     renderer.setClearColor(0x111111);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -1029,8 +1027,6 @@ class RendererPool {
       alpha: true
     });
     renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.gammaInput = true;
-    renderer.gammaOutput = true;
     return renderer;
   }
   
@@ -1096,12 +1092,18 @@ class Engine {
     this.rendering = false;
     this.plugins = new Set();
     this.entities = new Set();
+    this.scene = new THREE.Scene();
+    this.renderer = this.createRenderer();
     // A map of cameras to the entities on which they are attached.
     this.cameras = new Map();
     this.timer = EngineTimer$1;
+    this.camera = null;
 
     // If a physics plugin is installed, don't update entities.
     this.physicsInstalled = false;
+
+    // The current game mode running.
+    this.currentGameMode = null;
 
     // Load engine defaults.
     Settings$1.loadEngineDefaults();
@@ -1150,9 +1152,11 @@ class Engine {
       return;
     }
     this.started = true;
-    this.scene = new THREE.Scene();
+    if (!this.scene) {
+      console.error('No scene provided');
+    }
     if (!this.renderer) {
-      this.renderer = this.createRenderer();
+      console.error('No renderer provided');
     }
     if (!this.camera) {
       console.error('No camera provided');
@@ -1215,6 +1219,8 @@ class Engine {
 
   /**
    * Creates the three.js renderer and sets options.
+   * TODO: This is too restricting from a developer's point of view. Refactor
+   *   this to give more flexibility.
    */
   createRenderer() {
     const renderer = rendererPool.get(RendererTypes.GAME);
@@ -1258,6 +1264,7 @@ class Engine {
 
   /**
    * Attaches the main camera to the given entity.
+   * TODO: Move this to the camera lib.
    * @param {Entity} entity
    */
   attachCamera(entity) {
@@ -1273,6 +1280,16 @@ class Engine {
     this.cameras.set(camera, entity);
   }
 
+  /**
+   * Loads and starts a game mode.
+   * @param {GameMode} gameMode
+   * @async
+   */
+  async startGameMode(gameMode) {
+    await gameMode.load();
+    await gameMode.start();
+    this.start();
+  }
 }
 
 /**
@@ -2354,7 +2371,7 @@ class Models {
    * @param {Object} options
    * @async
    */
-  async loadModel(directory, name, options) {
+  async loadModel(directory, name, options = {}) {
     // Defaults to GLTF.
     const extension = options.extension ? options.extension : 'gltf';
     const path = `${directory}${name}.${extension}`;
@@ -2564,6 +2581,7 @@ class Physics extends Plugin {
     }
     this.registeredEntities.set(entity.uuid, entity);
     entity.registerPhysicsWorld(this);
+    this.registerContactHandler(entity);
     return true;
   }
 
@@ -2635,6 +2653,23 @@ class Physics extends Plugin {
     this.debugRenderer = debugRenderer;
     return this;
   }
+
+  /**
+   * Autogenerates a physics body based on the given mesh.
+   * @param {THREE.Object3D} mesh
+   * @returns {?} The physics body.
+   */
+  autogeneratePhysicsBody(mesh) {
+    console.warn('Autogenerating physics bodies not supported.');
+  }
+
+  /**
+   * Registers an entity to receive contact events.
+   * @param {Entity} entity
+   */
+  registerContactHandler(entity) {
+    console.warn('Contact handler not supported by physics impl');
+  }
 }
 
 /**
@@ -2691,6 +2726,7 @@ class Entity extends THREE.Object3D {
     this.physicsBody = null;
     this.physicsEnabled = false;
     this.physicsWorld = null;
+    this.autogeneratePhysics = false;
 
     // Animation properties.
     this.animationMixer = null;
@@ -2858,10 +2894,29 @@ class Entity extends THREE.Object3D {
    * entity.
    */
   generatePhysicsBody() {
-    if (this.physicsEnabled) {
-      return console.warn('generatePhysicsBody not implemented for entity');
+    if (!this.physicsEnabled) {
+      return;
     }
+    if (this.autogeneratePhysics) {
+      return this.autogeneratePhysicsBody();
+    }
+    console.warn('generatePhysicsBody not implemented for entity');
   }
+
+  /**
+   * Creates a physics body based on extra data provided from the model, such as
+   * userData. This only works for a select number of objects, so please use
+   * this carefully.
+   */
+  autogeneratePhysicsBody() {
+    return this.physicsWorld.autogeneratePhysicsBody(this.mesh);
+  }
+
+  /**
+   * Handles a collision for the entity.
+   * @param {?} e
+   */
+  handleCollision(e) {}
 
   /**
    * Serializes the physics aspect of the entity.
@@ -3069,6 +3124,7 @@ class Character extends Entity {
     // TODO: Make state a common practice in ERA.
     this.state = 'idle';
     this.grounded = false;
+    this.frozen = false;
   }
 
   /** @override */
@@ -3088,6 +3144,10 @@ class Character extends Entity {
   /** @override */
   update() {
     super.update();
+    if (this.frozen) {
+      this.idle();
+      return;
+    }
     if (this.getActionValue(this.bindings.FORWARD) ||
         this.getActionValue(this.bindings.BACKWARD) ||
         this.getActionValue(this.bindings.LEFT) ||
@@ -3100,6 +3160,20 @@ class Character extends Entity {
     } else {
       this.idle();
     }
+  }
+
+  /**
+   * Freezes the character, preventing it from updating.
+   */
+  freeze() {
+    this.frozen = true;
+  }
+
+  /** 
+   * Unfreezes the character, allowing updates.
+   */
+  unfreeze() {
+    this.frozen = false;
   }
 
   /**
@@ -3512,12 +3586,14 @@ class GameMode {
   /**
    * Loads a game mode for the first time. This should include loading necessary
    * models, environment, stages, etc.
+   * @async
    */
   async load() {}
 
   /**
    * Starts the game mode. At this point, all necessary components of the game
    * mode should be readily available.
+   * @async
    */
   async start() {}
 
@@ -3525,11 +3601,13 @@ class GameMode {
    * Ends the game mode. The end function should perform any clean up necessary
    * for the objects created during the game, **not** the items loaded in the
    * load method. This is to prevent any issues with restarting the game mode.
+   * @async
    */
   async end() {}
 
   /**
    * Restarts the game mode by calling the `end` function, then `start`.
+   * @async
    */
   async restart() {
     await this.end();
@@ -4185,6 +4263,99 @@ class Panel {
 }
 
 /**
+ * A standard event target.
+ * @implements {EventTargetInterface}
+ */
+class EventTarget  {
+  constructor() {
+    this.listeners = new Map();
+    this.uuidToLabels = new Map();
+  }
+
+  /** @override */
+  addEventListener(label, handler) {
+    if (!this.listeners.has(label)) {
+      this.listeners.set(label, new Map());
+    }
+    const uuid = createUUID();
+    this.listeners.get(label).set(uuid, handler);
+    this.uuidToLabels.set(uuid, label);
+    return uuid;
+  }
+
+  /** @override */
+  removeEventListener(uuid) {
+    const label = this.uuidToLabels.get(uuid);
+    if (!label) {
+      return false;
+    }
+    this.uuidToLabels.delete(uuid);
+    const labelListeners = this.listeners.get(label);
+    if (!labelListeners) {
+      return false;
+    }
+    return labelListeners.delete(uuid);
+  }
+
+  /** @override */
+  dispatchEvent(label, data) {
+    const labelListeners = this.listeners.get(label);
+    if (!labelListeners) {
+      return;
+    }
+    labelListeners.forEach((handler) => handler(data));
+  }
+}
+
+/**
+ * An EventTarget that extends THREE.Object3D for use by Entities.
+ * TODO: Try and reduce duplicate code between these two due to lack of
+ *       multiple inheritance in JS.
+ * @implements {EventTargetInterface}
+ */
+class Object3DEventTarget extends THREE.Object3D {
+  constructor() {
+    super();
+    this.listeners = new Map();
+    this.uuidToLabels = new Map();
+  }
+
+  /** @override */
+  addEventListener(label, handler) {
+    if (!this.listeners.has(label)) {
+      this.listeners.set(label, new Map());
+    }
+    const uuid = createUUID();
+    this.listeners.get(label).set(uuid, handler);
+    this.uuidToLabels.set(uuid, label);
+    return uuid;
+  }
+
+  /** @override */
+  removeEventListener(uuid) {
+    const label = this.uuidToLabels.get(uuid);
+    if (!label) {
+      return false;
+    }
+    this.uuidToLabels.delete(uuid);
+    const labelListeners = this.listeners.get(label);
+    if (!labelListeners) {
+      return false;
+    }
+    return labelListeners.delete(uuid);
+  }
+
+  /** @override */
+  dispatchEvent(label, data) {
+    const labelListeners = this.listeners.get(label);
+    if (!labelListeners) {
+      return;
+    }
+    labelListeners.forEach((handler) => handler(data));
+  }
+}
+
+/**
  * @author rogerscg / https://github.com/rogerscg
  */
 
@@ -4724,6 +4895,48 @@ class CannonPhysics extends Physics {
     return super.withDebugRenderer(new CannonDebugRenderer(scene, world));
   }
 
+  /** @override */
+  autogeneratePhysicsBody(mesh) {
+    // Root body.
+    const body = new CANNON.Body({mass: 0});
+    mesh.traverse((child) => {
+      const physicsType = child.userData.physics;
+      if (!physicsType) {
+        return;
+      }
+      switch (physicsType) {
+        case 'BOX':
+          this.autogenerateBox(body, child);
+          break;
+      }
+    });
+    return body;
+  }
+
+  /** @override */
+  registerContactHandler(entity) {
+    entity.physicsBody.addEventListener('collide', (e) => {
+      entity.handleCollision(e);
+    });
+  }
+
+  /**
+   * Generates a box shape and attaches it to the root body.
+   * @param {CANNON.Body} body
+   * @param {THREE.Mesh} mesh
+   */
+  autogenerateBox(body, mesh) {
+    const boundingBox = mesh.geometry.boundingBox;
+    let size = new THREE.Vector3();
+    boundingBox.getSize(size);
+    size.divideScalar(2);
+    size = size.multiplyVectors(size, mesh.scale);
+    const shape = new CANNON.Box(new CANNON.Vec3().copy(size));
+    const position = new CANNON.Vec3().copy(mesh.position);
+    const quaternion = new CANNON.Quaternion().copy(mesh.quaternion);
+    body.addShape(shape, position, quaternion);
+  }
+
   /**
    * Creates a new physical material for the given name and options. If the
    * physical material already exists, return the existing one.
@@ -4766,4 +4979,4 @@ class CannonPhysics extends Physics {
   }
 }
 
-export { Action, AmmoPhysics, Animation, Audio, Bindings, Box2DPhysics, Camera, CannonPhysics, Character, Controls, Engine, EngineResetEvent, Entity, Environment, EraEvent, Events, GameMode, Light, Models, Network, network_registry as NetworkRegistry, Physics, Plugin, RendererStats, Settings$1 as Settings, SettingsEvent, Skybox, createUUID, disableShadows, dispose, extractMeshes, extractMeshesByName, getHexColorRatio, lerp, loadJsonFromFile$1 as loadJsonFromFile, shuffleArray, toDegrees, toRadians, vectorToAngle };
+export { Action, AmmoPhysics, Animation, Audio, Bindings, Box2DPhysics, Camera, CannonPhysics, Character, Controls, Engine, EngineResetEvent, Entity, Environment, EraEvent, EventTarget, Events, GameMode, Light, Models, Network, network_registry as NetworkRegistry, Object3DEventTarget, Physics, Plugin, RendererStats, Settings$1 as Settings, SettingsEvent, Skybox, createUUID, disableShadows, dispose, extractMeshes, extractMeshesByName, getHexColorRatio, lerp, loadJsonFromFile$1 as loadJsonFromFile, shuffleArray, toDegrees, toRadians, vectorToAngle };

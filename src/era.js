@@ -15,7 +15,6 @@ export {default as Controls} from './core/controls.js';
 export {default as Engine} from './core/engine.js';
 export {default as Entity} from './core/entity.js';
 export {default as Environment} from './core/environment.js';
-export {default as Events} from './core/events.js';
 export {default as GameMode} from './core/game_mode.js';
 export {default as Light} from './core/light.js';
 export {default as Models} from './core/models.js';
@@ -29,9 +28,11 @@ export {default as Skybox} from './core/skybox.js';
 export * from './core/util.js';
 
 // Events
+export { default as Events } from './events/events.js';
 export { default as EngineResetEvent } from './events/engine_reset_event.js';
 export { default as EraEvent } from './events/era_event.js';
 export { default as SettingsEvent } from './events/settings_event.js';
+export * from './events/event_target.js';
 
 // Physics
 export { default as AmmoPhysics } from './physics/ammo_physics.js';

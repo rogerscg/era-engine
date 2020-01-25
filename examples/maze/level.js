@@ -31,6 +31,12 @@ class Level extends Entity {
     return this;
   }
 
+  /** @override */
+  destroy() {
+    super.destroy();
+    this.objective.destroy();
+  }
+
   /**
    * Loads the objects necessary for the level.
    * @async
@@ -45,6 +51,8 @@ class Level extends Entity {
    */
   loadObjective() {
     this.objective = new Objective().withPhysics(this.physicsWorld).build();
+    // Register listener for when the objective has been reached.
+    this.objective.addEventListener('completed', () => this.complete());
     const objectivePoint = this.getObjectByName('Objective');
     if (!objectivePoint) {
       return console.error('No objective point found.');
@@ -60,6 +68,13 @@ class Level extends Entity {
    */
   getSpawnPoint() {
     return this.getObjectByName('Spawn');
+  }
+
+  /**
+   * Marks the level as complete, firing an event upwards to notify observers.
+   */
+  complete() {
+    this.dispatchEvent('complete');
   }
 }
 

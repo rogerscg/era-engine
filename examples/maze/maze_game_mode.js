@@ -61,12 +61,13 @@ class MazeGameMode extends GameMode {
 
   /** @override */
   async start() {
-    const spawnPoint = this.currentLevel.getSpawnPoint();
-    if (spawnPoint) {
-      this.character.physicsBody.position.copy(spawnPoint.position);
-      this.character.physicsBody.quaternion.copy(spawnPoint.quaternion);
-    }
+    this.startLevel();
     this.character.unfreeze();
+  }
+
+  /** @override */
+  async end() {
+    console.log('game over');
   }
 
   /**
@@ -76,18 +77,42 @@ class MazeGameMode extends GameMode {
    */
   async loadLevel(levelIndex) {
     const levelName = LEVELS[levelIndex];
-    // If the level does not exist, the player has completed the game.
-    if (!levelName) {
-      console.log('game over');
-      return;
-    }
     const level = new Level(levelName).withPhysics(this.physics);
+    // TODO: Support one-shot event listeners.
+    const levelEventListener = level.addEventListener('complete', () => {
+      level.removeEventListener(levelEventListener);
+      setTimeout(() => this.completeLevel(), 1000);
+    });
     this.currentLevel = level;
     await level.load();
     level.build();
     this.scene.add(level);
     this.physics.registerEntity(level);
     Engine.get().attachCamera(level);
+  }
+
+  /**
+   * Starts a level, placing the character at the spawn point.
+   */
+  startLevel() {
+    const spawnPoint = this.currentLevel.getSpawnPoint();
+    if (spawnPoint) {
+      this.character.physicsBody.position.copy(spawnPoint.position);
+      this.character.physicsBody.quaternion.copy(spawnPoint.quaternion);
+    }
+  }
+
+  /**
+   * Marks a level as complete, cleans it up, and loads the next one.
+   */
+  async completeLevel() {
+    this.levelIndex++;
+    if (this.levelIndex >= LEVELS.length) {
+      return this.end();
+    }
+    this.currentLevel.destroy();
+    await this.loadLevel(this.levelIndex);
+    this.startLevel();
   }
 }
 
