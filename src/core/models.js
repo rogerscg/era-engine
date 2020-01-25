@@ -85,11 +85,6 @@ class Models {
     if (options.scale) {
       root.scale.setScalar(options.scale);
     }
-    // Remove lights.
-    const light = root.getObjectByProperty('type', 'PointLight');
-    if (light) {
-      light.parent.remove(light);
-    }
     // Set the model in storage.
     this.storage.set(name, root);
     return root;

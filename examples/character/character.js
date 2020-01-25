@@ -14,7 +14,7 @@ const HEIGHT = 1.8;
 const MASS = 1;
 // Offset used for smoother movement. Increase for larger vertical motion.
 const CAPSULE_OFFSET = .2;
-const LERP_FACTOR = .35;
+const LERP_FACTOR = .5;
 
 const RAYCAST_GEO = new THREE.BoxGeometry(.2, .2, .2);
 const RAYCAST_MATERIAL = new THREE.MeshLambertMaterial({ color: 0xFF0000 });
@@ -28,9 +28,12 @@ class Character extends EraCharacter {
   constructor() {
     super();
     this.modelName = 'robot';
-    this.idleAnimationName = 'MainCharacter|Idle';
-    this.walkingAnimationName = 'MainCharacter|Walk';
-    this.sprintingAnimationName = 'MainCharacter|Sprint';
+    this.idleAnimationName = 'Character|Idling';
+    this.walkingAnimationName = 'Character|Walking';
+    this.sprintingAnimationName = 'Character|Running';
+    this.jumpingAnimationName = 'Character|JumpUp';
+    this.fallingAnimationName = 'Character|Falling';
+    this.landingAnimationName = 'Character|Landing';
     this.targetQuaternion = new CANNON.Quaternion();
     this.cameraQuaternion = new THREE.Quaternion();
     this.cameraEuler = new THREE.Euler();
@@ -45,10 +48,6 @@ class Character extends EraCharacter {
     this.ray.collisionFilterMask = ~2;
     this.rayStartBox = new THREE.Mesh(RAYCAST_GEO, RAYCAST_BLUE_MATERIAL);
     this.rayEndBox = new THREE.Mesh(RAYCAST_GEO, RAYCAST_MATERIAL);
-    // TODO: Check debug settings for this.
-    const scene = Engine.get().getScene();
-    scene.add(this.rayStartBox);
-    scene.add(this.rayEndBox);
   }
 
   /** @override */
@@ -95,6 +94,13 @@ class Character extends EraCharacter {
     // Prevent capsule from tipping over.
     capsule.fixedRotation = true;
     capsule.updateMassProperties();
+
+    // Raycast debug.
+    if (this.physicsWorld.debugRenderer) {
+      const scene = Engine.get().getScene();
+      scene.add(this.rayStartBox);
+      scene.add(this.rayEndBox);
+    }
     return capsule;
   }
 
@@ -158,6 +164,13 @@ class Character extends EraCharacter {
       const angle = vectorToAngle(inputVector.z, inputVector.x);
       this.targetQuaternion.setFromAxisAngle(CANNON.Vec3.UNIT_Y, angle);
       this.updateRotation();
+    }
+  }
+
+  /** @override */
+  jump() {
+    if (super.jump()) {
+      this.physicsBody.velocity.y = 5;
     }
   }
 

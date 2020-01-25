@@ -28,9 +28,9 @@ class Character extends EraCharacter {
   constructor() {
     super();
     this.modelName = 'robot';
-    this.idleAnimationName = 'MainCharacter|Idle';
-    this.walkingAnimationName = 'MainCharacter|Walk';
-    this.sprintingAnimationName = 'MainCharacter|Sprint';
+    this.idleAnimationName = 'Character|Idling';
+    this.walkingAnimationName = 'Character|Walking';
+    this.sprintingAnimationName = 'Character|Running';
     this.targetQuaternion = new CANNON.Quaternion();
     this.cameraQuaternion = new THREE.Quaternion();
     this.cameraEuler = new THREE.Euler();
@@ -162,6 +162,11 @@ class Character extends EraCharacter {
       this.targetQuaternion.setFromAxisAngle(CANNON.Vec3.UNIT_Y, angle);
       this.updateRotation();
     }
+  }
+
+  /** @override */
+  jump() {
+    // Jump disabled for this level.
   }
 
   /**

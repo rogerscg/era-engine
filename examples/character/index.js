@@ -32,7 +32,7 @@ async function start() {
   new RendererStats(engine.getRenderer());
 
   // Create physics.
-  const physics = new CannonPhysics().withDebugRenderer();
+  const physics = new CannonPhysics()//.withDebugRenderer();
 
   // Create environment.
   const environment =
