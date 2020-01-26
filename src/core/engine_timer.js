@@ -17,7 +17,7 @@ class EngineTimer {
     this.min = Infinity;
     this.max = 0;
     this.currIndex = 0;
-    this.enabled = Settings.get('debug');
+    this.enabled = !Settings.loaded || Settings.get('debug');
     SettingsEvent.listen(this.handleSettings.bind(this));
   }
 

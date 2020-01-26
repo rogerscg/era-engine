@@ -7,6 +7,7 @@ import Controls from './controls.js';
 import Engine from './engine.js';
 import Models from './models.js';
 import Physics from './physics.js';
+import Settings from './settings.js';
 import {Bindings} from './bindings.js';
 import {Object3DEventTarget} from '../events/event_target.js';
 import {createUUID} from './util.js';
@@ -127,6 +128,9 @@ class Entity extends Object3DEventTarget {
       this.animationMixer =
         Animation.get().createAnimationMixer(this.modelName, this);
       this.animationClips = Animation.get().getClips(this.modelName);
+      if (Settings.get('shadows')) {
+        this.enableShadows();
+      }
     }
     this.cameraArm = this.createCameraArm();
     if (this.physicsEnabled) {
@@ -433,6 +437,26 @@ class Entity extends Object3DEventTarget {
   stopAllAnimation() {
     this.animationMixer.stopAllAction();
     this.currentAction = null;
+  }
+
+  /**
+   * Enables shadows to be cast and received by the entity.
+   */
+  enableShadows() {
+    this.traverse((child) => {
+      child.castShadow = true;
+      child.receiveShadow = true;
+    });
+  }
+
+  /**
+   * Disabled shadows from being cast and received by the entity.
+   */
+  disableShadows() {
+    this.traverse((child) => {
+      child.castShadow = false;
+      child.receiveShadow = false;
+    });
   }
 }
 

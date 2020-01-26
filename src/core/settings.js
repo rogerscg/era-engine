@@ -15,7 +15,7 @@ const DEFAULT_SETTINGS = {
   mouse_sensitivity: {
     value: 50,
   },
-  shaders: {
+  shadows: {
     value: true,
   },
   volume: {

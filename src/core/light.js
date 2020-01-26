@@ -74,9 +74,17 @@ class Light extends Plugin {
     const directionalLight = new THREE.DirectionalLight(color);
     directionalLight.position.set(x, y, z);
     directionalLight.intensity = intensity;
-    if (Settings.get('shaders')) {
-      this.shadersEnabled = true;
-      this.createShaders(directionalLight);
+    if (Settings.get('shadows')) {
+      this.shadowsEnabled = true;
+      this.createShadows(directionalLight);
+    }
+    if (Settings.get('debug')) {
+      let helper = new THREE.DirectionalLightHelper(directionalLight, 10);
+      Engine.get().getScene().add(helper);
+      if (this.shadowsEnabled) {
+        helper = new THREE.CameraHelper(directionalLight.shadow.camera);
+        Engine.get().getScene().add(helper);
+      }
     }
     return directionalLight;
   }
@@ -98,9 +106,9 @@ class Light extends Plugin {
       const intensity = light.intensity;
       const angle = light.angle;
       const penumbra = light.penumbra;
-      const shaders = light.shaders;
+      const shadows = light.shadows;
       spotLights.push(this.createSpotLight(
-        x, y, z, color, intensity, angle, penumbra, shaders));
+        x, y, z, color, intensity, angle, penumbra, shadows));
     }
     return spotLights;
   }
@@ -108,68 +116,72 @@ class Light extends Plugin {
   /**
    * Creates a spot light. Use this for generating shadows.
    */
-  createSpotLight(x, y, z, color, intensity, angle, penumbra, shaders) {
+  createSpotLight(x, y, z, color, intensity, angle, penumbra, shadows) {
     const spotLight = new THREE.SpotLight(color);
     spotLight.position.set(x, y, z);
     spotLight.intensity = intensity;
     spotLight.angle = angle;
     spotLight.penumbra = penumbra;
-    if (Settings.get('shaders') && shaders) {
-      this.shadersEnabled = true;
-      this.createShaders(spotLight);
+    if (Settings.get('shadows') && shadows) {
+      this.shadowsEnabled = true;
+      this.createShadows(spotLight);
+    }
+    if (Settings.get('debug')) {
+      const helper = new THREE.SpotLightHelper(spotLight);
+      Engine.get().getScene().add(helper);
     }
     Engine.get().getScene().add(spotLight);
     return spotLight;
   }
 
   /**
-   * Creates the shaders for a directional light.
+   * Creates the shadows for a directional light.
    */
-  createShaders(light) {
-    const cameraRange = 120;
+  createShadows(light) {
+    const cameraRange = 40;
     light.castShadow = true;
     light.shadow.camera.bottom = -cameraRange;
     light.shadow.camera.left = -cameraRange;
     light.shadow.camera.right = cameraRange;
     light.shadow.camera.top = cameraRange;
     light.shadow.camera.near = 1;
-    light.shadow.camera.far = 500;
-    light.shadow.bias = .0001;
+    light.shadow.camera.far = 250;
     light.shadow.radius = 4;
-    light.shadow.mapSize.width = 2048;
-    light.shadow.mapSize.height = 2048;
+    const quality = 12;
+    light.shadow.mapSize.width = 2 ** quality;
+    light.shadow.mapSize.height = 2 ** quality;
   }
   
   /** @override */
   handleSettingsChange() {
-    if (!!Settings.get('shaders') == !!this.shadersEnabled) {
+    if (!!Settings.get('shadows') == !!this.shadowsEnabled) {
       return;
     }
-    if (Settings.get('shaders')) {
-      this.enableShaders();
+    if (Settings.get('shadows')) {
+      this.enableShadows();
     } else {
-      this.disableShaders();
+      this.disableShadows();
     }
   }
   
   /**
-   * Enables shaders.
+   * Enables shadows.
    */
-  enableShaders() {
-    this.shadersEnabled = true;
+  enableShadows() {
+    this.shadowsEnabled = true;
     this.directionalLights.forEach((light) => {
-      this.createShaders(light);
+      this.createShadows(light);
     });
     this.spotLights.forEach((light) => {
-      this.createShaders(light);
+      this.createShadows(light);
     });
   }
   
   /**
-   * Disables shaders.
+   * Disables shadows.
    */
-  disableShaders() {
-    this.shadersEnabled = false;
+  disableShadows() {
+    this.shadowsEnabled = false;
     this.directionalLights.forEach((light) => {
       light.castShadow = false;
     });

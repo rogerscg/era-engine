@@ -13,11 +13,11 @@
     ],
     "directional": [
       {
-        "x": 500,
-        "y": 1500,
-        "z": 500,
+        "x": 50,
+        "y": 150,
+        "z": 50,
         "color": "eeeeee",
-        "intensity": 0.5
+        "intensity": 0.7
       }
     ]
   }

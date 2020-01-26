@@ -9,16 +9,16 @@
     "ambient": [
       {
         "color": "eeeeee",
-        "intensity": 0.7
+        "intensity": 0.4
       }
     ],
     "directional": [
       {
-        "x": -500,
-        "y": 1500,
-        "z": 500,
+        "x": 50,
+        "y": 150,
+        "z": 50,
         "color": "ffffff",
-        "intensity": 1.4
+        "intensity": 0.8
       }
     ]
   }

@@ -5,6 +5,7 @@ import CannonDebugRenderer from "./cannon_debug_renderer.js";
 import Engine from '../core/engine.js';
 import Physics from "../core/physics.js";
 
+const MAX_DELTA = 1;
 const MAX_SUBSTEPS = 10;
 
 /**
@@ -28,6 +29,7 @@ class CannonPhysics extends Physics {
   /** @override */
   step(delta) {
     delta /= 1000;
+    delta = Math.min(MAX_DELTA, delta);
     this.world.step(1 / 60, delta, MAX_SUBSTEPS);
   }
 
