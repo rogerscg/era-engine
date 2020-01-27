@@ -1,7 +1,7 @@
 /**
  * @author rogerscg / https://github.com/rogerscg
  */
-import Settings from './settings.js';
+import Settings from '../core/settings.js';
 import SettingsEvent from '../events/settings_event.js';
 
 const MEASUREMENT_MIN = 10;

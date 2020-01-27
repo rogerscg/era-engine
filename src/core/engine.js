@@ -2,8 +2,9 @@
  * @author rogerscg / https://github.com/rogerscg
  */
 import EngineResetEvent from '../events/engine_reset_event.js';
-import EngineTimer from './engine_timer.js';
+import EngineTimer from '../debug/engine_timer.js';
 import Settings from './settings.js';
+import SettingsPanel from '../debug/settings_panel.js';
 import {RendererTypes, rendererPool} from './renderer_pool.js';
 
 let instance = null;
@@ -30,8 +31,11 @@ class Engine {
     this.renderer = this.createRenderer();
     // A map of cameras to the entities on which they are attached.
     this.cameras = new Map();
-    this.timer = EngineTimer;
     this.camera = null;
+
+    // Debug.
+    this.timer = EngineTimer;
+    this.settingsPanel = SettingsPanel;
 
     // If a physics plugin is installed, don't update entities.
     this.physicsInstalled = false;

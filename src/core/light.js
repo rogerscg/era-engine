@@ -26,7 +26,8 @@ class Light extends Plugin {
   constructor() {
     super();
     this.ambientLight = null;
-    this.directionalLights = [];
+    this.directionalLights = new Array();
+    this.spotLights = new Array();
   }
   
   /** @override */
@@ -86,6 +87,7 @@ class Light extends Plugin {
         Engine.get().getScene().add(helper);
       }
     }
+    this.directionalLights.push(directionalLight);
     return directionalLight;
   }
   
@@ -169,12 +171,8 @@ class Light extends Plugin {
    */
   enableShadows() {
     this.shadowsEnabled = true;
-    this.directionalLights.forEach((light) => {
-      this.createShadows(light);
-    });
-    this.spotLights.forEach((light) => {
-      this.createShadows(light);
-    });
+    this.directionalLights.forEach((light) => this.createShadows(light));
+    this.spotLights.forEach((light) => this.createShadows(light));
   }
   
   /**
@@ -182,12 +180,8 @@ class Light extends Plugin {
    */
   disableShadows() {
     this.shadowsEnabled = false;
-    this.directionalLights.forEach((light) => {
-      light.castShadow = false;
-    });
-    this.spotLights.forEach((light) => {
-      light.castShadow = false;
-    });
+    this.directionalLights.forEach((light) => light.castShadow = false);
+    this.spotLights.forEach((light) => light.castShadow = false);
   }
 
 }

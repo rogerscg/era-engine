@@ -5,21 +5,28 @@ import SettingsEvent from '../events/settings_event.js';
 
 // The default settings for the ERA engine. These can be overwriten with custom
 // settings. See /data/settings.json as an example to define your own settings.
+// TODO: Allow for an enum of options for a setting.
 const DEFAULT_SETTINGS = {
   debug: {
     value: true,
   },
   movement_deadzone: {
     value: 0.15,
+    min: 0.00,
+    max: 1.00,
   },
   mouse_sensitivity: {
     value: 50,
+    min: 0,
+    max: 200,
   },
   shadows: {
     value: true,
   },
   volume: {
     value: 50,
+    min: 0, 
+    max: 100,
   },
 };
 
@@ -71,12 +78,12 @@ class Settings extends Map {
       return;
     }
     this.loadEngineDefaults();
-    this.loaded = true;
     if (settingsPath) {
       await this.loadFromFile(settingsPath);
     }
     this.loadExistingSettings();
     this.apply();
+    this.loaded = true;
     return this;
   }
 
@@ -92,6 +99,7 @@ class Settings extends Map {
       const setting = new Setting(key, DEFAULT_SETTINGS[key]);
       super.set(setting.getName(), setting);
     }
+    new SettingsEvent().fire();
   }
 
   /**
@@ -152,8 +160,7 @@ class Settings extends Map {
    */
   apply() {
     localStorage.setItem(SETTINGS_KEY, this.export());
-    const event = new SettingsEvent();
-    event.fire();
+    new SettingsEvent().fire();
   }
 
   /**
@@ -183,15 +190,26 @@ class Setting {
   constructor(name, settingsData) {
     this.name = name;
     this.value = settingsData.value;
+    this.min = settingsData.min;
+    this.max = settingsData.max;
     this.wasModified = !!settingsData.modified;
   }
 
+  // TODO: Add getPrettyName() for cleaner settings panel.
   getName() {
     return this.name;
   }
 
   getValue() {
     return this.value;
+  }
+
+  getMin() {
+    return this.min;
+  }
+  
+  getMax() {
+    return this.max;
   }
 
   /**
