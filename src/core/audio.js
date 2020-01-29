@@ -3,14 +3,13 @@
  */
 import Plugin from './plugin.js';
 import Settings from './settings.js';
-import SettingsEvent from '../events/settings_event.js';
-import {createUUID, loadJsonFromFile, shuffleArray} from './util.js';
+import { createUUID, loadJsonFromFile, shuffleArray } from './util.js';
 
 const CROSSFADE_TIME = 500;
 
 let instance = null;
 
-/** 
+/**
  * Core implementation for all audio. Manages the loading, playback, and
  * other controls needed for in-game audio.
  */
@@ -35,12 +34,11 @@ class Audio extends Plugin {
     // The ambient sounds loaded.
     this.backgroundSounds = new Array();
     this.ambientEventSounds = new Array();
-    
+
     // A map of playing sounds in order to allow stopping mid-play.
     this.playingSounds = new Map();
 
-    this.loadSettings();
-    SettingsEvent.listen(this.loadSettings.bind(this));
+    this.handleSettingsChange();
   }
 
   /** @override */
@@ -52,6 +50,21 @@ class Audio extends Plugin {
 
   /** @override */
   update() {}
+
+  /** @override */
+  handleSettingsChange() {
+    if (Settings.get('volume') == this.masterVolume) {
+      return;
+    }
+    this.masterVolume = Settings.get('volume');
+    this.playingSounds.forEach((node) => {
+      const volRatio = this.masterVolume / this.defaultVolume;
+      const dataVolume = node.dataVolume ? node.dataVolume : 1.0;
+      const adjustVolume = node.adjustVolume ? node.adjustVolume : 1.0;
+      const volume = volRatio * dataVolume * adjustVolume;
+      node.gain.gain.value = volume;
+    });
+  }
 
   /**
    * Loads all sounds described from the provided file path. The file should
@@ -95,11 +108,11 @@ class Audio extends Plugin {
     const path = `${directory}${name}${extension}`;
     const event = await this.createSoundRequest(path);
     const buffer = await this.bufferSound(event);
-    this.sounds.set(name, buffer)
+    this.sounds.set(name, buffer);
     return;
   }
-  
-   /**
+
+  /**
    * Creates and sends an HTTP GET request with type arraybuffer for sound.
    */
   createSoundRequest(path) {
@@ -107,9 +120,13 @@ class Audio extends Plugin {
       const request = new XMLHttpRequest();
       request.open('GET', path, true);
       request.responseType = 'arraybuffer';
-      request.addEventListener('load', (event) => {
-        resolve(event);
-      }, false);
+      request.addEventListener(
+        'load',
+        (event) => {
+          resolve(event);
+        },
+        false
+      );
       request.send();
     });
   }
@@ -158,6 +175,8 @@ class Audio extends Plugin {
     node.gain.gain.value = volume;
     node.source.start(0);
     node.uuid = createUUID();
+    node.dataVolume = dataVolume;
+    node.adjustVolume = adjustVolume;
     this.playingSounds.set(node.uuid, node);
     setTimeout(() => {
       this.playingSounds.delete(node.uuid);
@@ -183,11 +202,13 @@ class Audio extends Plugin {
     node.source.loop = true;
     node.source.start(0);
     node.uuid = createUUID();
+    node.dataVolume = dataVolume;
+    node.adjustVolume = adjustVolume;
     this.playingSounds.set(node.uuid, node);
     return node;
   }
 
-  /** 
+  /**
    * Stops playing a sound.
    */
   stopSound(sourceNode) {
@@ -197,13 +218,6 @@ class Audio extends Plugin {
         this.playingSounds.delete(sourceNode.uuid);
       }
     }
-  }
-
-  /**
-   * Loads settings relevant to audio.
-   */
-  loadSettings() {
-    this.masterVolume = Settings.get('volume');
   }
 
   /**
@@ -219,7 +233,7 @@ class Audio extends Plugin {
       this.addAmbientTrack(1, this.backgroundSounds, this.ambientVolume);
     }, 2500);
     if (this.ambientEventSounds.length) {
-      this.addAmbientTrack(2, this.ambientEventSounds, .2, .2);
+      this.addAmbientTrack(2, this.ambientEventSounds, 0.2, 0.2);
     }
   }
 
@@ -265,15 +279,19 @@ class Audio extends Plugin {
     node.source.start(0);
     node.gain.gain.linearRampToValueAtTime(0, currTime);
     node.gain.gain.linearRampToValueAtTime(
-      volume, currTime + CROSSFADE_TIME / 1000);
+      volume,
+      currTime + CROSSFADE_TIME / 1000
+    );
 
     // When the audio track is drawing to a close, queue up new track, fade old.
     setTimeout(() => {
       this.addAmbientTrack(channel, sources, sourceVolume, randomness);
-      currTime = this.context.currentTime
+      currTime = this.context.currentTime;
       node.gain.gain.linearRampToValueAtTime(volume, currTime);
       node.gain.gain.linearRampToValueAtTime(
-        0, currTime + CROSSFADE_TIME / 1000);
+        0,
+        currTime + CROSSFADE_TIME / 1000
+      );
     }, Math.round(node.source.buffer.duration * 1000 - CROSSFADE_TIME));
 
     // When audio finishes playing, mark as not in use.
