@@ -8,35 +8,36 @@ import Engine from './engine.js';
 import Models from './models.js';
 import Physics from './physics.js';
 import Settings from './settings.js';
-import {Bindings} from './bindings.js';
-import {Object3DEventTarget} from '../events/event_target.js';
-import {createUUID} from './util.js';
+import SettingsEvent from '../events/settings_event.js';
+import { Bindings } from './bindings.js';
+import { Object3DEventTarget } from '../events/event_target.js';
+import { createUUID } from './util.js';
 
 const ENTITY_BINDINGS = {
   BACKWARD: {
     keys: {
       keyboard: 83,
-      controller: '+axes1',
+      controller: '+axes1'
     }
   },
   FORWARD: {
     keys: {
       keyboard: 87,
-      controller: '-axes1',
+      controller: '-axes1'
     }
   },
   LEFT: {
     keys: {
       keyboard: 65,
-      controller: '-axes0',
+      controller: '-axes0'
     }
   },
   RIGHT: {
     keys: {
       keyboard: 68,
-      controller: '+axes0',
+      controller: '+axes0'
     }
-  },
+  }
 };
 
 const CONTROLS_ID = 'Entity';
@@ -76,6 +77,8 @@ class Entity extends Object3DEventTarget {
     this.playerNumber = null;
     this.lastMouseMovement = new THREE.Vector2();
     this.mouseMovement = new THREE.Vector2();
+
+    SettingsEvent.listen(this.handleSettingsChange.bind(this));
   }
 
   /**
@@ -125,8 +128,10 @@ class Entity extends Object3DEventTarget {
     this.mesh = this.generateMesh();
     if (this.mesh) {
       this.add(this.mesh);
-      this.animationMixer =
-        Animation.get().createAnimationMixer(this.modelName, this);
+      this.animationMixer = Animation.get().createAnimationMixer(
+        this.modelName,
+        this
+      );
       this.animationClips = Animation.get().getClips(this.modelName);
       if (Settings.get('shadows')) {
         this.enableShadows();
@@ -210,7 +215,7 @@ class Entity extends Object3DEventTarget {
   /**
    * Positions the camera when attaching. This should be overriden by custom
    * entities, not the attachCamera function.
-   * @param {THREE.Camera} camera 
+   * @param {THREE.Camera} camera
    */
   positionCamera(camera) {
     camera.position.set(0, 0, 0);
@@ -264,15 +269,14 @@ class Entity extends Object3DEventTarget {
    */
   serializePhysics() {
     const body = this.physicsBody;
-    if (!body)
-      return null;
+    if (!body) return null;
     const precision = 4;
     // TODO: make this engine-agnostic.
     return [
       [body.angularVelocity.toFixed(precision)],
       body.interpolatedPosition.map((x) => x.toFixed(precision)),
       body.velocity.map((x) => x.toFixed(precision)),
-      [body.angle.toFixed(precision)],
+      [body.angle.toFixed(precision)]
     ];
   }
 
@@ -294,8 +298,10 @@ class Entity extends Object3DEventTarget {
    * Sets an action to the specified value for the entity
    */
   setAction(action, value) {
-    if (this.actions.has(action.getName()) &&
-        this.actions.get(action.getName()) === value) {
+    if (
+      this.actions.has(action.getName()) &&
+      this.actions.get(action.getName()) === value
+    ) {
       return;
     }
     if (value !== 0) {
@@ -307,7 +313,7 @@ class Entity extends Object3DEventTarget {
 
   /**
    * Check the force a registered action is pressed with.
-   * @param {string} binding 
+   * @param {string} binding
    * @returns {number}
    */
   getActionValue(actionName) {
@@ -366,13 +372,12 @@ class Entity extends Object3DEventTarget {
     this.mouseMovement.set(0, 0);
   }
 
-  /** 
+  /**
    * Updates the entity based on data sent from the server.
    */
   consumeUpdate(physics) {
-    if (!physics)
-      return;
-      // TODO: make this engine-agnostic.
+    if (!physics) return;
+    // TODO: make this engine-agnostic.
     const [angVelo, pos, velo, rot] = physics;
     this.physicsBody.angularVelocity = angVelo;
     this.physicsBody.angle = rot;
@@ -424,7 +429,7 @@ class Entity extends Object3DEventTarget {
     const action = this.animationMixer.clipAction(clip);
     action.reset();
     if (this.currentAction) {
-      action.crossFadeFrom(this.currentAction, .2, true);
+      action.crossFadeFrom(this.currentAction, 0.2, true);
     }
     action.play();
     this.currentAction = action;
@@ -458,6 +463,11 @@ class Entity extends Object3DEventTarget {
       child.receiveShadow = false;
     });
   }
+
+  /**
+   * Handles a settings change event.
+   */
+  handleSettingsChange() {}
 }
 
 export default Entity;

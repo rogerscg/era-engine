@@ -8,17 +8,19 @@ import {
   vectorToAngle
 } from '../../src/era.js';
 
-const CAPSULE_RADIUS = .25;
+const CAPSULE_RADIUS = 0.25;
 const CONTROLS_ID = 'Character';
 const HEIGHT = 1.8;
 const MASS = 1;
 // Offset used for smoother movement. Increase for larger vertical motion.
-const CAPSULE_OFFSET = .2;
-const LERP_FACTOR = .5;
+const CAPSULE_OFFSET = 0.2;
+const LERP_FACTOR = 0.5;
 
-const RAYCAST_GEO = new THREE.BoxGeometry(.2, .2, .2);
-const RAYCAST_MATERIAL = new THREE.MeshLambertMaterial({ color: 0xFF0000 });
-const RAYCAST_BLUE_MATERIAL = new THREE.MeshLambertMaterial({ color: 0x0000FF });
+const RAYCAST_GEO = new THREE.BoxGeometry(0.2, 0.2, 0.2);
+const RAYCAST_MATERIAL = new THREE.MeshLambertMaterial({ color: 0xff0000 });
+const RAYCAST_BLUE_MATERIAL = new THREE.MeshLambertMaterial({
+  color: 0x0000ff
+});
 
 /**
  * A shooter character.
@@ -52,8 +54,7 @@ class Character extends EraCharacter {
 
   /** @override */
   static GetBindings() {
-    return new Bindings(CONTROLS_ID)
-             .merge(EraCharacter.GetBindings());
+    return new Bindings(CONTROLS_ID).merge(EraCharacter.GetBindings());
   }
 
   /** @override */
@@ -63,22 +64,26 @@ class Character extends EraCharacter {
 
   /** @override */
   generatePhysicsBody() {
-    const capsule = new CANNON.Body({mass: MASS});
+    const capsule = new CANNON.Body({ mass: MASS });
     capsule.collisionFilterGroup = 2;
 
     // Create physics materials.
     capsule.material = this.physicsWorld.createPhysicalMaterial('character', {
-      friction: 0,
+      friction: 0
     });
     this.physicsWorld.createContactMaterial('character', 'ground', {
       friction: 0,
-      contactEquationStiffness: 1e8,
+      contactEquationStiffness: 1e8
     });
 
     // Create center portion of capsule.
     const height = HEIGHT - CAPSULE_RADIUS * 2 - CAPSULE_OFFSET;
-    const cylinderShape =
-      new CANNON.Cylinder(CAPSULE_RADIUS, CAPSULE_RADIUS, height, 20);
+    const cylinderShape = new CANNON.Cylinder(
+      CAPSULE_RADIUS,
+      CAPSULE_RADIUS,
+      height,
+      20
+    );
     const quat = new CANNON.Quaternion();
     quat.setFromAxisAngle(CANNON.Vec3.UNIT_X, Math.PI / 2);
     const cylinderPos = height / 2 + CAPSULE_RADIUS + CAPSULE_OFFSET;
@@ -86,11 +91,15 @@ class Character extends EraCharacter {
 
     // Create round ends of capsule.
     const sphereShape = new CANNON.Sphere(CAPSULE_RADIUS);
-    const topPos = new CANNON.Vec3(0, height + CAPSULE_RADIUS + CAPSULE_OFFSET, 0);
+    const topPos = new CANNON.Vec3(
+      0,
+      height + CAPSULE_RADIUS + CAPSULE_OFFSET,
+      0
+    );
     const bottomPos = new CANNON.Vec3(0, CAPSULE_RADIUS + CAPSULE_OFFSET, 0);
     capsule.addShape(sphereShape, topPos);
     capsule.addShape(sphereShape, bottomPos);
-    
+
     // Prevent capsule from tipping over.
     capsule.fixedRotation = true;
     capsule.updateMassProperties();
@@ -112,7 +121,7 @@ class Character extends EraCharacter {
     this.cameraArm.rotation.y = Math.PI / 2;
     camera.lookAt(this.position);
     // TODO: Fix this junk.
-    Promise.resolve().then(() => camera.position.y = 1.2);
+    Promise.resolve().then(() => (camera.position.y = 1.2));
   }
 
   /** @override */
@@ -189,12 +198,15 @@ class Character extends EraCharacter {
     this.rayEndBox.position.copy(this.ray.to);
     // Intersect against the world.
     this.ray.result.reset();
-    this.ray.intersectBodies(this.physicsWorld.getWorld().bodies, this.ray.result)
+    this.ray.intersectBodies(
+      this.physicsWorld.getWorld().bodies,
+      this.ray.result
+    );
     if (this.ray.result.hasHit) {
       const hitDistance = this.ray.result.distance;
       const diff = CAPSULE_OFFSET + HEIGHT / 2 - hitDistance;
       this.rayEndBox.position.y = this.rayStartBox.position.y - hitDistance;
-      this.rayEndBox.material.color.setHex(0xFF8800);
+      this.rayEndBox.material.color.setHex(0xff8800);
       // Lerp new position.
       const newY = this.physicsBody.position.y + diff;
       const lerpedY = lerp(this.physicsBody.position.y, newY, LERP_FACTOR);
@@ -204,7 +216,7 @@ class Character extends EraCharacter {
       this.grounded = true;
     } else {
       this.grounded = false;
-      this.rayEndBox.material.color.setHex(0xFF0000);
+      this.rayEndBox.material.color.setHex(0xff0000);
     }
   }
 
@@ -212,7 +224,7 @@ class Character extends EraCharacter {
    * Updates the camera rotation.
    */
   updateCamera() {
-    this.cameraArm.rotation.y -= .01 * this.getMouseMovement().x;
+    this.cameraArm.rotation.y -= 0.01 * this.getMouseMovement().x;
   }
 
   /**
@@ -220,7 +232,10 @@ class Character extends EraCharacter {
    */
   updateRotation() {
     this.physicsBody.quaternion.slerp(
-      this.targetQuaternion, .1, this.physicsBody.quaternion);
+      this.targetQuaternion,
+      0.1,
+      this.physicsBody.quaternion
+    );
   }
 }
 

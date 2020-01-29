@@ -1,9 +1,9 @@
 /**
  * @author rogerscg / https://github.com/rogerscg
  */
-import CannonDebugRenderer from "./cannon_debug_renderer.js";
+import CannonDebugRenderer from './cannon_debug_renderer.js';
 import Engine from '../core/engine.js';
-import Physics from "../core/physics.js";
+import Physics from '../core/physics.js';
 
 const MAX_DELTA = 1;
 const MAX_SUBSTEPS = 10;
@@ -76,24 +76,25 @@ class CannonPhysics extends Physics {
       x: rotation.x,
       y: rotation.y,
       z: rotation.z,
-      w: rotation.w,
+      w: rotation.w
     };
   }
 
   /** @override */
-  withDebugRenderer() {
+  enableDebugRenderer() {
     const scene = Engine.get().getScene();
     const world = this.getWorld();
     if (!scene || !world) {
       return console.warn('Debug renderer missing scene or world.');
     }
-    return super.withDebugRenderer(new CannonDebugRenderer(scene, world));
+    this.debugRenderer = new CannonDebugRenderer(scene, world);
+    return this.debugRenderer;
   }
 
   /** @override */
   autogeneratePhysicsBody(mesh) {
     // Root body.
-    const body = new CANNON.Body({mass: 0});
+    const body = new CANNON.Body({ mass: 0 });
     mesh.traverse((child) => {
       const physicsType = child.userData.physics;
       if (!physicsType) {
