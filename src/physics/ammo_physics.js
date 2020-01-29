@@ -27,7 +27,7 @@ class AmmoPhysics extends Physics {
     const solver = new Ammo.btSequentialImpulseConstraintSolver();
     const world =
       new Ammo.btDiscreteDynamicsWorld(dispatcher, broadphase, solver, config);
-    world.setGravity(new Ammo.btVector3(0, -10, 0));
+    world.setGravity(new Ammo.btVector3(0, -20, 0));
     return world;
   }
 

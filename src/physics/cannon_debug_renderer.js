@@ -1,3 +1,7 @@
+/**
+ * @author schteppe / https://github.com/schteppe
+ * @author rogerscg / https://github.com/rogerscg
+ */
 import DebugRenderer from './debug_renderer.js';
 
 /**
@@ -13,7 +17,10 @@ class CannonDebugRenderer extends DebugRenderer {
     super(scene, world);
     this._meshes = [];
 
-    this._material = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
+    this._material = new THREE.MeshBasicMaterial({
+      color: 0x00ff00,
+      wireframe: true
+    });
     this._sphereGeometry = new THREE.SphereGeometry(1);
     this._boxGeometry = new THREE.BoxGeometry(1, 1, 1);
     this._planeGeometry = new THREE.PlaneGeometry(10, 10, 10, 10);
@@ -40,11 +47,17 @@ class CannonDebugRenderer extends DebugRenderer {
         var mesh = meshes[meshIndex];
         if (mesh) {
           // Get world position
-          body.quaternion.vmult(body.shapeOffsets[shapeIndex], shapeWorldPosition);
+          body.quaternion.vmult(
+            body.shapeOffsets[shapeIndex],
+            shapeWorldPosition
+          );
           body.position.vadd(shapeWorldPosition, shapeWorldPosition);
 
           // Get world quaternion
-          body.quaternion.mult(body.shapeOrientations[shapeIndex], shapeWorldQuaternion);
+          body.quaternion.mult(
+            body.shapeOrientations[shapeIndex],
+            shapeWorldQuaternion
+          );
 
           // Copy to meshes
           mesh.position.copy(shapeWorldPosition);
@@ -62,6 +75,15 @@ class CannonDebugRenderer extends DebugRenderer {
     }
 
     meshes.length = meshIndex;
+  }
+
+  /** @override */
+  destroy() {
+    this._meshes.forEach((mesh) => {
+      if (mesh.parent) {
+        mesh.parent.remove(mesh);
+      }
+    });
   }
 
   _updateMesh(index, body, shape) {
@@ -84,7 +106,8 @@ class CannonDebugRenderer extends DebugRenderer {
       (geo instanceof THREE.SphereGeometry && shape instanceof CANNON.Sphere) ||
       (geo instanceof THREE.BoxGeometry && shape instanceof CANNON.Box) ||
       (geo instanceof THREE.PlaneGeometry && shape instanceof CANNON.Plane) ||
-      (geo.id === shape.geometryId && shape instanceof CANNON.ConvexPolyhedron) ||
+      (geo.id === shape.geometryId &&
+        shape instanceof CANNON.ConvexPolyhedron) ||
       (geo.id === shape.geometryId && shape instanceof CANNON.Trimesh) ||
       (geo.id === shape.geometryId && shape instanceof CANNON.Heightfield)
     );
@@ -95,7 +118,6 @@ class CannonDebugRenderer extends DebugRenderer {
     var material = this._material;
 
     switch (shape.type) {
-
       case CANNON.Shape.types.SPHERE:
         mesh = new THREE.Mesh(this._sphereGeometry, material);
         break;
@@ -199,7 +221,6 @@ class CannonDebugRenderer extends DebugRenderer {
 
   _scaleMesh(mesh, shape) {
     switch (shape.type) {
-
       case CANNON.Shape.types.SPHERE:
         var radius = shape.radius;
         mesh.scale.set(radius, radius, radius);

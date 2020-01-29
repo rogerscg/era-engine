@@ -6,10 +6,6 @@ import EngineResetEvent from '../events/engine_reset_event.js';
 
 const Types = {
   GAME: 'game',
-  MINIMAP: 'minimap',
-  BACKGROUND: 'background',
-  STAGE: 'stage',
-  TILE: 'tile',
 };
 
 /**
@@ -22,9 +18,6 @@ class RendererPool {
   }
   
   get(name) {
-    if (name == Types.TILE) {
-      return this.getOrCreateTileRenderer();
-    }
     if (!this.map.has(name)) {
       return this.createRenderer(name);
     }
@@ -40,11 +33,8 @@ class RendererPool {
       case Types.GAME:
         renderer = this.createGameRenderer();
         break;
-      case Types.STAGE:
-      case Types.MINIMAP:
-      case Types.BACKGROUND:
-        renderer = this.createGenericRenderer();
-        break;
+      default:
+        renderer = this.createGameRenderer();
     }
     this.map.set(name, renderer);
     return renderer;
@@ -65,6 +55,7 @@ class RendererPool {
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(width, height);
+    renderer.outputEncoding = THREE.sRGBEncoding;
     return renderer;
   }
   
@@ -81,38 +72,9 @@ class RendererPool {
   }
   
   /**
-   * Retrives a tile renderer from the pool if it exists. If not, creates a new
-   * one.
-   */
-  getOrCreateTileRenderer() {
-    if (!this.map.has(Types.TILE)) {
-      this.map.set(Types.TILE, new Set());
-    }
-    const pool = this.map.get(Types.TILE);
-    let found = null;
-    pool.forEach((renderer) => {
-      if (!renderer.inUse && !found) {
-        found = renderer;
-      }
-    });
-    if (!found) {
-      found = this.createGenericRenderer();
-      pool.add(found);
-    }
-    found.inUse = true;
-    return found;
-  }
-  
-  /**
    * Handles an engine reset by marking all renderers as not in use.
    */
-  handleEngineReset() {
-    const tilePool = this.map.get(Types.TILE);
-    if (!tilePool) {
-      return;
-    }
-    tilePool.forEach((renderer) => renderer.inUse = false);
-  }
+  handleEngineReset() {}
 }
 
 const rendererPool = new RendererPool();

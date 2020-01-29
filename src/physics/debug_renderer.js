@@ -16,6 +16,13 @@ class DebugRenderer {
    * Updates the debug renderer.
    */
   update() {}
+
+  /**
+   * Destroys the debug renderer by removing all bodies from the scene.
+   */
+  destroy() {
+    console.warn('Destroy not implemented for debug renderer');
+  }
 }
 
 export default DebugRenderer;

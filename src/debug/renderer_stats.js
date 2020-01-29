@@ -4,8 +4,8 @@
  * @author rogerscg / https://github.com/rogerscg
  */
 import EngineTimer from './engine_timer.js';
-import Plugin from './plugin.js';
-import Settings from './settings.js';
+import Plugin from '../core/plugin.js';
+import Settings from '../core/settings.js';
 
 const STATS_CONTAINER_CSS = `
   bottom: 0;

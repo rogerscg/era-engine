@@ -11,13 +11,9 @@ import {
   Engine,
   Environment,
   RendererStats,
-  Settings
 } from '../../src/era.js';
 
 async function start() {
-  // Load settings.
-  await Settings.load();
-
   // Create engine and load models.
   const engine = Engine.get().setCamera(Camera.get().buildIsometricCamera());
   engine.start();

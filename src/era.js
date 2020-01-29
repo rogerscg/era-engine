@@ -22,10 +22,13 @@ export {default as Network} from './core/network.js';
 export {default as NetworkRegistry} from './core/network_registry.js';
 export {default as Physics} from './core/physics.js';
 export {default as Plugin} from './core/plugin.js';
-export {default as RendererStats} from './core/renderer_stats.js';
 export {default as Settings} from './core/settings.js';
 export {default as Skybox} from './core/skybox.js';
 export * from './core/util.js';
+
+// Debug
+export {default as RendererStats} from './debug/renderer_stats.js';
+export {default as SettingsPanel} from './debug/settings_panel.js';
 
 // Events
 export { default as Events } from './events/events.js';

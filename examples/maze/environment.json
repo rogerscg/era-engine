@@ -4,16 +4,23 @@
     "ambient": [
       {
         "color": "eeeeee",
-        "intensity": 0.6
+        "intensity": 0.3
       }
     ],
     "directional": [
       {
-        "x": -500,
-        "y": 1500,
-        "z": 500,
+        "x": -50,
+        "y": 150,
+        "z": 50,
         "color": "eeeeee",
-        "intensity": 0.8
+        "intensity": 0.8,
+        "shadow": {
+          "frustum": 40,
+          "mapSize": 2048,
+          "near": 1,
+          "far": 250,
+          "radius": 4
+        }
       }
     ]
   }

@@ -3,6 +3,7 @@
  */
 import Engine from './engine.js';
 import Plugin from './plugin.js';
+import Settings from './settings.js';
 
 let instance = null;
 /**
@@ -26,6 +27,7 @@ class Physics extends Plugin {
     this.world = this.createWorld();
     this.lastTime = performance.now();
     Engine.get().setUsingPhysics(true);
+    this.handleSettingsChange();
   }
 
   /** @override */
@@ -37,7 +39,7 @@ class Physics extends Plugin {
   /** @override */
   update() {
     const currTime = performance.now();
-    let delta = (currTime - this.lastTime);
+    let delta = currTime - this.lastTime;
     this.lastTime = currTime;
     if (delta <= 0) {
       return;
@@ -47,6 +49,16 @@ class Physics extends Plugin {
     if (this.debugRenderer) {
       this.debugRenderer.update();
     }
+  }
+
+  /** @override */
+  handleSettingsChange() {
+    if (Settings.get('debug') && this.debugRenderer) {
+      return;
+    }
+    Settings.get('debug')
+      ? this.enableDebugRenderer()
+      : this.disableDebugRenderer();
   }
 
   getWorld() {
@@ -151,12 +163,20 @@ class Physics extends Plugin {
   /**
    * Sets a debug renderer on the physics instance. This should be overriden by
    * each engine-specific implementation for ease of use.
-   * @param {DebugRenderer} debugRenderer
-   * @returns {Physics}
    */
-  withDebugRenderer(debugRenderer) {
-    this.debugRenderer = debugRenderer;
-    return this;
+  enableDebugRenderer() {
+    console.warn('Debug renderer not implemented');
+  }
+
+  /**
+   * Disables the debug renderer on the physics instance.
+   */
+  disableDebugRenderer() {
+    if (!this.debugRenderer) {
+      return;
+    }
+    this.debugRenderer.destroy();
+    this.debugRenderer = null;
   }
 
   /**
@@ -173,7 +193,7 @@ class Physics extends Plugin {
    * @param {Entity} entity
    */
   registerContactHandler(entity) {
-    console.warn('Contact handler not supported by physics impl');
+    console.warn('Contact handler not supported');
   }
 }
 
