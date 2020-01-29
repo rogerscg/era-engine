@@ -1,7 +1,7 @@
 import Engine from './engine.js';
 import Light from './light.js';
 import Skybox from './skybox.js';
-import {loadJsonFromFile} from './util.js';
+import { loadJsonFromFile } from './util.js';
 
 /**
  * Provides a way of dynamically creating light, skyboxes, ambient sounds, etc
@@ -39,27 +39,14 @@ class Environment extends THREE.Object3D {
       return;
     }
     if (lightsData.ambient) {
-      lightsData.ambient.forEach((data) => {
-        const color = data.color !== undefined ?
-                      parseInt(data.color, 16) :
-                      0xffffff;
-        this.add(Light.get().createAmbientLight({
-          color: color,
-          intensity: data.intensity ? data.intensity : 1.0,
-        }));
-      })
+      lightsData.ambient.forEach((data) =>
+        this.add(Light.get().createAmbientLight(data))
+      );
     }
     if (lightsData.directional) {
-      lightsData.directional.forEach((data) => {
-        const color = data.color === undefined ?
-                      parseInt(data.color, 16) :
-                      0xffffff;
-        const x = data.x ? data.x : 0;
-        const y = data.y ? data.y : 0;
-        const z = data.z ? data.z : 0;
-        const intensity = data.intensity ? data.intensity : 1.0;
-        this.add(Light.get().createDirectionalLight(x, y, z, color, intensity));
-      });
+      lightsData.directional.forEach((data) =>
+        this.add(Light.get().createDirectionalLight(data))
+      );
     }
   }
 
