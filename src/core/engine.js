@@ -5,7 +5,7 @@ import EngineResetEvent from '../events/engine_reset_event.js';
 import EngineTimer from '../debug/engine_timer.js';
 import Settings from './settings.js';
 import SettingsPanel from '../debug/settings_panel.js';
-import {RendererTypes, rendererPool} from './renderer_pool.js';
+import { RendererTypes, rendererPool } from './renderer_pool.js';
 
 let instance = null;
 /**
@@ -29,8 +29,6 @@ class Engine {
     this.entities = new Set();
     this.scene = new THREE.Scene();
     this.renderer = this.createRenderer();
-    // A map of cameras to the entities on which they are attached.
-    this.cameras = new Map();
     this.camera = null;
 
     // Debug.
@@ -51,10 +49,6 @@ class Engine {
     return this.scene;
   }
 
-  getCamera() {
-    return this.camera;
-  }
-
   getRenderer() {
     return this.renderer;
   }
@@ -65,11 +59,7 @@ class Engine {
    * @returns {Engine}
    */
   setCamera(camera) {
-    if (this.camera) {
-      this.camera.userData.active = false;
-    }
     this.camera = camera;
-    camera.userData.active = true;
     return this;
   }
 
@@ -133,7 +123,9 @@ class Engine {
    */
   render(timeStamp) {
     this.timer.start();
-    this.renderer.render(this.scene, this.camera);
+    if (this.scene && this.camera) {
+      this.renderer.render(this.scene, this.camera);
+    }
     TWEEN.update(timeStamp);
     // Update all plugins.
     this.plugins.forEach((plugin) => plugin.update(timeStamp));
@@ -169,14 +161,14 @@ class Engine {
   }
 
   /**
-   * Adjusts the game container and camera for the new window size.
+   * Adjusts the renderer for the new window size.
    */
   onWindowResize() {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
   }
-  
+
   /**
-   * Installs a plugin to receive updates on each engine loop as well as 
+   * Installs a plugin to receive updates on each engine loop as well as
    * resets.
    * @param {Plugin} plugin
    */
@@ -186,7 +178,7 @@ class Engine {
 
   /**
    * Registers an entity for engine updates.
-   * @param {Entity} entity 
+   * @param {Entity} entity
    */
   registerEntity(entity) {
     this.entities.add(entity);
@@ -194,28 +186,10 @@ class Engine {
 
   /**
    * Unregisters an entity for engine updates.
-   * @param {Entity} entity 
+   * @param {Entity} entity
    */
   unregisterEntity(entity) {
     this.entities.delete(entity);
-  }
-
-  /**
-   * Attaches the main camera to the given entity.
-   * TODO: Move this to the camera lib.
-   * @param {Entity} entity
-   */
-  attachCamera(entity) {
-    if (!entity) {
-      return console.warn('No entity provided to attachCamera');
-    }
-    const camera = this.getCamera();
-    const prevEntity = this.cameras.get(camera);
-    if (prevEntity) {
-      prevEntity.detachCamera(camera);
-    }
-    entity.attachCamera(camera);
-    this.cameras.set(camera, entity);
   }
 
   /**

@@ -20,7 +20,8 @@ import {
 
 async function start() {
   // Create engine and load models.
-  const engine = Engine.get().setCamera(Camera.get().buildPerspectiveCamera());
+  const engine = Engine.get();
+  Camera.get().setActiveCamera(Camera.get().buildPerspectiveCamera());
 
   // Load models.
   await Models.get().loadAllFromFile('models.json');
@@ -32,11 +33,10 @@ async function start() {
   new RendererStats(engine.getRenderer());
 
   // Create physics.
-  const physics = new CannonPhysics()//.withDebugRenderer();
+  const physics = new CannonPhysics(); //.withDebugRenderer();
 
   // Create environment.
-  const environment =
-    await new Environment().loadFromFile('environment.json');
+  const environment = await new Environment().loadFromFile('environment.json');
   scene.add(environment);
 
   // Create arena.
@@ -45,12 +45,12 @@ async function start() {
   physics.registerEntity(stage);
 
   // Create stairs.
-  const stairs = new Stairs(.2, .4, 10, 2).withPhysics(physics).build();
+  const stairs = new Stairs(0.2, 0.4, 10, 2).withPhysics(physics).build();
   stairs.physicsBody.position.set(-5, 0, 6);
   scene.add(stairs);
   physics.registerEntity(stairs);
 
-  const stairs2 = new Stairs(.5, .8, 5, 2).withPhysics(physics).build();
+  const stairs2 = new Stairs(0.5, 0.8, 5, 2).withPhysics(physics).build();
   stairs2.physicsBody.position.set(-5, 0, 4);
   scene.add(stairs2);
   physics.registerEntity(stairs2);
@@ -69,7 +69,7 @@ async function start() {
 
   // Create some basic terrain.
   const terrain = new Terrain().withPhysics(physics).build();
-  terrain.physicsBody.position.set(7.5, -.125, 5);
+  terrain.physicsBody.position.set(7.5, -0.125, 5);
   scene.add(terrain);
   physics.registerEntity(terrain);
 
@@ -77,7 +77,7 @@ async function start() {
   const character = new Character().withPhysics(physics).build();
   scene.add(character);
   physics.registerEntity(character);
-  engine.attachCamera(character);
+  Camera.get().attachCamera(character);
   Controls.get().registerEntity(character);
   Controls.get().usePointerLockControls();
 }

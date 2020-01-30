@@ -10,12 +10,13 @@ import {
   Controls,
   Engine,
   Environment,
-  RendererStats,
+  RendererStats
 } from '../../src/era.js';
 
 async function start() {
   // Create engine and load models.
-  const engine = Engine.get().setCamera(Camera.get().buildIsometricCamera());
+  const engine = Engine.get();
+  Camera.get().setActiveCamera(Camera.get().buildIsometricCamera());
   engine.start();
   const scene = engine.getScene();
 
@@ -26,8 +27,7 @@ async function start() {
   const physics = new AmmoPhysics();
 
   // Create environment.
-  const environment =
-    await new Environment().loadFromFile('environment.json');
+  const environment = await new Environment().loadFromFile('environment.json');
   scene.add(environment);
 
   // Create stage.
@@ -37,13 +37,16 @@ async function start() {
 
   // Create characters.
   for (let i = 0; i < 4; i++) {
-    const ball = new Ball().withPhysics().setPlayerNumber(i).build();
+    const ball = new Ball()
+      .withPhysics()
+      .setPlayerNumber(i)
+      .build();
     scene.add(ball);
-    physics.registerEntity(ball); 
+    physics.registerEntity(ball);
     Controls.get().registerEntity(ball);
   }
 
-  engine.attachCamera(stage);
+  Camera.get().attachCamera(stage);
 }
 
 document.addEventListener('DOMContentLoaded', start);

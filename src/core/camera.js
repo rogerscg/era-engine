@@ -1,4 +1,7 @@
+import Engine from './engine.js';
+
 let instance = null;
+
 /**
  * Manages camera contruction.
  */
@@ -12,6 +15,8 @@ class Camera {
 
   constructor() {
     this.cameras = new Map();
+    this.entityCameras = new Map();
+    this.activeCamera = null;
     window.addEventListener('resize', this.onWindowResize.bind(this), false);
   }
 
@@ -27,8 +32,19 @@ class Camera {
    * @returns {THREE.Camera}
    */
   getActiveCamera() {
-    const cameras = [...this.cameras.values()];
-    return cameras.filter((camera) => camera.userData.active)[0];
+    return this.activeCamera;
+  }
+
+  /**
+   * Sets the active camera in the engine.
+   * @param {THREE.Camera} camera
+   */
+  setActiveCamera(camera) {
+    if (!camera) {
+      return;
+    }
+    this.activeCamera = camera;
+    Engine.get().setCamera(camera);
   }
 
   /**
@@ -62,7 +78,13 @@ class Camera {
     const near = 1;
     const far = 1000;
     const camera = new THREE.OrthographicCamera(
-                    width / -2, width / 2, height / 2, height / -2, near, far);
+      width / -2,
+      width / 2,
+      height / 2,
+      height / -2,
+      near,
+      far
+    );
     camera.zoom = 16;
     camera.updateProjectionMatrix();
     camera.userData.resize = () => {
@@ -74,6 +96,23 @@ class Camera {
     };
     this.cameras.set(camera.uuid, camera);
     return camera;
+  }
+
+  /**
+   * Attaches the main camera to the given entity.
+   * @param {Entity} entity
+   */
+  attachCamera(entity) {
+    if (!entity) {
+      return console.warn('No entity provided to attachCamera');
+    }
+    const camera = this.getActiveCamera();
+    const prevEntity = this.entityCameras.get(camera);
+    if (prevEntity) {
+      prevEntity.detachCamera(camera);
+    }
+    entity.attachCamera(camera);
+    this.entityCameras.set(camera, entity);
   }
 }
 

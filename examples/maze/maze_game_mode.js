@@ -11,11 +11,7 @@ import {
   Models
 } from '../../src/era.js';
 
-const LEVELS = [
-  'level_1',
-  'level_2',
-  'level_3',
-];
+const LEVELS = ['level_1', 'level_2', 'level_3'];
 
 /**
  * Game mode for solving mazes.
@@ -37,18 +33,19 @@ class MazeGameMode extends GameMode {
     await Models.get().loadAllFromFile('models.json');
 
     // Load audio.
-    await Audio.get().loadSound('', 'ding', {extension: 'mp3'});
-    
+    await Audio.get().loadSound('', 'ding', { extension: 'mp3' });
+
     // Build camera and scene.
-    Engine.get().setCamera(Camera.get().buildPerspectiveCamera());
+    Camera.get().setActiveCamera(Camera.get().buildPerspectiveCamera());
     this.scene = Engine.get().getScene();
 
     // Create physics.
     this.physics = new CannonPhysics();
-    
+
     // Create environment.
-    const environment =
-      await new Environment().loadFromFile('environment.json');
+    const environment = await new Environment().loadFromFile(
+      'environment.json'
+    );
     this.scene.add(environment);
 
     // Create character.
@@ -86,7 +83,7 @@ class MazeGameMode extends GameMode {
     level.build();
     this.scene.add(level);
     this.physics.registerEntity(level);
-    Engine.get().attachCamera(level);
+    Camera.get().attachCamera(level);
   }
 
   /**

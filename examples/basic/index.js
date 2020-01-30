@@ -11,7 +11,7 @@ import {
   Environment,
   Models,
   RendererStats,
-  Settings,
+  Settings
 } from '../../src/era.js';
 
 async function start() {
@@ -25,7 +25,8 @@ async function start() {
   await Audio.get().loadAllFromFile('sounds/sounds.json');
 
   // Create engine and load models.
-  const engine = Engine.get().setCamera(Camera.get().buildPerspectiveCamera());
+  const engine = Engine.get();
+  Camera.get().setActiveCamera(Camera.get().buildPerspectiveCamera());
   engine.start();
   const scene = engine.getScene();
 
@@ -33,8 +34,9 @@ async function start() {
   new RendererStats(engine.getRenderer());
 
   // Create environment.
-  const environment = 
-    await new Environment().loadFromFile('environments/space.json');
+  const environment = await new Environment().loadFromFile(
+    'environments/space.json'
+  );
   scene.add(environment);
 
   // Create X-Wing.
@@ -42,7 +44,7 @@ async function start() {
   scene.add(xwing);
 
   // Attach camera to XWing.
-  engine.attachCamera(xwing);
+  Camera.get().attachCamera(xwing);
   Controls.get().registerEntity(xwing);
   Controls.get().useOrbitControls();
 }

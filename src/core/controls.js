@@ -3,11 +3,12 @@
  * @author erveon / https://github.com/erveon
  */
 
+import Camera from './camera.js';
 import Engine from './engine.js';
 import Plugin from './plugin.js';
 import Settings from './settings.js';
 import SettingsEvent from '../events/settings_event.js';
-import {Action, Bindings} from './bindings.js';
+import { Action, Bindings } from './bindings.js';
 
 const CONTROLS_KEY = 'era_bindings';
 
@@ -43,22 +44,28 @@ class Controls extends Plugin {
     // Map of controls IDs to entity classes.
     this.controlIds = new Map();
 
-    document.addEventListener('keydown', e => this.setActions(e.keyCode, 1));
-    document.addEventListener('keyup', e => this.setActions(e.keyCode, 0));
-    document.addEventListener('mousedown', e => this.setActions(e.button, 1));
-    document.addEventListener('mouseup', e => this.setActions(e.button, 0));
+    document.addEventListener('keydown', (e) => this.setActions(e.keyCode, 1));
+    document.addEventListener('keyup', (e) => this.setActions(e.keyCode, 0));
+    document.addEventListener('mousedown', (e) => this.setActions(e.button, 1));
+    document.addEventListener('mouseup', (e) => this.setActions(e.button, 0));
 
     document.addEventListener('mousemove', this.onMouseMove.bind(this));
     document.addEventListener('click', this.onMouseClick.bind(this));
 
-    window.addEventListener("gamepadconnected", this.startPollingController.bind(this));
-    window.addEventListener("gamepaddisconnected", this.stopPollingController.bind(this));
+    window.addEventListener(
+      'gamepadconnected',
+      this.startPollingController.bind(this)
+    );
+    window.addEventListener(
+      'gamepaddisconnected',
+      this.stopPollingController.bind(this)
+    );
 
     this.loadSettings();
     this.registerCustomBindings();
 
     this.pointerLockEnabled = false;
-    
+
     SettingsEvent.listen(this.loadSettings.bind(this));
   }
 
@@ -89,7 +96,7 @@ class Controls extends Plugin {
       console.error(e);
       return new Map();
     }
-    const bindingsMap = new Map()
+    const bindingsMap = new Map();
     // Iterate over all controls IDs.
     for (let controlsId of Object.keys(customObj)) {
       // Create bindings from the given object.
@@ -108,7 +115,7 @@ class Controls extends Plugin {
       return;
     }
     customBindings.forEach((bindings) => {
-      this.registerCustomBindingsForId(bindings)
+      this.registerCustomBindingsForId(bindings);
     });
   }
 
@@ -146,7 +153,7 @@ class Controls extends Plugin {
   /**
    * Clears all custom bindings. Use this with caution, as there is not way to
    * restore them.
-   * @param 
+   * @param
    */
   clearAllCustomBindings() {
     // Export an empty map.
@@ -231,7 +238,7 @@ class Controls extends Plugin {
 
   /**
    * Get all valid keys for the binding
-   * @param {Object} binding 
+   * @param {Object} binding
    */
   getKeys(bindingName) {
     return Object.values(this.bindings[bindingName].keys);
@@ -239,7 +246,7 @@ class Controls extends Plugin {
 
   /**
    * Get the key specifically for device
-   * @param {Object} binding 
+   * @param {Object} binding
    */
   getBinding(bindingName, device) {
     return this.bindings[bindingName].keys[device];
@@ -269,7 +276,7 @@ class Controls extends Plugin {
    * When a controller is detected, poll it
    */
   startPollingController() {
-    if(!this.hasController) {
+    if (!this.hasController) {
       this.hasController = true;
       this.controllerTick();
     }
@@ -307,14 +314,14 @@ class Controls extends Plugin {
   }
 
   /**
-   * Name of the controller. 
+   * Name of the controller.
    * Usually contains an identifying part such as 'Xbox'
    */
   getControllerName() {
-    if(this.hasController) {
-      return navigator.getGamepads()[0].id
+    if (this.hasController) {
+      return navigator.getGamepads()[0].id;
     }
-    return "";
+    return '';
   }
 
   /**
@@ -347,7 +354,8 @@ class Controls extends Plugin {
 
       for (let key of Object.keys(input)) {
         // Only send 0 if the one before that wasn't 0
-        const previousHadValue = this.previousInput[key] && this.previousInput[key] !== 0
+        const previousHadValue =
+          this.previousInput[key] && this.previousInput[key] !== 0;
         if (input[key] === 0 && !previousHadValue) {
           delete input[key];
         }
@@ -386,7 +394,7 @@ class Controls extends Plugin {
 
   /**
    * Set the actions values controlled by the specified key.
-   * @param {String | Number} key 
+   * @param {String | Number} key
    * @param {Number} value
    * @param {String=} inputDevice defaults to keyboard
    * @param {Number=} gamepadNumber used to ensure the gamepad is associated
@@ -398,10 +406,12 @@ class Controls extends Plugin {
     }
     const isController = inputDevice === 'controller';
     // Check if we should also set the direction-specific axes actions.
-    if (isController &&
-        key.indexOf('axes') >= 0 &&
-        !key.startsWith('+') &&
-        !key.startsWith('-')) {
+    if (
+      isController &&
+      key.indexOf('axes') >= 0 &&
+      !key.startsWith('+') &&
+      !key.startsWith('-')
+    ) {
       const absValue = Math.abs(value);
       if (value > 0) {
         this.setActions('+' + key, absValue, inputDevice, gamepadNumber);
@@ -418,9 +428,11 @@ class Controls extends Plugin {
     this.registeredEntities.forEach((entity) => {
       let playerNumber = entity.getPlayerNumber();
       // Check gamepad association.
-      if (isController &&
-          entity.getPlayerNumber() != null &&
-          gamepadNumber != entity.getPlayerNumber()) {
+      if (
+        isController &&
+        entity.getPlayerNumber() != null &&
+        gamepadNumber != entity.getPlayerNumber()
+      ) {
         return;
       }
       if (isController) {
@@ -489,7 +501,9 @@ class Controls extends Plugin {
    */
   useOrbitControls() {
     new THREE.OrbitControls(
-      Engine.get().getCamera(), Engine.get().getRenderer().domElement);
+      Camera.get().getActiveCamera(),
+      Engine.get().getRenderer().domElement
+    );
   }
 
   /**
@@ -521,7 +535,7 @@ class Controls extends Plugin {
 
   /**
    * Registers bindings for a provided ID. This should only be used internally.
-   * @param {string} controlsId 
+   * @param {string} controlsId
    * @param {Bindings} bindings
    */
   registerCustomBindingsForId(bindings) {
