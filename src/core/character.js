@@ -1,36 +1,78 @@
-import Entity from "./entity.js";
-import {Bindings} from "./bindings.js";
+import Camera from './camera.js';
+import Controls from './controls.js';
+import Engine from './engine.js';
+import Entity from './entity.js';
+import Settings from './settings.js';
+import { Bindings } from './bindings.js';
+import { lerp, vectorToAngle } from './util.js';
 
 const CHARACTER_BINDINGS = {
   SPRINT: {
     keys: {
       keyboard: 16,
-      controller: '-axes3',
+      controller: '-axes3'
     }
   },
   JUMP: {
     keys: {
       keyboard: 32,
-      controller: 'button0',
+      controller: 'button0'
     }
-  },
+  }
 };
 
+const RAYCAST_GEO = new THREE.BoxGeometry(0.2, 0.2, 0.2);
+const RAYCAST_MATERIAL = new THREE.MeshLambertMaterial({ color: 0xff0000 });
+const RAYCAST_BLUE_MATERIAL = new THREE.MeshLambertMaterial({
+  color: 0x0000ff
+});
+
 const CONTROLS_ID = 'Character';
-const FALL_THRESHOLD = 700;
-const JUMP_MIN = 500;
-const LAND_MIX_THRESHOLD = 150;
-const LAND_SPEED_THRESHOLD = 5;
-const LAND_TIME_THRESHOLD = 1500;
+
+// Default character properties.
+const DEFAULT_CAPSULE_OFFSET = 0.2;
+const DEFAULT_CAPSULE_RADIUS = 0.25;
+const DEFAULT_HEIGHT = 1.8;
+const DEFAULT_LERP_FACTOR = 0.5;
+const DEFAULT_MASS = 1;
+const DEFAULT_FALL_THRESHOLD = 700;
+const DEFAULT_JUMP_MIN = 500;
+const DEFAULT_LAND_MIX_THRESHOLD = 150;
+const DEFAULT_LAND_SPEED_THRESHOLD = 5;
+const DEFAULT_LAND_TIME_THRESHOLD = 1500;
 
 /**
  * A special entity used for controlling an organic character, such as a human.
  * This is different from a standard entity in its physics and animation
- * behavior.
+ * behavior. Note: This is designed exclusively for Cannon.js.
  */
 class Character extends Entity {
   constructor() {
     super();
+    // Make all defaults overrideable by subclasses.
+    // Height of the character.
+    this.height = DEFAULT_HEIGHT;
+    // Offset used for smoother movement. Increase for larger vertical motion.
+    this.capsuleOffset = DEFAULT_CAPSULE_OFFSET;
+    // Radius of the character's physics capsule.
+    this.capsuleRadius = DEFAULT_CAPSULE_RADIUS;
+    // Amount of time in ms that the fall animation requires to trigger.
+    this.fallThreshold = DEFAULT_FALL_THRESHOLD;
+    // The interpolation factor for character raycasting adjustments.
+    this.lerpFactor = DEFAULT_LERP_FACTOR;
+    // The mass of the character.
+    this.mass = DEFAULT_MASS;
+    // Amount of time in ms required to cancel a jump animation.
+    this.jumpMin = DEFAULT_JUMP_MIN;
+    // Time in ms before the end of the landing animation that the next
+    // animation can start.
+    this.landMixThreshold = DEFAULT_LAND_MIX_THRESHOLD;
+    // The speed at which a landing animation will be cancelled.
+    this.landSpeedThreshold = DEFAULT_LAND_SPEED_THRESHOLD;
+    // The amount of time falling in ms that a character needs to endure before
+    // triggering a landing action.
+    this.landTimeThreshold = DEFAULT_LAND_TIME_THRESHOLD;
+
     // TODO: Bundle animation names with states.
     this.idleAnimationName = null;
     this.walkingAnimationName = null;
@@ -50,13 +92,87 @@ class Character extends Entity {
     this.previouslyGrounded = true;
     this.unfreezeTimeout = null;
     this.landingDummy = new THREE.Vector2();
+
+    // Raycasting properties.
+    this.startVec = new CANNON.Vec3();
+    this.endVec = new CANNON.Vec3();
+    this.ray = new CANNON.Ray(this.startVec, this.endVec);
+    this.ray.skipBackfaces = true;
+    this.ray.mode = CANNON.Ray.CLOSEST;
+    this.ray.collisionFilterMask = ~2;
+    this.rayStartBox = new THREE.Mesh(RAYCAST_GEO, RAYCAST_BLUE_MATERIAL);
+    this.rayEndBox = new THREE.Mesh(RAYCAST_GEO, RAYCAST_MATERIAL);
+
+    // Input properties.
+    this.inputVector = new THREE.Vector3();
+    this.targetQuaternion = new CANNON.Quaternion();
+    this.cameraQuaternion = new THREE.Quaternion();
+    this.cameraEuler = new THREE.Euler();
+    this.cameraEuler.order = 'YXZ';
+    this.cameraDirection = new THREE.Vector3();
   }
 
   /** @override */
   static GetBindings() {
     return new Bindings(CONTROLS_ID)
-            .load(CHARACTER_BINDINGS)
-            .merge(Entity.GetBindings());
+      .load(CHARACTER_BINDINGS)
+      .merge(Entity.GetBindings());
+  }
+
+  /** @override */
+  getControlsId() {
+    return CONTROLS_ID;
+  }
+
+  /** @override */
+  generatePhysicsBody() {
+    const capsule = new CANNON.Body({ mass: this.mass });
+    // TODO: Remove this collison filter group and make it more explicit to the
+    // user.
+    capsule.collisionFilterGroup = 2;
+    capsule.material = this.physicsWorld.createPhysicalMaterial('character', {
+      friction: 0
+    });
+    this.physicsWorld.createContactMaterial('character', 'ground', {
+      friction: 0,
+      contactEquationStiffness: 1e8
+    });
+
+    // Create center portion of capsule.
+    const height = this.height - this.capsuleRadius * 2 - this.capsuleOffset;
+    const cylinderShape = new CANNON.Cylinder(
+      this.capsuleRadius,
+      this.capsuleRadius,
+      height,
+      20
+    );
+    const quat = new CANNON.Quaternion();
+    quat.setFromAxisAngle(CANNON.Vec3.UNIT_X, Math.PI / 2);
+    const cylinderPos = height / 2 + this.capsuleRadius + this.capsuleOffset;
+    capsule.addShape(cylinderShape, new CANNON.Vec3(0, cylinderPos, 0), quat);
+
+    // Create round ends of capsule.
+    const sphereShape = new CANNON.Sphere(this.capsuleRadius);
+    const topPos = new CANNON.Vec3(
+      0,
+      height + this.capsuleRadius + this.capsuleOffset,
+      0
+    );
+    const bottomPos = new CANNON.Vec3(
+      0,
+      this.capsuleRadius + this.capsuleOffset,
+      0
+    );
+    capsule.addShape(sphereShape, topPos);
+    capsule.addShape(sphereShape, bottomPos);
+
+    // Prevent capsule from tipping over.
+    capsule.fixedRotation = true;
+    capsule.updateMassProperties();
+
+    // Raycast debug.
+    this.toggleRaycastDebug();
+    return capsule;
   }
 
   /** @override */
@@ -67,8 +183,70 @@ class Character extends Entity {
   }
 
   /** @override */
+  positionCamera(camera) {
+    this.cameraArm.add(camera);
+    camera.position.x = 5;
+    this.cameraArm.rotation.z = Math.PI / 6;
+    this.cameraArm.rotation.y = Math.PI / 2;
+    camera.lookAt(this.position);
+    // TODO: Fix this junk.
+    Promise.resolve().then(() => (camera.position.y = 1.2));
+  }
+
+  /** @override */
   update() {
     super.update();
+    this.updateRaycast();
+    this.updateAnimations();
+    this.updatePhysics();
+  }
+
+  /** @override */
+  handleSettingsChange() {
+    this.toggleRaycastDebug();
+  }
+
+  /**
+   * Raycast to the ground.
+   */
+  updateRaycast() {
+    if (!this.physicsWorld) {
+      return;
+    }
+    // Set up ray targets. Make the origin vector around mid-level.
+    this.ray.from.copy(this.physicsBody.interpolatedPosition);
+    this.ray.to.copy(this.ray.from);
+    this.ray.from.y += this.capsuleOffset + this.height / 2;
+    this.rayStartBox.position.copy(this.ray.from);
+    this.rayEndBox.position.copy(this.ray.to);
+    // Intersect against the world.
+    this.ray.result.reset();
+    this.ray.intersectBodies(
+      this.physicsWorld.getWorld().bodies,
+      this.ray.result
+    );
+    if (this.ray.result.hasHit) {
+      const hitDistance = this.ray.result.distance;
+      const diff = this.capsuleOffset + this.height / 2 - hitDistance;
+      this.rayEndBox.position.y = this.rayStartBox.position.y - hitDistance;
+      this.rayEndBox.material.color.setHex(0xff8800);
+      // Lerp new position.
+      const newY = this.physicsBody.position.y + diff;
+      const lerpedY = lerp(this.physicsBody.position.y, newY, this.lerpFactor);
+      this.physicsBody.position.y = lerpedY;
+      this.physicsBody.interpolatedPosition.y = lerpedY;
+      this.physicsBody.velocity.y = 0;
+      this.grounded = true;
+    } else {
+      this.grounded = false;
+      this.rayEndBox.material.color.setHex(0xff0000);
+    }
+  }
+
+  /**
+   * Updates the animation state of the character.
+   */
+  updateAnimations() {
     if (this.frozen) {
       this.idle();
       return;
@@ -88,10 +266,12 @@ class Character extends Entity {
     if (this.getActionValue(this.bindings.JUMP)) {
       return this.jump();
     }
-    if (this.getActionValue(this.bindings.FORWARD) ||
-        this.getActionValue(this.bindings.BACKWARD) ||
-        this.getActionValue(this.bindings.LEFT) ||
-        this.getActionValue(this.bindings.RIGHT)) {
+    if (
+      this.getActionValue(this.bindings.FORWARD) ||
+      this.getActionValue(this.bindings.BACKWARD) ||
+      this.getActionValue(this.bindings.LEFT) ||
+      this.getActionValue(this.bindings.RIGHT)
+    ) {
       if (this.getActionValue(this.bindings.SPRINT)) {
         this.sprint();
       } else {
@@ -103,6 +283,83 @@ class Character extends Entity {
   }
 
   /**
+   * Updates the physics state of the character.
+   */
+  updatePhysics() {
+    // Update physics.
+    if (this.frozen) {
+      return;
+    }
+    const inputVector = this.inputVector;
+    inputVector.set(0, 0, 0);
+    if (this.getActionValue(this.bindings.FORWARD)) {
+      inputVector.z -= this.getActionValue(this.bindings.FORWARD);
+    }
+    if (this.getActionValue(this.bindings.BACKWARD)) {
+      inputVector.z += this.getActionValue(this.bindings.BACKWARD);
+    }
+    if (this.getActionValue(this.bindings.LEFT)) {
+      inputVector.x -= this.getActionValue(this.bindings.LEFT);
+    }
+    if (this.getActionValue(this.bindings.RIGHT)) {
+      inputVector.x += this.getActionValue(this.bindings.RIGHT);
+    }
+    // Update input vector with camera direction.
+    const camera = Camera.get().getActiveCamera();
+    if (camera) {
+      camera.getWorldQuaternion(this.cameraQuaternion);
+      this.cameraEuler.setFromQuaternion(this.cameraQuaternion);
+      // We only care about the X and Z axis, so remove the angle looking down
+      // on the character.
+      this.cameraEuler.x = 0;
+      this.cameraQuaternion.setFromEuler(this.cameraEuler);
+    }
+    inputVector.applyQuaternion(this.cameraQuaternion);
+    inputVector.normalize();
+
+    if (this.grounded) {
+      this.physicsBody.velocity.x = inputVector.x * 2.5;
+      this.physicsBody.velocity.z = inputVector.z * 2.5;
+      if (this.getActionValue(this.bindings.SPRINT)) {
+        this.physicsBody.velocity.x *= 2.5;
+        this.physicsBody.velocity.z *= 2.5;
+      }
+    }
+    // Update body rotation.
+    if (inputVector.x || inputVector.z) {
+      const angle = vectorToAngle(inputVector.z, inputVector.x);
+      this.targetQuaternion.setFromAxisAngle(CANNON.Vec3.UNIT_Y, angle);
+      this.updateRotation();
+    }
+  }
+
+  /**
+   * Updates the rotation of the character.
+   */
+  updateRotation() {
+    this.physicsBody.quaternion.slerp(
+      this.targetQuaternion,
+      0.1,
+      this.physicsBody.quaternion
+    );
+  }
+
+  /**
+   * Checks settings to see if raycast debug should be used.
+   */
+  toggleRaycastDebug() {
+    if (Settings.get('debug')) {
+      const scene = Engine.get().getScene();
+      scene.add(this.rayStartBox);
+      scene.add(this.rayEndBox);
+    } else {
+      const scene = Engine.get().getScene();
+      scene.remove(this.rayStartBox);
+      scene.remove(this.rayEndBox);
+    }
+  }
+
+  /**
    * Freezes the character, preventing it from updating.
    */
   freeze() {
@@ -110,7 +367,7 @@ class Character extends Entity {
     this.frozen = true;
   }
 
-  /** 
+  /**
    * Unfreezes the character, allowing updates.
    */
   unfreeze() {
@@ -124,7 +381,7 @@ class Character extends Entity {
     if (this.state == 'idle') {
       return;
     }
-    if ((performance.now() - this.jumpTime) < JUMP_MIN) {
+    if (this.isJumpCooldown()) {
       return;
     }
     if (this.isLandPlaying()) {
@@ -141,7 +398,7 @@ class Character extends Entity {
     if (this.state == 'walking') {
       return;
     }
-    if ((performance.now() - this.jumpTime) < JUMP_MIN) {
+    if (this.isJumpCooldown()) {
       return;
     }
     if (this.isLandPlaying()) {
@@ -158,7 +415,7 @@ class Character extends Entity {
     if (this.state == 'sprinting') {
       return;
     }
-    if ((performance.now() - this.jumpTime) < JUMP_MIN) {
+    if (this.isJumpCooldown()) {
       return;
     }
     if (this.isLandPlaying()) {
@@ -193,7 +450,7 @@ class Character extends Entity {
     if (this.state == 'falling') {
       return;
     }
-    if ((performance.now() - this.lastGroundedTime) < FALL_THRESHOLD) {
+    if (performance.now() - this.lastGroundedTime < this.fallThreshold) {
       return;
     }
     if (this.jumpAction && this.jumpAction.isRunning()) {
@@ -209,7 +466,7 @@ class Character extends Entity {
    */
   land() {
     const diff = performance.now() - this.lastGroundedTime;
-    if (diff < LAND_TIME_THRESHOLD) {
+    if (diff < this.landTimeThreshold) {
       return;
     }
     this.landingDummy.set(
@@ -218,7 +475,7 @@ class Character extends Entity {
     );
     // TODO: We should have a cooler running landing animation like a roll or
     //       stumble.
-    if (this.landingDummy.length() > LAND_SPEED_THRESHOLD) {
+    if (this.landingDummy.length() > this.landSpeedThreshold) {
       return;
     }
     this.landAction = this.playAnimation(this.landingAnimationName);
@@ -229,7 +486,8 @@ class Character extends Entity {
     this.physicsBody.velocity.x = 0;
     this.physicsBody.velocity.z = 0;
     this.tempFreeze(
-      1000 * this.landAction.getClip().duration - LAND_MIX_THRESHOLD);
+      1000 * this.landAction.getClip().duration - this.landMixThreshold
+    );
   }
 
   /**
@@ -240,7 +498,15 @@ class Character extends Entity {
       return false;
     }
     const landDiff = this.landAction.getClip().duration - this.landAction.time;
-    return landDiff * 1000 > LAND_MIX_THRESHOLD;
+    return landDiff * 1000 > this.landMixThreshold;
+  }
+
+  /**
+   * Returns if the jump animation cooldown is still in effect.
+   * @return {boolean}
+   */
+  isJumpCooldown() {
+    return performance.now() - this.jumpTime < this.jumpMin;
   }
 
   /**
@@ -253,4 +519,5 @@ class Character extends Entity {
   }
 }
 
+Controls.get().registerBindings(Character);
 export default Character;
