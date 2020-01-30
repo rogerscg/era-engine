@@ -40,6 +40,7 @@ const DEFAULT_JUMP_MIN = 500;
 const DEFAULT_LAND_MIX_THRESHOLD = 150;
 const DEFAULT_LAND_SPEED_THRESHOLD = 5;
 const DEFAULT_LAND_TIME_THRESHOLD = 1500;
+const DEFAULT_VELO_LERP_FACTOR = 0.15;
 
 /**
  * A special entity used for controlling an organic character, such as a human.
@@ -60,6 +61,8 @@ class Character extends Entity {
     this.fallThreshold = DEFAULT_FALL_THRESHOLD;
     // The interpolation factor for character raycasting adjustments.
     this.lerpFactor = DEFAULT_LERP_FACTOR;
+    // The interpolation factor for character movement.
+    this.velocityLerpFactor = DEFAULT_VELO_LERP_FACTOR;
     // The mass of the character.
     this.mass = DEFAULT_MASS;
     // Amount of time in ms required to cancel a jump animation.
@@ -106,6 +109,8 @@ class Character extends Entity {
     // Input properties.
     this.inputVector = new THREE.Vector3();
     this.targetQuaternion = new CANNON.Quaternion();
+    this.lerpedVelocity = new THREE.Vector3();
+    this.targetVelocity = new THREE.Vector3();
     this.cameraQuaternion = new THREE.Quaternion();
     this.cameraEuler = new THREE.Euler();
     this.cameraEuler.order = 'YXZ';
@@ -318,12 +323,16 @@ class Character extends Entity {
     inputVector.normalize();
 
     if (this.grounded) {
-      this.physicsBody.velocity.x = inputVector.x * 2.5;
-      this.physicsBody.velocity.z = inputVector.z * 2.5;
+      this.targetVelocity.x = inputVector.x * 2.5;
+      this.targetVelocity.z = inputVector.z * 2.5;
       if (this.getActionValue(this.bindings.SPRINT)) {
-        this.physicsBody.velocity.x *= 2.5;
-        this.physicsBody.velocity.z *= 2.5;
+        this.targetVelocity.x *= 2.5;
+        this.targetVelocity.z *= 2.5;
       }
+      this.lerpedVelocity.copy(this.physicsBody.velocity);
+      this.targetVelocity.y = this.physicsBody.velocity.y;
+      this.lerpedVelocity.lerp(this.targetVelocity, this.velocityLerpFactor);
+      this.physicsBody.velocity.copy(this.lerpedVelocity);
     }
     // Update body rotation.
     if (inputVector.x || inputVector.z) {
