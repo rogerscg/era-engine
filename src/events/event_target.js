@@ -1,4 +1,4 @@
-import {createUUID} from '../core/util.js';
+import { createUUID } from '../core/util.js';
 
 /**
  * An event target mimicks the behavior of the native browser object EventTarget
@@ -9,7 +9,7 @@ import {createUUID} from '../core/util.js';
  */
 class EventTargetInterface {
   constructor() {}
-  
+
   /**
    * Adds an event listener to the EventTarget.
    * @param {string} label
@@ -19,11 +19,19 @@ class EventTargetInterface {
   addEventListener(label, handler) {}
 
   /**
+   * Adds an event listener to the EventTarget that should only be used once
+   * and disposed.
+   * @param {string} label
+   * @param {function} handle
+   * @return {string} The UUID for the listener, useful for removing
+   */
+  addOneShotEventListener(label, handler) {}
+
+  /**
    * Removes an event listener from the EventTarget.
    * @param {string} uuid
    */
   removeEventListener(uuid) {}
-
 
   /**
    * Fires the event on all listeners with given data.
@@ -37,7 +45,7 @@ class EventTargetInterface {
  * A standard event target.
  * @implements {EventTargetInterface}
  */
-class EventTarget  {
+class EventTarget {
   constructor() {
     this.listeners = new Map();
     this.uuidToLabels = new Map();
@@ -103,6 +111,14 @@ class Object3DEventTarget extends THREE.Object3D {
   }
 
   /** @override */
+  addOneShotEventListener(label, handler) {
+    const listener = this.addEventListener(label, (data) => {
+      this.removeEventListener(listener);
+      handler(data);
+    });
+  }
+
+  /** @override */
   removeEventListener(uuid) {
     const label = this.uuidToLabels.get(uuid);
     if (!label) {
@@ -126,7 +142,4 @@ class Object3DEventTarget extends THREE.Object3D {
   }
 }
 
-export {
-  EventTarget,
-  Object3DEventTarget,
-};
+export { EventTarget, Object3DEventTarget };

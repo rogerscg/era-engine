@@ -2,7 +2,7 @@
  * @author rogerscg / https://github.com/rogerscg
  */
 
-import {createUUID} from '../core/util.js';
+import { createUUID } from '../core/util.js';
 
 /**
  * Core implementation for managing events and listeners. This
@@ -13,7 +13,6 @@ import {createUUID} from '../core/util.js';
 let eventsInstance = null;
 
 class Events {
-  
   /**
    * Enforces singleton instance.
    */
@@ -23,39 +22,37 @@ class Events {
     }
     return eventsInstance;
   }
-  
+
   constructor() {
     // All registered listeners. Key is the event label, value is another
     // map with the listener UUID as the key, the callback function as the
     // value.
     this.registeredListeners = new Map();
-    
+
     // Tracks which labels a listener is listening to. Used for ease of
     // removal. Key is the listener UUID, value is the event label.
     this.registeredUUIDs = new Map();
   }
-  
+
   /**
    * Fires all event listener callbacks registered for the label
    * with the event data.
    */
-  fireEvent(label, data, context) {
+  fireEvent(label, data) {
     const callbacks = this.registeredListeners.get(label);
-    if (!callbacks)
+    if (!callbacks) {
       return false;
-    callbacks.forEach((callback) => {
-      if (!callback.context || callback.context == context)
-        callback(data);
-    });
+    }
+    callbacks.forEach((callback) => callback(data));
   }
-  
+
   /**
    * Adds an event listener for a certain label. When the event is fired,
    * the callback is called with data from the event. Returns the UUID
    * of the listener.
    */
   addListener(label, callback) {
-    if (!label || !callback && typeof(callback) !== 'function') {
+    if (!label || (!callback && typeof callback !== 'function')) {
       return false;
     }
     // If the label has not yet been registered, do so by creating a new map
@@ -70,7 +67,7 @@ class Events {
     this.registeredUUIDs.set(listenerUUID, label);
     return listenerUUID;
   }
-  
+
   /**
    * Removes an event listener from registered listeners by its UUID.
    * Returns true if the listener is successfully deleted.
@@ -86,7 +83,6 @@ class Events {
     }
     return listeners.delete(uuid);
   }
-  
 }
 
 export default Events;

@@ -73,9 +73,7 @@ class MazeGameMode extends GameMode {
   async loadLevel(levelIndex) {
     const levelName = LEVELS[levelIndex];
     const level = new Level(levelName).withPhysics(this.physics);
-    // TODO: Support one-shot event listeners.
-    const levelEventListener = level.addEventListener('complete', () => {
-      level.removeEventListener(levelEventListener);
+    level.addOneShotEventListener('complete', () => {
       setTimeout(() => this.completeLevel(), 1000);
     });
     this.currentLevel = level;

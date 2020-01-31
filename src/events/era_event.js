@@ -10,28 +10,24 @@ import Events from './events.js';
  * server.
  */
 class EraEvent {
-  
-  constructor(label, data, context) {
+  constructor(label, data) {
     this.label = label;
     this.data = data;
-    // TODO: Remove "context" and provide an actual target.
-    this.context = context;
   }
-  
+
   /**
    * Fires the event to the events core.
    */
   fire() {
-    Events.get().fireEvent(this.label, this.data, this.context);
+    Events.get().fireEvent(this.label, this.data);
   }
-  
+
   /**
    * Creates an event listener for the given type.
    */
   static listen(label, callback) {
     Events.get().addListener(label, callback);
   }
-  
 }
 
 export default EraEvent;
