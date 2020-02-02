@@ -16,6 +16,16 @@ const CHARACTER_BINDINGS = {
       keyboard: 32,
       controller: 'button0'
     }
+  },
+  LOOK_X: {
+    keys: {
+      controller: 'axes2'
+    }
+  },
+  LOOK_Y: {
+    keys: {
+      controller: 'axes3'
+    }
   }
 };
 

@@ -332,17 +332,9 @@ class Controls extends Plugin {
   getRawControllerInput(controller) {
     let input = {};
     if (this.hasController) {
-      // Check if the controller is in both deadzones.
-      let isOutOfDeadzone = false;
-      controller.axes.forEach((val, i) => {
-        if (Math.abs(val) > this.movementDeadzone) {
-          isOutOfDeadzone = true;
-        }
-      });
-
       for (let i = 0; i < controller.axes.length; i++) {
         let val = controller.axes[i];
-        val = isOutOfDeadzone ? val : 0;
+        val = Math.abs(val) < this.movementDeadzone ? 0 : val;
         input[`axes${i}`] = val;
       }
 
