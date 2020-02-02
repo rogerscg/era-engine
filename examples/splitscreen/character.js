@@ -10,6 +10,7 @@ class Character extends EraCharacter {
     this.idleAnimationName = 'Character|Idling';
     this.walkingAnimationName = 'Character|Walking';
     this.sprintingAnimationName = 'Character|Running';
+    this.jumpingAnimationName = 'Character|JumpUp';
     this.fallingAnimationName = 'Character|Falling';
     this.landingAnimationName = 'Character|Landing';
   }
@@ -22,7 +23,9 @@ class Character extends EraCharacter {
 
   /** @override */
   jump() {
-    // Disable jumping for this demo.
+    if (super.jump()) {
+      this.physicsBody.velocity.y = 5;
+    }
   }
 
   /**

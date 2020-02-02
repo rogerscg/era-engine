@@ -2,7 +2,7 @@
  * @author rogerscg / https://github.com/rogerscg
  */
 
-const SPLIT_SCREEN_REG = RegExp("[a-zA-Z]+-[0-9]*");
+const SPLIT_SCREEN_REG = RegExp('[a-zA-Z]+-[0-9]*');
 
 /**
  * A bindings object, used for better control of custom bindings.
@@ -31,10 +31,20 @@ class Bindings {
    */
   getActionsForKey(key, playerNumber) {
     // If the input is for a given player number, mutate the key to include it.
+    let actions = new Array();
+    // Try for player-number-specific actions first.
     if (playerNumber != null) {
-      key = `${key}-${playerNumber}`;
+      const playerNumKey = `${key}-${playerNumber}`;
+      const playerNumActions = this.keysToActions.get(playerNumKey);
+      if (playerNumActions) {
+        actions = actions.concat(playerNumActions);
+      }
     }
-    return this.keysToActions.get(key);
+    const regularActions = this.keysToActions.get(key);
+    if (regularActions) {
+      actions = actions.concat(regularActions);
+    }
+    return actions;
   }
 
   /**
@@ -61,7 +71,7 @@ class Bindings {
 
   /**
    * Gets the action for a given name.
-   * @param {string} actionName 
+   * @param {string} actionName
    */
   getAction(actionName) {
     return this.actions.get(actionName);
@@ -163,7 +173,7 @@ class Bindings {
     // Get all non-empty actions.
     const nonEmptyActions = [...this.actions.values()].filter((action) => {
       return !action.isEmpty();
-    })
+    });
     return nonEmptyActions.length == 0;
   }
 }
@@ -190,7 +200,7 @@ class Action {
   /**
    * Adds a key that can trigger the action.
    * @param {string} inputType
-   * @param {?} key 
+   * @param {?} key
    */
   addKey(inputType, key) {
     this.keys.set(inputType, key);
@@ -199,7 +209,7 @@ class Action {
 
   /**
    * Clears the key for the given input type.
-   * @param {string} inputType 
+   * @param {string} inputType
    */
   clearInputType(inputType) {
     this.keys.delete(inputType);
@@ -225,7 +235,7 @@ class Action {
    * Loads multiple inputs for the given input type.
    * @param {string} inputType
    * @param {Array} inputs
-   * @param {boolean} isSplitScreen 
+   * @param {boolean} isSplitScreen
    */
   loadMultipleKeys(inputType, inputs, isSplitScreen = false) {
     if (isSplitScreen) {
@@ -260,7 +270,7 @@ class Action {
     const exportObj = {};
     exportObj.keys = {};
     // TODO: For local co-op/split screen, export player-specific bindings.
-    this.keys.forEach((key, inputType) => exportObj.keys[inputType] = key);
+    this.keys.forEach((key, inputType) => (exportObj.keys[inputType] = key));
     return exportObj;
   }
 
@@ -273,4 +283,4 @@ class Action {
   }
 }
 
-export {Action, Bindings};
+export { Action, Bindings };

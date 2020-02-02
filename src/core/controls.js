@@ -352,16 +352,20 @@ class Controls extends Plugin {
         input[`button${i}`] = val;
       }
 
+      if (!this.previousInput[controller.index]) {
+        this.previousInput[controller.index] = {};
+      }
       for (let key of Object.keys(input)) {
         // Only send 0 if the one before that wasn't 0
-        const previousHadValue =
-          this.previousInput[key] && this.previousInput[key] !== 0;
-        if (input[key] === 0 && !previousHadValue) {
+        const previouslyHadValue =
+          this.previousInput[controller.index][key] &&
+          this.previousInput[controller.index][key] !== 0;
+        if (input[key] === 0 && !previouslyHadValue) {
           delete input[key];
         }
       }
     }
-    this.previousInput = input;
+    this.previousInput[controller.index] = input;
     return input;
   }
 

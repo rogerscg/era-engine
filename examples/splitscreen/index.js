@@ -50,13 +50,16 @@ async function start() {
   const terrain = new Terrain().withPhysics();
   world.add(terrain);
 
-  // Create character.
-  const character = new Character().withPhysics();
-  world
-    .add(character)
-    .attachCameraToEntity('player-1', character)
-    .associateEntityWithRenderer(character, 'player-1');
-  Controls.get().registerEntity(character);
+  // Create characters.
+  for (let i = 0; i < NUM_PLAYERS; i++) {
+    const character = new Character().withPhysics().setPlayerNumber(i);
+    world
+      .add(character)
+      .attachCameraToEntity(`player-${i + 1}`, character)
+      .associateEntityWithRenderer(character, `player-${i + 1}`);
+    Controls.get().registerEntity(character);
+    terrain.placeCharacter(character);
+  }
   Controls.get().usePointerLockControls();
 }
 

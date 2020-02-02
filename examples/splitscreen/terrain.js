@@ -53,6 +53,15 @@ class Terrain extends Entity {
     }
     return data;
   }
+
+  /**
+   * Places a character entity onto the terrain.
+   * @param {Character} character
+   */
+  placeCharacter(character) {
+    character.physicsBody.position.x = character.getPlayerNumber() * 3;
+    character.physicsBody.position.z = character.getPlayerNumber() * -3;
+  }
 }
 
 export default Terrain;

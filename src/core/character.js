@@ -8,7 +8,7 @@ const CHARACTER_BINDINGS = {
   SPRINT: {
     keys: {
       keyboard: 16,
-      controller: '-axes3'
+      controller: 'button10'
     }
   },
   JUMP: {
