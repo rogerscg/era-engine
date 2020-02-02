@@ -8,6 +8,8 @@ class World extends Plugin {
   constructor() {
     super();
     this.scene = new THREE.Scene();
+    // Set an `isRootScene` bit for use by other parts of ERA.
+    this.scene.isRootScene = true;
     this.physics = null;
     this.renderers = new Map();
     this.cameras = new Map();
