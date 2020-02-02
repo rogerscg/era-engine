@@ -59,8 +59,8 @@ class Terrain extends Entity {
    * @param {Character} character
    */
   placeCharacter(character) {
-    character.physicsBody.position.x = character.getPlayerNumber() * 3;
-    character.physicsBody.position.z = character.getPlayerNumber() * -3;
+    character.physicsBody.position.x = character.getPlayerNumber() * 3 + 2;
+    character.physicsBody.position.z = character.getPlayerNumber() * -3 - 2;
   }
 }
 
