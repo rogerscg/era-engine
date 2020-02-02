@@ -1,4 +1,5 @@
 import Engine from './engine.js';
+import Entity from './entity.js';
 import Light from './light.js';
 import Skybox from './skybox.js';
 import { loadJsonFromFile } from './util.js';
@@ -8,9 +9,10 @@ import { loadJsonFromFile } from './util.js';
  * that are unique to an environment. Extends THREE.Object3D to act as a root
  * that can be added to a scene.
  */
-class Environment extends THREE.Object3D {
+class Environment extends Entity {
   constructor() {
     super();
+    this.meshEnabled = false;
   }
 
   /**
@@ -25,7 +27,7 @@ class Environment extends THREE.Object3D {
     // Load JSON file with environment and options.
     const environmentData = await loadJsonFromFile(filePath);
     this.loadLights(environmentData.lights);
-    this.loadBackground(environmentData.background);
+    //this.loadBackground(environmentData.background);
     await this.loadSkybox(environmentData.skybox);
     return this;
   }

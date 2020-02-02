@@ -69,7 +69,7 @@ class Light extends Plugin {
     light.intensity = options.intensity;
     this.createShadows(light, options.shadow);
     light.helper = new THREE.DirectionalLightHelper(light, 10);
-    if (Settings.get('debug')) {
+    if (Settings.get('debug') && false) {
       Engine.get()
         .getScene()
         .add(light.helper);

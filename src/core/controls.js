@@ -369,6 +369,7 @@ class Controls extends Plugin {
    * Handles the mouse click event. Separate from mouse down and up.
    */
   onMouseClick(e) {
+    // TODO: Use correct element.
     if (this.pointerLockEnabled) {
       this.requestPointerLock();
     }
@@ -378,11 +379,8 @@ class Controls extends Plugin {
    * Requests pointer lock on the renderer canvas.
    */
   requestPointerLock() {
-    const renderer = Engine.get().getRenderer();
-    if (!renderer) {
-      return;
-    }
-    renderer.domElement.requestPointerLock();
+    // TODO: Use correct element.
+    document.body.requestPointerLock();
   }
 
   /**
@@ -500,6 +498,7 @@ class Controls extends Plugin {
    * Creates orbit controls on the camera, if they exist.
    */
   useOrbitControls() {
+    // TODO: Use proper camera and element.
     new THREE.OrbitControls(
       Camera.get().getActiveCamera(),
       Engine.get().getRenderer().domElement

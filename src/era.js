@@ -6,29 +6,30 @@
  * Entry point for the ERA engine.
  */
 // Core
-export {Action, Bindings} from './core/bindings.js';
-export {default as Animation} from './core/animation.js';
-export {default as Audio} from './core/audio.js';
-export {default as Camera} from './core/camera.js';
-export {default as Character} from './core/character.js';
-export {default as Controls} from './core/controls.js';
-export {default as Engine} from './core/engine.js';
-export {default as Entity} from './core/entity.js';
-export {default as Environment} from './core/environment.js';
-export {default as GameMode} from './core/game_mode.js';
-export {default as Light} from './core/light.js';
-export {default as Models} from './core/models.js';
-export {default as Network} from './core/network.js';
-export {default as NetworkRegistry} from './core/network_registry.js';
-export {default as Physics} from './core/physics.js';
-export {default as Plugin} from './core/plugin.js';
-export {default as Settings} from './core/settings.js';
-export {default as Skybox} from './core/skybox.js';
+export { Action, Bindings } from './core/bindings.js';
+export { default as Animation } from './core/animation.js';
+export { default as Audio } from './core/audio.js';
+export { default as Camera } from './core/camera.js';
+export { default as Character } from './core/character.js';
+export { default as Controls } from './core/controls.js';
+export { default as Engine } from './core/engine.js';
+export { default as Entity } from './core/entity.js';
+export { default as Environment } from './core/environment.js';
+export { default as GameMode } from './core/game_mode.js';
+export { default as Light } from './core/light.js';
+export { default as Models } from './core/models.js';
+export { default as Network } from './core/network.js';
+export { default as NetworkRegistry } from './core/network_registry.js';
+export { default as Physics } from './core/physics.js';
+export { default as Plugin } from './core/plugin.js';
+export { default as Settings } from './core/settings.js';
+export { default as Skybox } from './core/skybox.js';
+export { default as World } from './core/world.js';
 export * from './core/util.js';
 
 // Debug
-export {default as RendererStats} from './debug/renderer_stats.js';
-export {default as SettingsPanel} from './debug/settings_panel.js';
+export { default as RendererStats } from './debug/renderer_stats.js';
+export { default as SettingsPanel } from './debug/settings_panel.js';
 
 // Events
 export { default as Events } from './events/events.js';

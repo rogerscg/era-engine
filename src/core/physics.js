@@ -26,7 +26,6 @@ class Physics extends Plugin {
     this.registeredEntities = new Map();
     this.world = this.createWorld();
     this.lastTime = performance.now();
-    Engine.get().setUsingPhysics(true);
     this.handleSettingsChange();
   }
 
