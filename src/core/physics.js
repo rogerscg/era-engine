@@ -25,8 +25,8 @@ class Physics extends Plugin {
     super();
     this.registeredEntities = new Map();
     this.world = this.createWorld();
+    this.eraWorld = null;
     this.lastTime = performance.now();
-    this.handleSettingsChange();
   }
 
   /** @override */
@@ -62,6 +62,16 @@ class Physics extends Plugin {
 
   getWorld() {
     return this.world;
+  }
+
+  setEraWorld(eraWorld) {
+    this.eraWorld = eraWorld;
+    this.handleSettingsChange();
+    return this;
+  }
+
+  getEraWorld() {
+    return this.eraWorld;
   }
 
   /**

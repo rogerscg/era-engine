@@ -1,3 +1,6 @@
+/**
+ * @author rogerscg / https://github.com/rogerscg
+ */
 import Plugin from './plugin.js';
 import RendererStats from '../debug/renderer_stats.js';
 
@@ -78,6 +81,7 @@ class World extends Plugin {
    */
   withPhysics(physics) {
     this.physics = physics;
+    physics.setEraWorld(this);
     return this;
   }
 

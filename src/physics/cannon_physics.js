@@ -82,9 +82,7 @@ class CannonPhysics extends Physics {
 
   /** @override */
   enableDebugRenderer() {
-    return;
-    // TODO: Get parent ERA world (or make debug rendering part of world).
-    const scene = Engine.get().getScene();
+    const scene = this.getEraWorld() ? this.getEraWorld().getScene() : null;
     const world = this.getWorld();
     if (!scene || !world) {
       return console.warn('Debug renderer missing scene or world.');
