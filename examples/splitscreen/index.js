@@ -55,7 +55,7 @@ async function start() {
     const character = new Character().withPhysics().setPlayerNumber(i);
     world
       .add(character)
-      .attachCameraToEntity(`player-${i + 1}`, character)
+      .attachCameraToEntity(character, `player-${i + 1}`)
       .associateEntityWithRenderer(character, `player-${i + 1}`);
     Controls.get().registerEntity(character);
     terrain.placeCharacter(character);

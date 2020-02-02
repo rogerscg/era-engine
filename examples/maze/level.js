@@ -1,5 +1,5 @@
 import Objective from './objective.js';
-import {Entity, Models} from '../../src/era.js';
+import { Entity, Models } from '../../src/era.js';
 
 /**
  * A maze level.
@@ -50,16 +50,15 @@ class Level extends Entity {
    * Loads the objective entity into the level.
    */
   loadObjective() {
-    this.objective = new Objective().withPhysics(this.physicsWorld).build();
+    this.objective = new Objective().withPhysics();
     // Register listener for when the objective has been reached.
     this.objective.addEventListener('completed', () => this.complete());
     const objectivePoint = this.getObjectByName('Objective');
     if (!objectivePoint) {
       return console.error('No objective point found.');
     }
+    this.getWorld().add(this.objective);
     this.objective.physicsBody.position.copy(objectivePoint.position);
-    this.physicsWorld.registerEntity(this.objective);
-    this.add(this.objective);
   }
 
   /**

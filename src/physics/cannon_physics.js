@@ -2,7 +2,6 @@
  * @author rogerscg / https://github.com/rogerscg
  */
 import CannonDebugRenderer from './cannon_debug_renderer.js';
-import Engine from '../core/engine.js';
 import Physics from '../core/physics.js';
 
 const MAX_DELTA = 1;

@@ -35,10 +35,6 @@ class Character extends EraCharacter {
    * Updates the camera rotation.
    */
   updateCamera() {
-    /**
-   * Updates the camera rotation.
-   */
-  updateCamera() {
     // Update from controller.
     if (this.getActionValue(this.bindings.LOOK_X)) {
       this.cameraArm.rotation.y -=
@@ -57,7 +53,6 @@ class Character extends EraCharacter {
       MAX_CAMERA_Z,
       Math.max(MIN_CAMERA_Z, this.cameraArm.rotation.z)
     );
-  }
   }
 }
 

@@ -180,6 +180,7 @@ async function loadJsonFromFile(path) {
  * Traverses the provided object's ancestors to get the root scene in the ERA
  * world.
  * @param {THREE.Object3D} object
+ * @return {THREE.Scene}
  */
 function getRootScene(object) {
   let rootScene = null;
@@ -191,6 +192,17 @@ function getRootScene(object) {
   return rootScene;
 }
 
+/**
+ * Traverses the provided object's ancestors to get the root scene, which has a
+ * property with the parent ERA world.
+ * @param {THREE.Object3D} object
+ * @return {World}
+ */
+function getRootWorld(object) {
+  const rootScene = getRootScene(object);
+  return rootScene && rootScene.parentWorld ? rootScene.parentWorld : null;
+}
+
 export {
   createUUID,
   disableShadows,
@@ -199,6 +211,7 @@ export {
   extractMeshesByName,
   getHexColorRatio,
   getRootScene,
+  getRootWorld,
   lerp,
   loadJsonFromFile,
   shuffleArray,

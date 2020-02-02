@@ -1,7 +1,6 @@
 /**
  * @author rogerscg / https://github.com/rogerscg
  */
-import Engine from './engine.js';
 import Plugin from './plugin.js';
 import Settings from './settings.js';
 

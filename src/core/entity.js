@@ -4,14 +4,13 @@
 
 import Animation from './animation.js';
 import Controls from './controls.js';
-import Engine from './engine.js';
 import Models from './models.js';
 import Physics from './physics.js';
 import Settings from './settings.js';
 import SettingsEvent from '../events/settings_event.js';
 import { Bindings } from './bindings.js';
 import { Object3DEventTarget } from '../events/event_target.js';
-import { createUUID } from './util.js';
+import { createUUID, getRootWorld } from './util.js';
 
 const ENTITY_BINDINGS = {
   BACKWARD: {
@@ -170,13 +169,11 @@ class Entity extends Object3DEventTarget {
    * of all objects in memory.
    */
   destroy() {
-    if (this.parent) {
-      this.parent.remove(this);
+    const world = getRootWorld(this);
+    if (!world) {
+      return console.warn('Destroyed entity has no root world');
     }
-    if (this.physicsWorld) {
-      this.physicsWorld.unregisterEntity(this);
-    }
-    Engine.get().unregisterEntity(this);
+    world.remove(this);
   }
 
   /**

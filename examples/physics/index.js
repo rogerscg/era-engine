@@ -10,43 +10,42 @@ import {
   Controls,
   Engine,
   Environment,
-  RendererStats
+  World
 } from '../../src/era.js';
 
 async function start() {
-  // Create engine and load models.
+  // Create engine.
   const engine = Engine.get();
-  Camera.get().setActiveCamera(Camera.get().buildIsometricCamera());
-  engine.start();
-  const scene = engine.getScene();
 
-  // Enable debug.
-  new RendererStats(engine.getRenderer());
-
-  // Create physics.
-  const physics = new AmmoPhysics();
+  // Create world and renderer.
+  const world = new World().withPhysics(new AmmoPhysics());
+  const renderer = new THREE.WebGLRenderer({
+    antialias: true,
+    alpha: true
+  });
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.setPixelRatio(window.devicePixelRatio);
+  world.addRenderer(renderer);
+  world.addCameraForRenderer(Camera.get().buildIsometricCamera(), renderer);
 
   // Create environment.
   const environment = await new Environment().loadFromFile('environment.json');
-  scene.add(environment);
+  world.setEnvironment(environment);
 
   // Create stage.
-  const stage = new Stage().withPhysics().build();
-  scene.add(stage);
-  physics.registerEntity(stage);
+  const stage = new Stage().withPhysics();
+  world.add(stage).attachCameraToEntity(stage);
 
   // Create characters.
   for (let i = 0; i < 4; i++) {
-    const ball = new Ball()
-      .withPhysics()
-      .setPlayerNumber(i)
-      .build();
-    scene.add(ball);
-    physics.registerEntity(ball);
+    const ball = new Ball().withPhysics().setPlayerNumber(i);
+    world.add(ball);
     Controls.get().registerEntity(ball);
   }
 
-  Camera.get().attachCamera(stage);
+  engine.start();
 }
 
 document.addEventListener('DOMContentLoaded', start);

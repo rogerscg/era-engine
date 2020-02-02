@@ -13,6 +13,7 @@ class Environment extends Entity {
   constructor() {
     super();
     this.meshEnabled = false;
+    this.clearColor = 0xffffff;
   }
 
   /**
@@ -27,7 +28,7 @@ class Environment extends Entity {
     // Load JSON file with environment and options.
     const environmentData = await loadJsonFromFile(filePath);
     this.loadLights(environmentData.lights);
-    //this.loadBackground(environmentData.background);
+    this.loadBackground(environmentData.background);
     await this.loadSkybox(environmentData.skybox);
     return this;
   }
@@ -57,11 +58,10 @@ class Environment extends Entity {
    * @param {string} background
    */
   loadBackground(background) {
-    const renderer = Engine.get().getRenderer();
-    if (!renderer || !background) {
+    if (!background) {
       return;
     }
-    renderer.setClearColor(parseInt(background, 16));
+    this.clearColor = parseInt(background, 16);
   }
 
   /**
@@ -80,6 +80,14 @@ class Environment extends Entity {
     const extension = skyboxData.extension;
     await skybox.load(directory, file, extension);
     this.add(skybox);
+  }
+
+  /**
+   * Returns the clear color a renderer should set based on the environment.
+   * @return {number}
+   */
+  getClearColor() {
+    return this.clearColor;
   }
 }
 

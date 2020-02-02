@@ -492,13 +492,11 @@ class Controls extends Plugin {
 
   /**
    * Creates orbit controls on the camera, if they exist.
+   * @param {THREE.Camera} camera
+   * @param {THREE.Renderer} renderer
    */
-  useOrbitControls() {
-    // TODO: Use proper camera and element.
-    new THREE.OrbitControls(
-      Camera.get().getActiveCamera(),
-      Engine.get().getRenderer().domElement
-    );
+  useOrbitControls(camera, renderer) {
+    return new THREE.OrbitControls(camera, renderer.domElement);
   }
 
   /**

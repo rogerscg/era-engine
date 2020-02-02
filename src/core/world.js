@@ -4,6 +4,8 @@
 import Plugin from './plugin.js';
 import RendererStats from '../debug/renderer_stats.js';
 
+const DEFAULT_NAME = 'main';
+
 /**
  * Represents a world used to both manage rendering and physics simulations.
  */
@@ -13,6 +15,7 @@ class World extends Plugin {
     this.scene = new THREE.Scene();
     // Set an `isRootScene` bit for use by other parts of ERA.
     this.scene.isRootScene = true;
+    this.scene.parentWorld = this;
     this.physics = null;
     this.renderers = new Map();
     this.cameras = new Map();
@@ -55,6 +58,22 @@ class World extends Plugin {
   }
 
   /**
+   * Retrieves the camera with the given name.
+   * @param {string} name
+   */
+  getCamera(name = DEFAULT_NAME) {
+    return this.cameras.get(name);
+  }
+
+  /**
+   * Retrieves a renderer with the given name.
+   * @param {string} name
+   */
+  getRenderer(name = DEFAULT_NAME) {
+    return this.renderers.get(name);
+  }
+
+  /**
    * Iterates over all cameras and resizes them.
    */
   onWindowResize() {
@@ -93,7 +112,7 @@ class World extends Plugin {
    * @param {string} name
    * @return {World}
    */
-  addRenderer(renderer, name) {
+  addRenderer(renderer, name = DEFAULT_NAME) {
     if (!renderer || !name) {
       return console.error('Need both renderer and name for world.');
     }
@@ -147,6 +166,19 @@ class World extends Plugin {
   }
 
   /**
+   * Sets the environment of the world.
+   * @param {Environment} environment
+   * @return {World}
+   */
+  setEnvironment(environment) {
+    this.add(environment);
+    this.renderers.forEach((renderer) =>
+      renderer.setClearColor(environment.getClearColor())
+    );
+    return this;
+  }
+
+  /**
    * Adds an entity or other ERA object to the world.
    * @param {Entity} entity
    * @return {World}
@@ -188,11 +220,11 @@ class World extends Plugin {
 
   /**
    * Request to attach the camera with the given name to the provided entity.
-   * @param {string} cameraName
    * @param {Entity} entity
+   * @param {string} cameraName
    * @return {World}
    */
-  attachCameraToEntity(cameraName, entity) {
+  attachCameraToEntity(entity, cameraName = DEFAULT_NAME) {
     if (!entity || !this.cameras.has(cameraName)) {
       console.warn(`Camera with name ${cameraName} does not exist`);
       return this;
@@ -214,7 +246,7 @@ class World extends Plugin {
    * @param {string} name
    * @return {World}
    */
-  associateEntityWithRenderer(entity, name) {
+  associateEntityWithRenderer(entity, name = DEFAULT_NAME) {
     if (!entity || !name) {
       console.error('Need to provide entity and name to associate');
       return this;
@@ -235,9 +267,9 @@ class World extends Plugin {
    * @return {THREE.Camera}
    */
   getAssociatedCamera(entity) {
-    const name = this.entitiesToRenderers.get(entity);
+    let name = this.entitiesToRenderers.get(entity);
     if (!name) {
-      return null;
+      name = DEFAULT_NAME;
     }
     return this.cameras.get(name);
   }
