@@ -332,17 +332,9 @@ class Controls extends Plugin {
   getRawControllerInput(controller) {
     let input = {};
     if (this.hasController) {
-      // Check if the controller is in both deadzones.
-      let isOutOfDeadzone = false;
-      controller.axes.forEach((val, i) => {
-        if (Math.abs(val) > this.movementDeadzone) {
-          isOutOfDeadzone = true;
-        }
-      });
-
       for (let i = 0; i < controller.axes.length; i++) {
         let val = controller.axes[i];
-        val = isOutOfDeadzone ? val : 0;
+        val = Math.abs(val) < this.movementDeadzone ? 0 : val;
         input[`axes${i}`] = val;
       }
 
@@ -352,16 +344,20 @@ class Controls extends Plugin {
         input[`button${i}`] = val;
       }
 
+      if (!this.previousInput[controller.index]) {
+        this.previousInput[controller.index] = {};
+      }
       for (let key of Object.keys(input)) {
         // Only send 0 if the one before that wasn't 0
-        const previousHadValue =
-          this.previousInput[key] && this.previousInput[key] !== 0;
-        if (input[key] === 0 && !previousHadValue) {
+        const previouslyHadValue =
+          this.previousInput[controller.index][key] &&
+          this.previousInput[controller.index][key] !== 0;
+        if (input[key] === 0 && !previouslyHadValue) {
           delete input[key];
         }
       }
     }
-    this.previousInput = input;
+    this.previousInput[controller.index] = input;
     return input;
   }
 
@@ -369,6 +365,7 @@ class Controls extends Plugin {
    * Handles the mouse click event. Separate from mouse down and up.
    */
   onMouseClick(e) {
+    // TODO: Use correct element.
     if (this.pointerLockEnabled) {
       this.requestPointerLock();
     }
@@ -378,11 +375,8 @@ class Controls extends Plugin {
    * Requests pointer lock on the renderer canvas.
    */
   requestPointerLock() {
-    const renderer = Engine.get().getRenderer();
-    if (!renderer) {
-      return;
-    }
-    renderer.domElement.requestPointerLock();
+    // TODO: Use correct element.
+    document.body.requestPointerLock();
   }
 
   /**
@@ -498,12 +492,11 @@ class Controls extends Plugin {
 
   /**
    * Creates orbit controls on the camera, if they exist.
+   * @param {THREE.Camera} camera
+   * @param {THREE.Renderer} renderer
    */
-  useOrbitControls() {
-    new THREE.OrbitControls(
-      Camera.get().getActiveCamera(),
-      Engine.get().getRenderer().domElement
-    );
+  useOrbitControls(camera, renderer) {
+    return new THREE.OrbitControls(camera, renderer.domElement);
   }
 
   /**

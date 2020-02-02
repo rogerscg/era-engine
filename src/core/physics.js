@@ -1,7 +1,6 @@
 /**
  * @author rogerscg / https://github.com/rogerscg
  */
-import Engine from './engine.js';
 import Plugin from './plugin.js';
 import Settings from './settings.js';
 
@@ -25,9 +24,8 @@ class Physics extends Plugin {
     super();
     this.registeredEntities = new Map();
     this.world = this.createWorld();
+    this.eraWorld = null;
     this.lastTime = performance.now();
-    Engine.get().setUsingPhysics(true);
-    this.handleSettingsChange();
   }
 
   /** @override */
@@ -63,6 +61,16 @@ class Physics extends Plugin {
 
   getWorld() {
     return this.world;
+  }
+
+  setEraWorld(eraWorld) {
+    this.eraWorld = eraWorld;
+    this.handleSettingsChange();
+    return this;
+  }
+
+  getEraWorld() {
+    return this.eraWorld;
   }
 
   /**

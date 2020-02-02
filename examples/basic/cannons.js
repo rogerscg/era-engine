@@ -2,8 +2,8 @@
  * @author rogerscg / https://github.com/rogerscg
  */
 
-import Laser from "./laser.js";
-import {Audio, Engine} from "../../src/era.js";
+import Laser from './laser.js';
+import { Audio, getRootWorld } from '../../src/era.js';
 
 const COOLDOWN_TIME = 150;
 const WORLD_POS_VEC = new THREE.Vector3();
@@ -15,8 +15,8 @@ class Cannons extends THREE.Object3D {
   /**
    * Takes in two coordinates on which to place the 'cannons'.
    * @param {number} x
-   * @param {number} y 
-   * @param {number} z 
+   * @param {number} y
+   * @param {number} z
    */
   constructor(x, y, z) {
     super();
@@ -27,7 +27,7 @@ class Cannons extends THREE.Object3D {
     this.emitters = new Array();
     this.lastFire = Date.now();
   }
-  
+
   /**
    * Builds all four cannons.
    */
@@ -53,12 +53,12 @@ class Cannons extends THREE.Object3D {
       return;
     }
     // Play sound.
-    Audio.get().playSound('xwing_fire', .5);
+    Audio.get().playSound('xwing_fire', 0.5);
     // Create laser at a certain point.
     this.emitters.forEach((emitter) => {
       const laser = new Laser().build();
       laser.position.copy(emitter.getWorldPosition(WORLD_POS_VEC));
-      Engine.get().getScene().add(laser);
+      getRootWorld(this).add(laser);
     });
     this.lastFire = Date.now();
   }

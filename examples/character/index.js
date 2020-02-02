@@ -15,69 +15,68 @@ import {
   Engine,
   Environment,
   Models,
-  RendererStats
+  World
 } from '../../src/era.js';
 
 async function start() {
-  // Create engine and load models.
-  const engine = Engine.get();
-  Camera.get().setActiveCamera(Camera.get().buildPerspectiveCamera());
-
   // Load models.
   await Models.get().loadAllFromFile('models.json');
 
+  // Create engine.
+  const engine = Engine.get();
   engine.start();
-  const scene = engine.getScene();
 
-  // Enable debug.
-  new RendererStats(engine.getRenderer());
+  // Create renderer.
+  const renderer = new THREE.WebGLRenderer({
+    antialias: true,
+    alpha: true
+  });
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.setPixelRatio(window.devicePixelRatio);
 
-  // Create physics.
-  const physics = new CannonPhysics(); //.withDebugRenderer();
+  // Build world.
+  const world = new World()
+    .withPhysics(new CannonPhysics())
+    .addRenderer(renderer)
+    .addCameraForRenderer(Camera.get().buildPerspectiveCamera());
 
   // Create environment.
   const environment = await new Environment().loadFromFile('environment.json');
-  scene.add(environment);
+  world.setEnvironment(environment);
 
   // Create arena.
-  const stage = new Stage().withPhysics(physics).build();
-  scene.add(stage);
-  physics.registerEntity(stage);
+  const stage = new Stage().withPhysics();
+  world.add(stage);
 
   // Create stairs.
-  const stairs = new Stairs(0.2, 0.4, 10, 2).withPhysics(physics).build();
+  const stairs = new Stairs(0.2, 0.4, 10, 2).withPhysics();
+  world.add(stairs);
   stairs.physicsBody.position.set(-5, 0, 6);
-  scene.add(stairs);
-  physics.registerEntity(stairs);
 
-  const stairs2 = new Stairs(0.5, 0.8, 5, 2).withPhysics(physics).build();
+  const stairs2 = new Stairs(0.5, 0.8, 5, 2).withPhysics();
+  world.add(stairs2);
   stairs2.physicsBody.position.set(-5, 0, 4);
-  scene.add(stairs2);
-  physics.registerEntity(stairs2);
 
   // Create ramp.
-  const ramp = new Ramp().withPhysics(physics).build();
+  const ramp = new Ramp().withPhysics();
+  world.add(ramp);
   ramp.physicsBody.position.set(3, -1, -3);
-  scene.add(ramp);
-  physics.registerEntity(ramp);
 
   // Create sphere.
-  const sphere = new Sphere().withPhysics(physics).build();
+  const sphere = new Sphere().withPhysics();
+  world.add(sphere);
   sphere.physicsBody.position.set(2, -1, 2);
-  scene.add(sphere);
-  physics.registerEntity(sphere);
 
   // Create some basic terrain.
-  const terrain = new Terrain().withPhysics(physics).build();
+  const terrain = new Terrain().withPhysics();
+  world.add(terrain);
   terrain.physicsBody.position.set(7.5, -0.125, 5);
-  scene.add(terrain);
-  physics.registerEntity(terrain);
 
   // Create character.
-  const character = new Character().withPhysics(physics).build();
-  scene.add(character);
-  physics.registerEntity(character);
-  Camera.get().attachCamera(character);
+  const character = new Character().withPhysics();
+  world.add(character).attachCameraToEntity(character);
   Controls.get().registerEntity(character);
   Controls.get().usePointerLockControls();
 }

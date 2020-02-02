@@ -2,7 +2,6 @@
  * @author rogerscg / https://github.com/rogerscg
  */
 import CannonDebugRenderer from './cannon_debug_renderer.js';
-import Engine from '../core/engine.js';
 import Physics from '../core/physics.js';
 
 const MAX_DELTA = 1;
@@ -82,7 +81,7 @@ class CannonPhysics extends Physics {
 
   /** @override */
   enableDebugRenderer() {
-    const scene = Engine.get().getScene();
+    const scene = this.getEraWorld() ? this.getEraWorld().getScene() : null;
     const world = this.getWorld();
     if (!scene || !world) {
       return console.warn('Debug renderer missing scene or world.');

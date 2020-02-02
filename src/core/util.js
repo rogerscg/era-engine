@@ -1,5 +1,6 @@
 /**
  * @author rogerscg / https://github.com/rogerscg
+ * @author erveon / https://github.com/erveon
  */
 
 /**
@@ -7,13 +8,13 @@
  */
 function createUUID() {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    var r = Math.random() * 16 | 0,
-      v = c == 'x' ? r : (r & 0x3 | 0x8);
+    var r = (Math.random() * 16) | 0,
+      v = c == 'x' ? r : (r & 0x3) | 0x8;
     return v.toString(16);
   });
 }
 
-/** 
+/**
  * Disables all shadows for an object and its children.
  */
 function disableShadows(object, name, force = false) {
@@ -22,11 +23,11 @@ function disableShadows(object, name, force = false) {
     force = true;
   }
   object.children.forEach((child) => {
-    disableShadows(child, name, force)
+    disableShadows(child, name, force);
   });
 }
 
-/** 
+/**
  * Disposes all geometries and materials for an object and its children.
  */
 function dispose(object) {
@@ -39,7 +40,6 @@ function dispose(object) {
   object.children.forEach((child) => dispose(child));
 }
 
-
 /**
  * Extracts an array of meshes present in an object hierarchy.
  * @param {Object3D} object The root object from which to search.
@@ -50,9 +50,11 @@ function dispose(object) {
 function extractMeshes(object, materialFilter, filterOut = true) {
   let meshes = [];
   if (object.type == 'Mesh') {
-    if (materialFilter &&
+    if (
+      materialFilter &&
       ((filterOut && object.material.name.indexOf(materialFilter) < 0) ||
-        (!filterOut && object.material.name.indexOf(materialFilter) > -1))) {
+        (!filterOut && object.material.name.indexOf(materialFilter) > -1))
+    ) {
       meshes.push(object);
     } else if (!materialFilter) {
       meshes.push(object);
@@ -93,23 +95,23 @@ function shuffleArray(array) {
   }
 }
 
-function toDegrees (angle) {
+function toDegrees(angle) {
   return angle * (180 / Math.PI);
 }
 
-function toRadians (angle) {
+function toRadians(angle) {
   return angle * (Math.PI / 180);
 }
 
 /**
  * Computes the angle in radians with respect to the positive x-axis
- * @param {Number} x 
- * @param {Number} y 
+ * @param {Number} x
+ * @param {Number} y
  */
 function vectorToAngle(x, y) {
-		let angle = Math.atan2(y, x);
-		if(angle < 0) angle += 2 * Math.PI;
-    return angle;
+  let angle = Math.atan2(y, x);
+  if (angle < 0) angle += 2 * Math.PI;
+  return angle;
 }
 
 /*
@@ -118,18 +120,27 @@ function vectorToAngle(x, y) {
  * Ratio 1 = Col2
  */
 function getHexColorRatio(col1, col2, ratio) {
-	var r = Math.ceil(parseInt(col1.substring(0,2), 16) * ratio + parseInt(col2.substring(0,2), 16) * (1-ratio));
-	var g = Math.ceil(parseInt(col1.substring(2,4), 16) * ratio + parseInt(col2.substring(2,4), 16) * (1-ratio));
-	var b = Math.ceil(parseInt(col1.substring(4,6), 16) * ratio + parseInt(col2.substring(4,6), 16) * (1-ratio));
-	return hex(r) + hex(g) + hex(b);
+  var r = Math.ceil(
+    parseInt(col1.substring(0, 2), 16) * ratio +
+      parseInt(col2.substring(0, 2), 16) * (1 - ratio)
+  );
+  var g = Math.ceil(
+    parseInt(col1.substring(2, 4), 16) * ratio +
+      parseInt(col2.substring(2, 4), 16) * (1 - ratio)
+  );
+  var b = Math.ceil(
+    parseInt(col1.substring(4, 6), 16) * ratio +
+      parseInt(col2.substring(4, 6), 16) * (1 - ratio)
+  );
+  return hex(r) + hex(g) + hex(b);
 }
 
 /**
  * Used in getHexColorRatio
  */
 function hex(x) {
-	x = x.toString(16);
-  return (x.length == 1) ? '0' + x : x;
+  x = x.toString(16);
+  return x.length == 1 ? '0' + x : x;
 }
 
 /**
@@ -145,19 +156,51 @@ function lerp(a, b, factor) {
 
 /**
  * Loads a JSON from the given file path.
- * @param {string} path 
+ * @param {string} path
  * @return {Promise<Object>} Parsed JSON object.
  * @async
  */
 async function loadJsonFromFile(path) {
   return new Promise((resolve, reject) => {
     const loader = new THREE.FileLoader();
-    loader.load(path, (data) => {
-      resolve(JSON.parse(data));
-    }, () => {}, (err) => {
-      reject(err);
-    });
+    loader.load(
+      path,
+      (data) => {
+        resolve(JSON.parse(data));
+      },
+      () => {},
+      (err) => {
+        reject(err);
+      }
+    );
   });
+}
+
+/**
+ * Traverses the provided object's ancestors to get the root scene in the ERA
+ * world.
+ * @param {THREE.Object3D} object
+ * @return {THREE.Scene}
+ */
+function getRootScene(object) {
+  let rootScene = null;
+  object.traverseAncestors((ancestor) => {
+    if (ancestor.isRootScene) {
+      rootScene = ancestor;
+    }
+  });
+  return rootScene;
+}
+
+/**
+ * Traverses the provided object's ancestors to get the root scene, which has a
+ * property with the parent ERA world.
+ * @param {THREE.Object3D} object
+ * @return {World}
+ */
+function getRootWorld(object) {
+  const rootScene = getRootScene(object);
+  return rootScene && rootScene.parentWorld ? rootScene.parentWorld : null;
 }
 
 export {
@@ -167,10 +210,12 @@ export {
   extractMeshes,
   extractMeshesByName,
   getHexColorRatio,
+  getRootScene,
+  getRootWorld,
   lerp,
   loadJsonFromFile,
   shuffleArray,
   toDegrees,
   toRadians,
-  vectorToAngle,
+  vectorToAngle
 };

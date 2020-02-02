@@ -1,4 +1,5 @@
 import Engine from './engine.js';
+import Entity from './entity.js';
 import Light from './light.js';
 import Skybox from './skybox.js';
 import { loadJsonFromFile } from './util.js';
@@ -8,9 +9,11 @@ import { loadJsonFromFile } from './util.js';
  * that are unique to an environment. Extends THREE.Object3D to act as a root
  * that can be added to a scene.
  */
-class Environment extends THREE.Object3D {
+class Environment extends Entity {
   constructor() {
     super();
+    this.meshEnabled = false;
+    this.clearColor = 0xffffff;
   }
 
   /**
@@ -55,11 +58,10 @@ class Environment extends THREE.Object3D {
    * @param {string} background
    */
   loadBackground(background) {
-    const renderer = Engine.get().getRenderer();
-    if (!renderer || !background) {
+    if (!background) {
       return;
     }
-    renderer.setClearColor(parseInt(background, 16));
+    this.clearColor = parseInt(background, 16);
   }
 
   /**
@@ -78,6 +80,14 @@ class Environment extends THREE.Object3D {
     const extension = skyboxData.extension;
     await skybox.load(directory, file, extension);
     this.add(skybox);
+  }
+
+  /**
+   * Returns the clear color a renderer should set based on the environment.
+   * @return {number}
+   */
+  getClearColor() {
+    return this.clearColor;
   }
 }
 

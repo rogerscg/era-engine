@@ -1,28 +1,26 @@
 <html>
+  <head>
+    <title>Physics Example</title>
+    <link rel="icon" href="/public/images/favicon.png" type="image/x-icon" />
+    <style>
+      #container {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        top: 0;
+      }
+    </style>
+  </head>
 
-<head>
-  <title>Physics Example</title>
-  <link rel="icon" href="/public/images/favicon.png" type="image/x-icon" />
-  <style>
-    #container {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      top: 0;
-    }
-  </style>
-</head>
-
-<body>
-  <div id="container"></div>
-</body>
-<script src="../../dependencies/ammo.js"></script>
-<script src="../../dependencies/three.js"></script>
-<script src="../../dependencies/tween.js"></script>
-<script src="../../dependencies/OrbitControls.js"></script>
-<script src="../../dependencies/SkeletonUtils.js"></script>
-<script src="../../dependencies/PropertyBinding.js"></script>
-<script type="module" src="index.js"></script>
-
+  <body>
+    <div id="container" data-renderer="main"></div>
+  </body>
+  <script src="../../dependencies/ammo.js"></script>
+  <script src="../../dependencies/three.js"></script>
+  <script src="../../dependencies/tween.js"></script>
+  <script src="../../dependencies/OrbitControls.js"></script>
+  <script src="../../dependencies/SkeletonUtils.js"></script>
+  <script src="../../dependencies/PropertyBinding.js"></script>
+  <script type="module" src="index.js"></script>
 </html>

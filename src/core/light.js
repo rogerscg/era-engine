@@ -1,10 +1,9 @@
 /**
  * @author rogerscg / https://github.com/rogerscg
  */
-
-import Engine from './engine.js';
 import Plugin from './plugin.js';
 import Settings from './settings.js';
+import { getRootScene } from './util.js';
 
 let instance = null;
 /**
@@ -35,6 +34,7 @@ class Light extends Plugin {
   reset() {
     this.ambientLight = null;
     this.lights.forEach((light) => {
+      this.removeHelpers(light);
       if (light.parent) {
         light.parent.remove(light);
       }
@@ -43,7 +43,21 @@ class Light extends Plugin {
   }
 
   /** @override */
-  update() {}
+  update() {
+    this.updateHelpers();
+  }
+
+  /**
+   * Updates all helpers attached to lights.
+   */
+  updateHelpers() {
+    // If debug settings are enabled, check for lights and their debug helpers.
+    if (this.debugEnabled) {
+      this.lights.forEach((light) => this.addHelpers(light));
+    } else {
+      this.lights.forEach((light) => this.removeHelpers(light));
+    }
+  }
 
   /**
    * Creates the ambient lighting. Use this for easing/darkening shadows.
@@ -69,16 +83,6 @@ class Light extends Plugin {
     light.intensity = options.intensity;
     this.createShadows(light, options.shadow);
     light.helper = new THREE.DirectionalLightHelper(light, 10);
-    if (Settings.get('debug')) {
-      Engine.get()
-        .getScene()
-        .add(light.helper);
-      if (light.shadow && light.shadow.helper) {
-        Engine.get()
-          .getScene()
-          .add(light.shadow.helper);
-      }
-    }
     this.lights.push(light);
     return light;
   }
@@ -100,16 +104,6 @@ class Light extends Plugin {
     }
     this.createShadows(light, options.shadow);
     light.helper = new THREE.SpotLightHelper(light);
-    if (Settings.get('debug')) {
-      Engine.get()
-        .getScene()
-        .add(helper);
-      if (light.shadow && light.shadow.helper) {
-        Engine.get()
-          .getScene()
-          .add(light.shadow.helper);
-      }
-    }
     this.lights.push(light);
     return light;
   }
@@ -180,18 +174,7 @@ class Light extends Plugin {
       return;
     }
     this.debugEnabled = true;
-    this.lights.forEach((light) => {
-      if (light.helper) {
-        Engine.get()
-          .getScene()
-          .add(light.helper);
-      }
-      if (light.shadow && light.shadow.helper) {
-        Engine.get()
-          .getScene()
-          .add(light.shadow.helper);
-      }
-    });
+    this.lights.forEach((light) => this.addHelpers(light));
   }
 
   /**
@@ -202,18 +185,44 @@ class Light extends Plugin {
       return;
     }
     this.debugEnabled = false;
-    this.lights.forEach((light) => {
-      if (light.helper) {
-        Engine.get()
-          .getScene()
-          .remove(light.helper);
+    this.lights.forEach((light) => this.removeHelpers(light));
+  }
+
+  /**
+   * Adds the provided light's helpers to the root scene.
+   * @param {THREE.Light} light
+   */
+  addHelpers(light) {
+    // Handle base light helper first.
+    let rootScene = getRootScene;
+    if (light.helper && !light.helper.parent) {
+      rootScene = getRootScene(light);
+      if (rootScene) {
+        rootScene.add(light.helper);
       }
-      if (light.shadow && light.shadow.helper) {
-        Engine.get()
-          .getScene()
-          .remove(light.shadow.helper);
+    }
+    if (light.shadow && light.shadow.helper && !light.shadow.helper.parent) {
+      if (!rootScene) {
+        rootScene = getRootScene(light);
       }
-    });
+      if (rootScene) {
+        rootScene.add(light.shadow.helper);
+      }
+    }
+  }
+
+  /**
+   * Removes a light's helpers from their scene.
+   * @param {THREE.Light} light
+   */
+  removeHelpers(light) {
+    if (light.helper && light.helper.parent) {
+      light.helper.parent.remove(light.helper);
+    }
+    if (light.shadow && light.shadow.helper && light.shadow.helper.parent) {
+      light.shadow.helper.parent.remove(light.shadow.helper);
+    }
+    light.userData.addedToScene = false;
   }
 }
 

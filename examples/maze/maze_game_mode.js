@@ -5,10 +5,10 @@ import {
   Camera,
   CannonPhysics,
   Controls,
-  Engine,
   Environment,
   GameMode,
-  Models
+  Models,
+  World
 } from '../../src/era.js';
 
 const LEVELS = ['level_1', 'level_2', 'level_3'];
@@ -19,8 +19,7 @@ const LEVELS = ['level_1', 'level_2', 'level_3'];
 class MazeGameMode extends GameMode {
   constructor() {
     super();
-    this.scene = null;
-    this.physics = null;
+    this.world = null;
     this.character = null;
     this.levels = null;
     this.levelIndex = 0;
@@ -35,24 +34,32 @@ class MazeGameMode extends GameMode {
     // Load audio.
     await Audio.get().loadSound('', 'ding', { extension: 'mp3' });
 
-    // Build camera and scene.
-    Camera.get().setActiveCamera(Camera.get().buildPerspectiveCamera());
-    this.scene = Engine.get().getScene();
+    // Create renderer.
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: true
+    });
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.setPixelRatio(window.devicePixelRatio);
 
-    // Create physics.
-    this.physics = new CannonPhysics();
+    // Create world.
+    this.world = new World()
+      .withPhysics(new CannonPhysics())
+      .addRenderer(renderer)
+      .addCameraForRenderer(Camera.get().buildPerspectiveCamera(), renderer);
 
     // Create environment.
     const environment = await new Environment().loadFromFile(
       'environment.json'
     );
-    this.scene.add(environment);
+    this.world.setEnvironment(environment);
 
     // Create character.
-    this.character = new Character().withPhysics(this.physics).build();
+    this.character = new Character().withPhysics();
     this.character.freeze();
-    this.scene.add(this.character);
-    this.physics.registerEntity(this.character);
+    this.world.add(this.character);
     Controls.get().registerEntity(this.character);
 
     // Load levels.
@@ -78,10 +85,7 @@ class MazeGameMode extends GameMode {
     });
     this.currentLevel = level;
     await level.load();
-    level.build();
-    this.scene.add(level);
-    this.physics.registerEntity(level);
-    Camera.get().attachCamera(level);
+    this.world.add(level).attachCameraToEntity(level);
   }
 
   /**

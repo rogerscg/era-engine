@@ -10,8 +10,8 @@ import {
   Engine,
   Environment,
   Models,
-  RendererStats,
-  Settings
+  Settings,
+  World
 } from '../../src/era.js';
 
 async function start() {
@@ -24,29 +24,37 @@ async function start() {
   // Load sounds.
   await Audio.get().loadAllFromFile('sounds/sounds.json');
 
-  // Create engine and load models.
+  // Create engine.
   const engine = Engine.get();
-  Camera.get().setActiveCamera(Camera.get().buildPerspectiveCamera());
-  engine.start();
-  const scene = engine.getScene();
 
-  // Enable debug.
-  new RendererStats(engine.getRenderer());
+  // Create world.
+  const world = new World();
+
+  // Build renderer.
+  const renderer = new THREE.WebGLRenderer({
+    antialias: true,
+    alpha: true
+  });
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.setPixelRatio(window.devicePixelRatio);
+  world.addRenderer(renderer);
+  world.addCameraForRenderer(Camera.get().buildPerspectiveCamera(), renderer);
+
+  engine.start();
 
   // Create environment.
   const environment = await new Environment().loadFromFile(
     'environments/space.json'
   );
-  scene.add(environment);
+  world.setEnvironment(environment);
 
   // Create X-Wing.
-  const xwing = new XWing().build();
-  scene.add(xwing);
-
-  // Attach camera to XWing.
-  Camera.get().attachCamera(xwing);
+  const xwing = new XWing();
+  world.add(xwing).attachCameraToEntity(xwing);
   Controls.get().registerEntity(xwing);
-  Controls.get().useOrbitControls();
+  Controls.get().useOrbitControls(world.getCamera(), world.getRenderer());
 }
 
 document.addEventListener('DOMContentLoaded', start);

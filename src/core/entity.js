@@ -4,14 +4,13 @@
 
 import Animation from './animation.js';
 import Controls from './controls.js';
-import Engine from './engine.js';
 import Models from './models.js';
 import Physics from './physics.js';
 import Settings from './settings.js';
 import SettingsEvent from '../events/settings_event.js';
 import { Bindings } from './bindings.js';
 import { Object3DEventTarget } from '../events/event_target.js';
-import { createUUID } from './util.js';
+import { createUUID, getRootWorld } from './util.js';
 
 const ENTITY_BINDINGS = {
   BACKWARD: {
@@ -54,10 +53,13 @@ class Entity extends Object3DEventTarget {
   constructor() {
     super();
     this.uuid = createUUID();
+    this.world = null;
+    this.built = false;
     this.modelName = null;
     this.mesh = null;
-    this.cameraArm;
+    this.cameraArm = null;
     this.registeredCameras = new Set();
+    this.meshEnabled = true;
 
     // Physics properties.
     this.physicsBody = null;
@@ -82,13 +84,27 @@ class Entity extends Object3DEventTarget {
   }
 
   /**
-   * Enables physics generation with the given physics instance.
-   * @param {Physics=} physics
+   * Enables physics generation.
    */
-  withPhysics(physics) {
-    this.physicsWorld = physics;
+  withPhysics() {
     this.physicsEnabled = true;
     return this;
+  }
+
+  /**
+   * Provides the Entity with the ERA world to which it belongs.
+   * @param {World} world
+   */
+  setWorld(world) {
+    this.world = world;
+  }
+
+  /**
+   * Returns the ERA world to which the Entity belongs.
+   * @return {World}
+   */
+  getWorld() {
+    return this.world;
   }
 
   /**
@@ -125,6 +141,9 @@ class Entity extends Object3DEventTarget {
    * Creates the mesh and physics object.
    */
   build() {
+    if (this.built) {
+      return this;
+    }
     this.mesh = this.generateMesh();
     if (this.mesh) {
       this.add(this.mesh);
@@ -141,7 +160,7 @@ class Entity extends Object3DEventTarget {
     if (this.physicsEnabled) {
       this.physicsBody = this.generatePhysicsBody();
     }
-    Engine.get().registerEntity(this);
+    this.built = true;
     return this;
   }
 
@@ -150,13 +169,11 @@ class Entity extends Object3DEventTarget {
    * of all objects in memory.
    */
   destroy() {
-    if (this.parent) {
-      this.parent.remove(this);
+    const world = getRootWorld(this);
+    if (!world) {
+      return console.warn('Destroyed entity has no root world');
     }
-    if (this.physicsWorld) {
-      this.physicsWorld.unregisterEntity(this);
-    }
-    Engine.get().unregisterEntity(this);
+    world.remove(this);
   }
 
   /**
@@ -182,6 +199,9 @@ class Entity extends Object3DEventTarget {
    * Creates the mesh for the entity, using the entity name provided.
    */
   generateMesh() {
+    if (!this.meshEnabled) {
+      return;
+    }
     if (!this.modelName) {
       return console.warn('Model name not provided');
     }

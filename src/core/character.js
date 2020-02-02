@@ -1,6 +1,4 @@
-import Camera from './camera.js';
 import Controls from './controls.js';
-import Engine from './engine.js';
 import Entity from './entity.js';
 import Settings from './settings.js';
 import { Bindings } from './bindings.js';
@@ -10,13 +8,23 @@ const CHARACTER_BINDINGS = {
   SPRINT: {
     keys: {
       keyboard: 16,
-      controller: '-axes3'
+      controller: 'button10'
     }
   },
   JUMP: {
     keys: {
       keyboard: 32,
       controller: 'button0'
+    }
+  },
+  LOOK_X: {
+    keys: {
+      controller: 'axes2'
+    }
+  },
+  LOOK_Y: {
+    keys: {
+      controller: 'axes3'
     }
   }
 };
@@ -310,7 +318,9 @@ class Character extends Entity {
       inputVector.x += this.getActionValue(this.bindings.RIGHT);
     }
     // Update input vector with camera direction.
-    const camera = Camera.get().getActiveCamera();
+    const camera = this.getWorld()
+      ? this.getWorld().getAssociatedCamera(this)
+      : null;
     if (camera) {
       camera.getWorldQuaternion(this.cameraQuaternion);
       this.cameraEuler.setFromQuaternion(this.cameraQuaternion);
@@ -357,12 +367,16 @@ class Character extends Entity {
    * Checks settings to see if raycast debug should be used.
    */
   toggleRaycastDebug() {
+    const world = this.getWorld();
+    if (!world) {
+      return console.warn('World not set on character');
+    }
     if (Settings.get('debug')) {
-      const scene = Engine.get().getScene();
+      const scene = world.getScene();
       scene.add(this.rayStartBox);
       scene.add(this.rayEndBox);
     } else {
-      const scene = Engine.get().getScene();
+      const scene = world.getScene();
       scene.remove(this.rayStartBox);
       scene.remove(this.rayEndBox);
     }
