@@ -175,6 +175,9 @@ class World extends Plugin {
     this.renderers.forEach((renderer) =>
       renderer.setClearColor(environment.getClearColor())
     );
+    if (environment.getFog()) {
+      this.scene.fog = environment.getFog();
+    }
     return this;
   }
 

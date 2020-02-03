@@ -79,6 +79,7 @@ class Light extends Plugin {
   createDirectionalLight(options) {
     options = new LightOptions(options);
     const light = new THREE.DirectionalLight(options.color);
+    light.userData.options = options;
     light.position.copy(options.position);
     light.intensity = options.intensity;
     this.createShadows(light, options.shadow);
@@ -94,6 +95,7 @@ class Light extends Plugin {
   createSpotLight(options) {
     options = new LightOptions(options);
     const light = new THREE.SpotLight(options.color);
+    light.userData.options = options;
     light.position.copy(options.position);
     light.intensity = options.intensity;
     if (options.angle) {
@@ -152,7 +154,15 @@ class Light extends Plugin {
       return;
     }
     this.shadowsEnabled = true;
-    this.lights.forEach((light) => (light.castShadow = true));
+    this.lights.forEach((light) => {
+      const options = light.userData.options;
+      if (!options) {
+        return;
+      }
+      if (options.shadow) {
+        light.castShadow = true;
+      }
+    });
   }
 
   /**

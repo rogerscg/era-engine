@@ -4,6 +4,10 @@
     "file": "bluecloud",
     "extension": "jpg"
   },
+  "fog": {
+    "type": "exp2",
+    "density": 0.025
+  },
   "background": "cccccc",
   "lights": {
     "ambient": [

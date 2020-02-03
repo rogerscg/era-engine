@@ -44,7 +44,7 @@ async function start() {
 
   // Create environment.
   const environment = await new Environment().loadFromFile('environment.json');
-  world.add(environment);
+  world.setEnvironment(environment);
 
   // Create some basic terrain.
   const terrain = new Terrain().withPhysics();

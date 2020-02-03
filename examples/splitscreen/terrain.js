@@ -2,6 +2,9 @@ import { Entity } from '../../src/era.js';
 
 const MATERIAL = new THREE.MeshLambertMaterial({ color: 0x567d46 });
 
+const WIDTH = 100;
+const DATA_ROWS = 10;
+
 /**
  * A terrain tile.
  */
@@ -13,15 +16,20 @@ class Terrain extends Entity {
 
   /** @override */
   generateMesh() {
-    const geometry = new THREE.PlaneGeometry(9, 9, 9, 9);
+    const geometry = new THREE.PlaneGeometry(
+      WIDTH,
+      WIDTH,
+      DATA_ROWS,
+      DATA_ROWS
+    );
     this.data.forEach((row, rowIndex) => {
       row.forEach((value, valueIndex) => {
-        const vertexIndex = rowIndex * 10 + valueIndex;
+        const vertexIndex = rowIndex * DATA_ROWS + valueIndex;
         geometry.vertices[vertexIndex].z = value;
       });
     });
     geometry.rotateZ(Math.PI / 2);
-    geometry.translate(4.5, 4.5, 0);
+    geometry.translate(WIDTH / 2, WIDTH / 2, 0);
     return new THREE.Mesh(geometry, MATERIAL);
   }
 
@@ -29,7 +37,7 @@ class Terrain extends Entity {
   generatePhysicsBody() {
     const body = new CANNON.Body();
     const heightfieldShape = new CANNON.Heightfield(this.data, {
-      elementSize: 1
+      elementSize: WIDTH / DATA_ROWS
     });
     body.quaternion.setFromEuler(-Math.PI / 2, 0, 0, 'XYZ');
     body.addShape(heightfieldShape);
@@ -43,9 +51,9 @@ class Terrain extends Entity {
    */
   generateData() {
     const data = new Array();
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i <= DATA_ROWS; i++) {
       const row = new Array();
-      for (let j = 0; j < 10; j++) {
+      for (let j = 0; j <= DATA_ROWS; j++) {
         const y = 0;
         row.push(y);
       }

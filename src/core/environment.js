@@ -1,4 +1,3 @@
-import Engine from './engine.js';
 import Entity from './entity.js';
 import Light from './light.js';
 import Skybox from './skybox.js';
@@ -14,6 +13,7 @@ class Environment extends Entity {
     super();
     this.meshEnabled = false;
     this.clearColor = 0xffffff;
+    this.fog = null;
   }
 
   /**
@@ -29,6 +29,7 @@ class Environment extends Entity {
     const environmentData = await loadJsonFromFile(filePath);
     this.loadLights(environmentData.lights);
     this.loadBackground(environmentData.background);
+    this.loadFog(environmentData.fog);
     await this.loadSkybox(environmentData.skybox);
     return this;
   }
@@ -83,11 +84,38 @@ class Environment extends Entity {
   }
 
   /**
+   * Loads fog into the scene.
+   * @param {Object} fogData
+   */
+  loadFog(fogData) {
+    if (!fogData) {
+      return;
+    }
+    const color =
+      fogData.color != null ? parseInt(fogData.color, 16) : 0xffffff;
+    const near = fogData.near;
+    const far = fogData.far;
+    const density = fogData.density;
+    this.fog =
+      fogData.type == 'exp2'
+        ? new THREE.FogExp2(color, density)
+        : new THREE.Fog(color, near, far);
+  }
+
+  /**
    * Returns the clear color a renderer should set based on the environment.
    * @return {number}
    */
   getClearColor() {
     return this.clearColor;
+  }
+
+  /**
+   * Returns the fog to be added to the scene.
+   * @return {THREE.Fog}
+   */
+  getFog() {
+    return this.fog;
   }
 }
 
