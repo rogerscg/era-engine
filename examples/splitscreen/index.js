@@ -35,6 +35,7 @@ async function start() {
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.powerPreference = 'high-performance';
     renderer.setPixelRatio(window.devicePixelRatio);
     world.addRenderer(renderer, `player-${i + 1}`);
     world.addCameraForRenderer(Camera.get().buildPerspectiveCamera(), renderer);

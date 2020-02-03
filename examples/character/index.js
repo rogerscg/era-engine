@@ -34,6 +34,7 @@ async function start() {
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.powerPreference = 'high-performance';
   renderer.setPixelRatio(window.devicePixelRatio);
 
   // Build world.

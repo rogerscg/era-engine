@@ -27,6 +27,7 @@ async function start() {
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.outputEncoding = THREE.sRGBEncoding;
   renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.powerPreference = 'high-performance';
   world.addRenderer(renderer);
   world.addCameraForRenderer(Camera.get().buildIsometricCamera(), renderer);
 
