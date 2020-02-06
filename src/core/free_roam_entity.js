@@ -35,8 +35,8 @@ const FREE_ROAM_BINDINGS = {
 
 const CONTROLS_ID = 'FreeRoam';
 
-const MAX_CAMERA_Z = Math.PI;
-const MIN_CAMERA_Z = -Math.PI;
+const MAX_CAMERA_Z = Math.PI / 2;
+const MIN_CAMERA_Z = -Math.PI / 2;
 const MOUSE_SENS = 0.002;
 const VELOCITY_COEFFICIENT = 0.2;
 

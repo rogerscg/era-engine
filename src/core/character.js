@@ -337,7 +337,7 @@ class Character extends Entity {
     if (!world) {
       return console.warn('World not set on character');
     }
-    if (Settings.get('debug')) {
+    if (Settings.get('physics_debug')) {
       const scene = world.getScene();
       scene.add(this.rayStartBox);
       scene.add(this.rayEndBox);

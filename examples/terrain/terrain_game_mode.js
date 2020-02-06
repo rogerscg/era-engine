@@ -1,3 +1,4 @@
+import Terrain from './terrain.js';
 import {
   Camera,
   CannonPhysics,
@@ -45,6 +46,8 @@ class TerrainGameMode extends GameMode {
     Controls.get().usePointerLockControls();
 
     // Load terrain.
+    const terrain = new Terrain().withPhysics();
+    this.world.add(terrain);
   }
 
   /** @override */

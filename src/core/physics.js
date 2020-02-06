@@ -51,10 +51,10 @@ class Physics extends Plugin {
 
   /** @override */
   handleSettingsChange() {
-    if (Settings.get('debug') && this.debugRenderer) {
+    if (Settings.get('physics_debug') && this.debugRenderer) {
       return;
     }
-    Settings.get('debug')
+    Settings.get('physics_debug')
       ? this.enableDebugRenderer()
       : this.disableDebugRenderer();
   }

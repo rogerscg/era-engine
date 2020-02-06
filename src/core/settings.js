@@ -8,26 +8,29 @@ import SettingsEvent from '../events/settings_event.js';
 // TODO: Allow for an enum of options for a setting.
 const DEFAULT_SETTINGS = {
   debug: {
-    value: true,
+    value: true
+  },
+  physics_debug: {
+    value: true
   },
   movement_deadzone: {
     value: 0.15,
-    min: 0.00,
-    max: 1.00,
+    min: 0.0,
+    max: 1.0
   },
   mouse_sensitivity: {
     value: 50,
     min: 0,
-    max: 200,
+    max: 200
   },
   shadows: {
-    value: true,
+    value: true
   },
   volume: {
     value: 50,
-    min: 0, 
-    max: 100,
-  },
+    min: 0,
+    max: 100
+  }
 };
 
 const SETTINGS_KEY = 'era_settings';
@@ -36,7 +39,6 @@ const SETTINGS_KEY = 'era_settings';
  * Controls the client settings in a singleton model in local storage.
  */
 class Settings extends Map {
-
   constructor() {
     super();
     this.loaded = false;
@@ -64,7 +66,7 @@ class Settings extends Map {
       return;
     }
     setting.setValue(value);
-    this.apply(); 
+    this.apply();
   }
 
   /**
@@ -207,7 +209,7 @@ class Setting {
   getMin() {
     return this.min;
   }
-  
+
   getMax() {
     return this.max;
   }
@@ -251,7 +253,7 @@ class Setting {
     this.wasModified = true;
     // TODO: Check for min/max, type, or other options for validation.
   }
-  
+
   /**
    * Exports the individual setting to an object.
    * @returns {Object}
@@ -259,7 +261,7 @@ class Setting {
   export() {
     return {
       value: this.value,
-      modified: this.wasModified,
+      modified: this.wasModified
     };
   }
 }
