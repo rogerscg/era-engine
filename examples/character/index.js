@@ -15,7 +15,8 @@ import {
   Engine,
   Environment,
   Models,
-  World
+  World,
+  defaultEraRenderer
 } from '../../src/era.js';
 
 async function start() {

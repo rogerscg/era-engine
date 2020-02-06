@@ -31,9 +31,11 @@ class World extends Plugin {
     // Update all entities, if physics is not enabled. This is due to physics
     // handling updates on its own.
     // TODO: Separate physics updates from entity updates.
-    if (!this.physics) {
-      this.entities.forEach((entity) => entity.update());
-    }
+    this.entities.forEach((entity) => {
+      if (!entity.physicsEnabled) {
+        entity.update();
+      }
+    });
 
     // Update all renderers.
     this.camerasToRenderers.forEach((renderer, camera) =>

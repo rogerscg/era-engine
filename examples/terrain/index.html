@@ -1,0 +1,47 @@
+<html>
+  <head>
+    <title>Terrain Example</title>
+    <link rel="icon" href="/public/images/favicon.png" type="image/x-icon" />
+    <style>
+      #renderer {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        top: 0;
+      }
+
+      #loading {
+        background: #222222;
+        bottom: 0;
+        color: white;
+        font-family: monospace;
+        font-size: 100px;
+        left: 0;
+        line-height: 70vh;
+        position: fixed;
+        right: 0;
+        text-align: center;
+        top: 0;
+        user-select: none;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="renderer" data-renderer="main"></div>
+    <div id="loading">Loading</div>
+  </body>
+  <script src="../../dependencies/cannon.js"></script>
+  <script src="../../dependencies/three.js"></script>
+  <script src="../../dependencies/tween.js"></script>
+  <script src="../../dependencies/zlib.min.js"></script>
+  <script src="../../dependencies/FBXLoader.js"></script>
+  <script src="../../dependencies/GLTFLoader.js"></script>
+  <script src="../../dependencies/OrbitControls.js"></script>
+  <script src="../../dependencies/PropertyBinding.js"></script>
+  <script src="../../dependencies/SkeletonUtils.js"></script>
+  <script src="../../dependencies/TGALoader.js"></script>
+  <script src="../../dependencies/tween.js"></script>
+  <script type="module" src="index.js"></script>
+</html>

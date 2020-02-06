@@ -15,6 +15,7 @@ export { default as Controls } from './core/controls.js';
 export { default as Engine } from './core/engine.js';
 export { default as Entity } from './core/entity.js';
 export { default as Environment } from './core/environment.js';
+export { default as FreeRoamEntity } from './core/free_roam_entity.js';
 export { default as GameMode } from './core/game_mode.js';
 export { default as Light } from './core/light.js';
 export { default as Models } from './core/models.js';

@@ -79,6 +79,10 @@ class Entity extends Object3DEventTarget {
     this.playerNumber = null;
     this.lastMouseMovement = new THREE.Vector2();
     this.mouseMovement = new THREE.Vector2();
+    this.inputVector = new THREE.Vector3();
+    this.cameraQuaternion = new THREE.Quaternion();
+    this.cameraEuler = new THREE.Euler();
+    this.cameraEuler.order = 'YXZ';
 
     SettingsEvent.listen(this.handleSettingsChange.bind(this));
   }
@@ -238,9 +242,9 @@ class Entity extends Object3DEventTarget {
    * @param {THREE.Camera} camera
    */
   positionCamera(camera) {
+    this.cameraArm.add(camera);
     camera.position.set(0, 0, 0);
     camera.rotation.set(0, 0, 0);
-    this.cameraArm.add(camera);
   }
 
   /**
@@ -371,6 +375,11 @@ class Entity extends Object3DEventTarget {
    * synchronized.
    */
   update() {
+    this.lastMouseMovement.copy(this.mouseMovement);
+    this.mouseMovement.set(0, 0);
+    if (this.bindings) {
+      this.calculateInputVector();
+    }
     if (!this.mesh || !this.physicsBody || !this.physicsWorld) {
       return;
     }
@@ -388,8 +397,40 @@ class Entity extends Object3DEventTarget {
     if (rotation.w != null) {
       this.mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
     }
-    this.lastMouseMovement.copy(this.mouseMovement);
-    this.mouseMovement.set(0, 0);
+  }
+
+  /**
+   * Calculates the input vector of the entity.
+   */
+  calculateInputVector() {
+    const inputVector = this.inputVector;
+    inputVector.set(0, 0, 0);
+    if (this.getActionValue(this.bindings.FORWARD)) {
+      inputVector.z -= this.getActionValue(this.bindings.FORWARD);
+    }
+    if (this.getActionValue(this.bindings.BACKWARD)) {
+      inputVector.z += this.getActionValue(this.bindings.BACKWARD);
+    }
+    if (this.getActionValue(this.bindings.LEFT)) {
+      inputVector.x -= this.getActionValue(this.bindings.LEFT);
+    }
+    if (this.getActionValue(this.bindings.RIGHT)) {
+      inputVector.x += this.getActionValue(this.bindings.RIGHT);
+    }
+    // Update input vector with camera direction.
+    const camera = this.getWorld()
+      ? this.getWorld().getAssociatedCamera(this)
+      : null;
+    if (camera) {
+      camera.getWorldQuaternion(this.cameraQuaternion);
+      this.cameraEuler.setFromQuaternion(this.cameraQuaternion);
+      // We only care about the X and Z axis, so remove the angle looking down
+      // on the character.
+      this.cameraEuler.x = 0;
+      this.cameraQuaternion.setFromEuler(this.cameraEuler);
+    }
+    inputVector.applyQuaternion(this.cameraQuaternion);
+    inputVector.normalize();
   }
 
   /**
