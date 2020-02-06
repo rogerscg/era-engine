@@ -1,4 +1,4 @@
-import Terrain from './terrain.js';
+import TerrainGenerator from './terrain/generator.js';
 import {
   Camera,
   CannonPhysics,
@@ -46,12 +46,20 @@ class TerrainGameMode extends GameMode {
     Controls.get().usePointerLockControls();
 
     // Load terrain.
-    const terrain = new Terrain().withPhysics();
-    this.world.add(terrain);
+    await this.loadTerrain();
   }
 
   /** @override */
   async start() {}
+
+  /**
+   * Generates terrain.
+   * @async
+   */
+  async loadTerrain() {
+    const terrainTile = new TerrainGenerator(1, 1, 100).generate();
+    this.world.add(terrainTile);
+  }
 }
 
 export default TerrainGameMode;
