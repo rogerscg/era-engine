@@ -10,7 +10,8 @@ import {
   Controls,
   Engine,
   Environment,
-  World
+  World,
+  defaultEraRenderer
 } from '../../src/era.js';
 
 async function start() {
@@ -19,15 +20,7 @@ async function start() {
 
   // Create world and renderer.
   const world = new World().withPhysics(new AmmoPhysics());
-  const renderer = new THREE.WebGLRenderer({
-    antialias: true,
-    alpha: true
-  });
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  renderer.outputEncoding = THREE.sRGBEncoding;
-  renderer.setPixelRatio(window.devicePixelRatio);
-  renderer.powerPreference = 'high-performance';
+  const renderer = defaultEraRenderer();
   world.addRenderer(renderer);
   world.addCameraForRenderer(Camera.get().buildIsometricCamera(), renderer);
 

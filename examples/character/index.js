@@ -27,15 +27,7 @@ async function start() {
   engine.start();
 
   // Create renderer.
-  const renderer = new THREE.WebGLRenderer({
-    antialias: true,
-    alpha: true
-  });
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  renderer.outputEncoding = THREE.sRGBEncoding;
-  renderer.powerPreference = 'high-performance';
-  renderer.setPixelRatio(window.devicePixelRatio);
+  const renderer = defaultEraRenderer();
 
   // Build world.
   const world = new World()

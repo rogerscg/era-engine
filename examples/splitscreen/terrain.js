@@ -2,7 +2,7 @@ import { Entity } from '../../src/era.js';
 
 const MATERIAL = new THREE.MeshLambertMaterial({ color: 0x567d46 });
 
-const WIDTH = 100;
+const WIDTH = 10;
 const DATA_ROWS = 10;
 
 /**

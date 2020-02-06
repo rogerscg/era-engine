@@ -11,7 +11,8 @@ import {
   Environment,
   Models,
   Settings,
-  World
+  World,
+  defaultEraRenderer
 } from '../../src/era.js';
 
 async function start() {
@@ -31,15 +32,7 @@ async function start() {
   const world = new World();
 
   // Build renderer.
-  const renderer = new THREE.WebGLRenderer({
-    antialias: true,
-    alpha: true
-  });
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  renderer.outputEncoding = THREE.sRGBEncoding;
-  renderer.powerPreference = 'high-performance';
-  renderer.setPixelRatio(window.devicePixelRatio);
+  const renderer = defaultEraRenderer();
   world.addRenderer(renderer);
   world.addCameraForRenderer(Camera.get().buildPerspectiveCamera(), renderer);
 

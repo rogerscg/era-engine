@@ -8,7 +8,8 @@ import {
   Environment,
   GameMode,
   Models,
-  World
+  World,
+  defaultEraRenderer
 } from '../../src/era.js';
 
 const LEVELS = ['level_1', 'level_2', 'level_3'];
@@ -34,18 +35,8 @@ class MazeGameMode extends GameMode {
     // Load audio.
     await Audio.get().loadSound('', 'ding', { extension: 'mp3' });
 
-    // Create renderer.
-    const renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      alpha: true
-    });
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.outputEncoding = THREE.sRGBEncoding;
-    renderer.powerPreference = 'high-performance';
-    renderer.setPixelRatio(window.devicePixelRatio);
-
     // Create world.
+    const renderer = defaultEraRenderer();
     this.world = new World()
       .withPhysics(new CannonPhysics())
       .addRenderer(renderer)

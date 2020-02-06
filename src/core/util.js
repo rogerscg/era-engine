@@ -203,8 +203,26 @@ function getRootWorld(object) {
   return rootScene && rootScene.parentWorld ? rootScene.parentWorld : null;
 }
 
+/**
+ * Builds the default WebGL Renderer used by ERA.
+ * @return {THREE.WebGLRenderer}
+ */
+function defaultEraRenderer() {
+  const renderer = new THREE.WebGLRenderer({
+    antialias: true,
+    alpha: true
+  });
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.powerPreference = 'high-performance';
+  renderer.setPixelRatio(window.devicePixelRatio);
+  return renderer;
+}
+
 export {
   createUUID,
+  defaultEraRenderer,
   disableShadows,
   dispose,
   extractMeshes,
