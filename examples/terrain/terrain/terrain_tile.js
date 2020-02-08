@@ -1,9 +1,12 @@
 import { Entity } from '../../../src/era.js';
 
 const MATERIAL = new THREE.MeshLambertMaterial({
-  color: 0x567d46,
-  side: THREE.DoubleSide
-  //wireframe: true
+  color: 0x567d46
+});
+
+const DEBUG_MATERIAL = new THREE.MeshLambertMaterial({
+  color: 0xff0000,
+  wireframe: true
 });
 
 /**
@@ -21,6 +24,8 @@ class TerrainTile extends Entity {
     this.data = null;
     // Map tile coordinates.
     this.tileCoordinates = new THREE.Vector2();
+    // Debug planes to help find boundaries of tiles.
+    this.debugWalls = null;
   }
 
   /** @override */
@@ -45,8 +50,10 @@ class TerrainTile extends Entity {
       });
     });
     geometry.rotateX(-Math.PI / 2);
-    geometry.translate(totalWidth / 2, totalHeight / 2, 0);
+    // TODO: Fix this with CANNON.
+    //geometry.translate(totalWidth / 2, totalHeight / 2, 0);
     geometry.computeVertexNormals();
+    this.generateDebugWalls();
     return new THREE.Mesh(geometry, MATERIAL);
   }
 
@@ -60,6 +67,47 @@ class TerrainTile extends Entity {
     body.addShape(heightfieldShape);
     body.material = this.physicsWorld.createPhysicalMaterial('ground');
     return body;
+  }
+
+  /**
+   * Creates debug walls to aid finding the boundaries of a tile.
+   */
+  generateDebugWalls() {
+    if (!this.data) {
+      return;
+    }
+    const root = new THREE.Mesh(
+      new THREE.BoxGeometry(5, 50, 5),
+      new THREE.MeshLambertMaterial({ color: 0xffff00 })
+    );
+    this.add(root);
+    const dataHeight = this.data.length;
+    const dataWidth = this.data[0].length;
+    const totalWidth = (dataWidth - 1) * this.elementSize;
+    const totalHeight = (dataHeight - 1) * this.elementSize;
+    const geometry = new THREE.PlaneGeometry(totalWidth, totalHeight, 10, 10);
+    this.debugWalls = new THREE.Object3D();
+    for (let i = 0; i < 4; i++) {
+      const mesh = new THREE.Mesh(geometry, DEBUG_MATERIAL);
+      const y = 20;
+      switch (i) {
+        case 0:
+          mesh.position.set(0, y, totalWidth / 2);
+          break;
+        case 1:
+          mesh.position.set(totalWidth / 2, y, 0);
+          break;
+        case 2:
+          mesh.position.set(0, y, -totalWidth / 2);
+          break;
+        case 3:
+          mesh.position.set(-totalWidth / 2, y, 0);
+          break;
+      }
+      mesh.rotation.y = i % 2 == 0 ? 0 : Math.PI / 2;
+      this.debugWalls.add(mesh);
+    }
+    this.add(this.debugWalls);
   }
 
   /**

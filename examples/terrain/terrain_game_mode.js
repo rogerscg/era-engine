@@ -61,8 +61,8 @@ class TerrainGameMode extends GameMode {
     await terrainMap.loadFromFile('./terrain/heightmap_01.gltf');
     terrainMap.tiles.forEach((tile, i) => {
       this.world.add(tile);
-      tile.mesh.position.x = (tile.getCoordinates().x - 4) * 64;
-      tile.mesh.position.z = (tile.getCoordinates().y - 4) * 64;
+      tile.position.x = (tile.getCoordinates().x - 4) * 74;
+      tile.position.z = (tile.getCoordinates().y - 4) * 74;
     });
   }
 }
