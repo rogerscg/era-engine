@@ -24,7 +24,7 @@ const DEFAULT_SETTINGS = {
     max: 200
   },
   shadows: {
-    value: true
+    value: false
   },
   volume: {
     value: 50,

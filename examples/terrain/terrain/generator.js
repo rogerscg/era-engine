@@ -1,4 +1,4 @@
-import Tile from './tile.js';
+import Tile from './terrain_tile.js';
 
 /**
  * Generates terrain procedurally. Outputs terrain tiles that will later be
@@ -50,7 +50,8 @@ class Generator {
     const matrix = Generator.createMatrix(dataPointsHeight, dataPointsWidth);
     for (let rowIndex = 0; rowIndex < matrix.length; rowIndex++) {
       for (let colIndex = 0; colIndex < matrix[rowIndex].length; colIndex++) {
-        matrix[rowIndex][colIndex] = Math.random() * 2;
+        const val = Math.random() + Math.sin(colIndex);
+        matrix[rowIndex][colIndex] = val;
       }
     }
     return new Tile().withPhysics().fromMatrix(matrix);

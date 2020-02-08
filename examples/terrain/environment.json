@@ -6,7 +6,7 @@
   },
   "fog": {
     "type": "exp2",
-    "density": 0.025
+    "density": 0.0025
   },
   "background": "cccccc",
   "lights": {

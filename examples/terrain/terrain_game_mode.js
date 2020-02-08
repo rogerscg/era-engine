@@ -1,4 +1,4 @@
-import TerrainGenerator from './terrain/generator.js';
+import TerrainMap from './terrain/terrain_map.js';
 import {
   Camera,
   CannonPhysics,
@@ -57,8 +57,13 @@ class TerrainGameMode extends GameMode {
    * @async
    */
   async loadTerrain() {
-    const terrainTile = new TerrainGenerator(1, 1, 100).generate();
-    this.world.add(terrainTile);
+    const terrainMap = new TerrainMap(64);
+    await terrainMap.loadFromFile('./terrain/heightmap_01.gltf');
+    terrainMap.tiles.forEach((tile, i) => {
+      this.world.add(tile);
+      tile.mesh.position.x = (tile.getCoordinates().x - 4) * 64;
+      tile.mesh.position.z = (tile.getCoordinates().y - 4) * 64;
+    });
   }
 }
 

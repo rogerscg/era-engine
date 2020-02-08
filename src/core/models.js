@@ -2,7 +2,7 @@
  * @author rogerscg / https://github.com/rogerscg
  */
 import Animation from './animation.js';
-import {extractMeshes, loadJsonFromFile} from './util.js';
+import { extractMeshes, loadJsonFromFile } from './util.js';
 
 let instance = null;
 
@@ -10,7 +10,6 @@ let instance = null;
  * Core implementation for loading 3D models for use in-game.
  */
 class Models {
-
   /**
    * Enforces a singleton instance of Models.
    * @returns {Models}
@@ -91,24 +90,53 @@ class Models {
   }
 
   /**
+   * Loads a model from the given file path.
+   * @param {string} path
+   * @async
+   */
+  async loadModelWithoutStorage(path) {
+    // Defaults to GLTF.
+    const extension = path.substr(path.lastIndexOf('.') + 1);
+    let root;
+    switch (extension) {
+      case 'gltf':
+        const gltf = await this.loadGltfModel(path);
+        root = gltf.scene;
+        break;
+      case 'obj':
+        root = await this.loadObjModel(path);
+        break;
+      case 'fbx':
+        root = await this.loadFbxModel(path);
+        break;
+    }
+    return root;
+  }
+
+  /**
    * Loads a GLTF model.
-   * @param {string} path 
+   * @param {string} path
    * @async
    */
   async loadGltfModel(path) {
     return new Promise((resolve) => {
       const loader = new THREE.GLTFLoader();
-      loader.load(path, (gltf) => {
-        resolve(gltf);
-      }, () => {}, (err) => {
-        throw new Error(err);
-      });
+      loader.load(
+        path,
+        (gltf) => {
+          resolve(gltf);
+        },
+        () => {},
+        (err) => {
+          throw new Error(err);
+        }
+      );
     });
   }
 
   /**
    * Loads a Obj model.
-   * @param {string} path 
+   * @param {string} path
    * @async
    */
   async loadObjModel(path) {
@@ -121,9 +149,9 @@ class Models {
   }
 
   /**
-   * 
-   * @param {string} path 
-   * @param {?} materials 
+   *
+   * @param {string} path
+   * @param {?} materials
    */
   loadObjGeometry(path, materials) {
     return new Promise((resolve) => {
@@ -145,25 +173,35 @@ class Models {
     // Modify .obj path to look for .mtl.
     path = path.slice(0, path.lastIndexOf('.')) + '.mtl';
     return new Promise((resolve, reject) => {
-      mtlLoader.load(path, (materials) => {
-        materials.preload();
-        resolve(materials);
-      }, () => {}, () => reject());
+      mtlLoader.load(
+        path,
+        (materials) => {
+          materials.preload();
+          resolve(materials);
+        },
+        () => {},
+        () => reject()
+      );
     });
   }
 
   /**
    * Loads a FBX model.
-   * @param {string} path 
+   * @param {string} path
    * @async
    */
   async loadFbxModel(path) {
     const loader = new THREE.FBXLoader();
     return new Promise((resolve) => {
-		  loader.load(path, (object) => {
-        resolve(object);
-      }, () => {}, (err) => console.error(err));
-    }); 
+      loader.load(
+        path,
+        (object) => {
+          resolve(object);
+        },
+        () => {},
+        (err) => console.error(err)
+      );
+    });
   }
 
   /**
