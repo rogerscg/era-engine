@@ -6,7 +6,6 @@ import {
   Environment,
   FreeRoamEntity,
   GameMode,
-  Models,
   World,
   defaultEraRenderer
 } from '../../src/era.js';
@@ -23,9 +22,6 @@ class TerrainGameMode extends GameMode {
 
   /** @override */
   async load() {
-    // Load models.
-    await Models.get().loadAllFromFile('models.json');
-
     // Create world.
     const renderer = defaultEraRenderer();
     this.world = new World()
@@ -57,12 +53,16 @@ class TerrainGameMode extends GameMode {
    * @async
    */
   async loadTerrain() {
-    const terrainMap = new TerrainMap(64);
-    await terrainMap.loadFromFile('./terrain/heightmap_01.gltf');
+    const terrainMap = new TerrainMap(512);
+    const heightmap = await terrainMap.loadFromFile(
+      './terrain/heightmap_01.gltf'
+    );
     terrainMap.tiles.forEach((tile, i) => {
-      this.world.add(tile);
-      tile.position.x = (tile.getCoordinates().x - 4) * 64;
-      tile.position.z = (tile.getCoordinates().y - 4) * 64;
+      if (tile.getCoordinates().y == 0 && tile.getCoordinates().x == 0) {
+        this.world.add(tile);
+      }
+      //tile.position.x = (tile.getCoordinates().x - 4) * 64;
+      //tile.position.z = (tile.getCoordinates().y - 4) * 64;
     });
   }
 }

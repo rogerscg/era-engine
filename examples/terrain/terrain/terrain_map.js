@@ -66,6 +66,10 @@ class TerrainMap {
    * @private
    */
   loadVerticesIntoTile_(vertices, tile) {
+    // Preprocess vertices first.
+    // TODO: This is inefficient, and also depends on stable sorting.
+    vertices.sort((a, b) => a.x - b.x);
+    vertices.sort((a, b) => b.z - a.z);
     const geometryVertWidth = Math.sqrt(vertices.length);
     const coordinates = tile.getCoordinates();
     // Compute the number of vertices we can skip based on the y coordinate.
@@ -80,8 +84,8 @@ class TerrainMap {
       const startIndex = i * geometryVertWidth + yOffset + xOffset;
       let row = vertices.slice(startIndex, startIndex + this.tileSize + 1);
       // TODO: Fix this scale.
-      row = row.map((x) => x.y * 35);
-      matrix.push(row);
+      row = row.map((x) => x.y * 51.2);
+      matrix.splice(0, 0, row);
     }
     tile.fromMatrix(matrix);
   }
