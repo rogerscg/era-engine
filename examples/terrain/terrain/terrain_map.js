@@ -8,9 +8,13 @@ import { Models } from '../../../src/era.js';
 class TerrainMap {
   /**
    * @param {number} tileSize The size of a tile. Must be a power of two.
+   * @param {number} scale The scale based on the original heightmap size.
    */
-  constructor(tileSize) {
+  constructor(tileSize, scale = 1.0) {
     this.tileSize = tileSize;
+    this.scale = scale;
+    // Must be computed post-load.
+    this.elementSize = null;
     this.tiles = null;
   }
 
@@ -25,8 +29,24 @@ class TerrainMap {
     const bufferGeometry = heightmap.geometry;
     const geometry = new THREE.Geometry().fromBufferGeometry(bufferGeometry);
     geometry.mergeVertices();
+    // Compute how large each element will be within a tile.
+    this.elementSize = this.computeElementSize_(geometry);
     this.tiles = this.breakIntoTiles_(geometry);
     return heightmap;
+  }
+
+  /**
+   * Compute the size of each element within a tile, based on the original
+   * geometry dimensions as well as how many tiles there will be.
+   * @param {THREE.Geometry} geometry
+   * @return {number}
+   */
+  computeElementSize_(geometry) {
+    // geometry.width / # vertices
+    geometry.computeBoundingBox();
+    const width = geometry.boundingBox.max.x - geometry.boundingBox.min.x;
+    const numVertices = Math.sqrt(geometry.vertices.length);
+    return (width / numVertices) * this.scale;
   }
 
   /**
@@ -49,8 +69,17 @@ class TerrainMap {
     // Iterate to create tiles. One tile will be filled at a time.
     for (let i = 0; i < tilesInMapRow; i++) {
       for (let j = 0; j < tilesInMapRow; j++) {
-        const tile = new TerrainTile().setCoordinates(i, j);
+        const tile = new TerrainTile(this.elementSize).setCoordinates(i, j);
         this.loadVerticesIntoTile_(vertices, tile);
+        // Position tile in world.
+        tile.position.x =
+          (tile.getCoordinates().x - tilesInMapRow / 2) *
+          (tileVertWidth - 1) *
+          this.elementSize;
+        tile.position.z =
+          -(tile.getCoordinates().y - tilesInMapRow / 2) *
+          (tileVertWidth - 1) *
+          this.elementSize;
         tiles.push(tile);
       }
     }
@@ -83,10 +112,10 @@ class TerrainMap {
     for (let i = 0; i < this.tileSize + 1; i++) {
       const startIndex = i * geometryVertWidth + yOffset + xOffset;
       let row = vertices.slice(startIndex, startIndex + this.tileSize + 1);
-      // TODO: Fix this scale.
-      row = row.map((x) => x.y * 51.2);
+      row = row.map((x) => x.y * this.scale);
       matrix.splice(0, 0, row);
     }
+    // Fill tile out with data.
     tile.fromMatrix(matrix);
   }
 }

@@ -63,7 +63,7 @@ class TerrainTile extends Entity {
     const mesh = new THREE.Mesh(geometry, material);
     this.generateTexture(mesh);
     // Debug init.
-    this.generateDebugWalls();
+    this.generateDebugWalls(mesh);
     this.toggleDebug();
     return mesh;
   }
@@ -104,6 +104,7 @@ class TerrainTile extends Entity {
 
     // Detect any height differences.
     // TODO: Detect if entire mesh is within threshold.
+    // TODO: Set these dynamically.
     const rockHeightThreshold = 15;
     const iceHeightThreshold = 19;
     mesh.geometry.faces.forEach((face) => {
@@ -196,9 +197,10 @@ class TerrainTile extends Entity {
 
   /**
    * Creates debug walls to aid finding the boundaries of a tile.
+   * @param {THREE.Mesh} mesh Tile mesh to get bounding box.
    */
-  generateDebugWalls() {
-    if (!this.data) {
+  generateDebugWalls(mesh) {
+    if (!this.data || !mesh) {
       return;
     }
     // Create walls.
@@ -208,10 +210,12 @@ class TerrainTile extends Entity {
     const totalHeight = (dataHeight - 1) * this.elementSize;
     const geometry = new THREE.PlaneGeometry(totalWidth, totalHeight, 10, 10);
     this.debugWalls = new THREE.Object3D();
+    // Calculate min/max.
+    const y =
+      (mesh.geometry.boundingBox.min.y + mesh.geometry.boundingBox.max.y) / 2;
     for (let i = 0; i < 4; i++) {
       const mesh = new THREE.Mesh(geometry, DEBUG_MATERIAL);
-      // TODO: Make this dynamic with terrain max/min.
-      const y = 20;
+      this.mesh;
       switch (i) {
         case 0:
           mesh.position.set(0, y, totalWidth / 2);
@@ -231,9 +235,10 @@ class TerrainTile extends Entity {
     }
     // Create root mesh.
     const tileRoot = new THREE.Mesh(
-      new THREE.BoxGeometry(5, 50, 5),
+      new THREE.BoxGeometry(totalWidth / 20, totalWidth / 2, totalWidth / 20),
       new THREE.MeshLambertMaterial({ color: 0xffff00 })
     );
+    tileRoot.position.y = y;
     this.debugWalls.add(tileRoot);
   }
 
