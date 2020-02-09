@@ -79,7 +79,8 @@ class TerrainMap {
     for (let i = 0; i < this.tileSize + 1; i++) {
       const startIndex = i * geometryVertWidth + yOffset + xOffset;
       let row = vertices.slice(startIndex, startIndex + this.tileSize + 1);
-      row = row.map((x) => x.y * 19);
+      // TODO: Fix this scale.
+      row = row.map((x) => x.y * 35);
       matrix.push(row);
     }
     tile.fromMatrix(matrix);

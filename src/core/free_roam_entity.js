@@ -38,7 +38,8 @@ const CONTROLS_ID = 'FreeRoam';
 const MAX_CAMERA_Z = Math.PI / 2;
 const MIN_CAMERA_Z = -Math.PI / 2;
 const MOUSE_SENS = 0.002;
-const VELOCITY_COEFFICIENT = 0.2;
+const SPRINT_COEFFICIENT = 5;
+const VELOCITY_COEFFICIENT = 0.5;
 
 /**
  * An entity that provides "free roam" controls, allowing it to fly through
@@ -84,7 +85,7 @@ class FreeRoamEntity extends Entity {
     this.targetVelocity.set(this.inputVector.x, inputY, this.inputVector.z);
     this.targetVelocity.multiplyScalar(VELOCITY_COEFFICIENT);
     if (this.getActionValue(this.bindings.SPRINT)) {
-      this.targetVelocity.multiplyScalar(2.5);
+      this.targetVelocity.multiplyScalar(SPRINT_COEFFICIENT);
     }
     this.position.add(this.targetVelocity);
     this.updateRotation();
