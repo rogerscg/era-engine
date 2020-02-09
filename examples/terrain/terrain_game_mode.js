@@ -54,13 +54,9 @@ class TerrainGameMode extends GameMode {
    */
   async loadTerrain() {
     const terrainMap = new TerrainMap(512);
-    const heightmap = await terrainMap.loadFromFile(
-      './terrain/heightmap_01.gltf'
-    );
-    terrainMap.tiles.forEach((tile, i) => {
-      if (tile.getCoordinates().y == 0 && tile.getCoordinates().x == 0) {
-        this.world.add(tile);
-      }
+    await terrainMap.loadFromFile('./terrain/heightmap_01.gltf');
+    terrainMap.tiles.forEach((tile) => {
+      this.world.add(tile);
       //tile.position.x = (tile.getCoordinates().x - 4) * 64;
       //tile.position.z = (tile.getCoordinates().y - 4) * 64;
     });

@@ -1,4 +1,4 @@
-import { Entity, loadTexture, toDegrees } from '../../../src/era.js';
+import { Entity, Settings, loadTexture, toDegrees } from '../../../src/era.js';
 
 const DEBUG_MATERIAL = new THREE.MeshLambertMaterial({
   color: 0xff0000,
@@ -24,6 +24,11 @@ class TerrainTile extends Entity {
     this.debugWalls = null;
     // Single Box2 instance for better memory usage.
     this.canvasBox2 = new THREE.Box2();
+  }
+
+  /** @override */
+  handleSettingsChange() {
+    this.toggleDebug();
   }
 
   /** @override */
@@ -53,10 +58,13 @@ class TerrainTile extends Entity {
     geometry.computeBoundingBox();
     geometry.computeFaceNormals();
     geometry.computeVertexNormals();
-    this.generateDebugWalls();
+
     const material = new THREE.MeshLambertMaterial();
     const mesh = new THREE.Mesh(geometry, material);
     this.generateTexture(mesh);
+    // Debug init.
+    this.generateDebugWalls();
+    this.toggleDebug();
     return mesh;
   }
 
@@ -176,18 +184,24 @@ class TerrainTile extends Entity {
   }
 
   /**
+   * Toggles debug meshes for the tile.
+   */
+  toggleDebug() {
+    if (Settings.get('debug')) {
+      this.add(this.debugWalls);
+    } else {
+      this.remove(this.debugWalls);
+    }
+  }
+
+  /**
    * Creates debug walls to aid finding the boundaries of a tile.
-   * TODO: This needs to react to debug settings.
    */
   generateDebugWalls() {
     if (!this.data) {
       return;
     }
-    const root = new THREE.Mesh(
-      new THREE.BoxGeometry(5, 50, 5),
-      new THREE.MeshLambertMaterial({ color: 0xffff00 })
-    );
-    //this.add(root);
+    // Create walls.
     const dataHeight = this.data.length;
     const dataWidth = this.data[0].length;
     const totalWidth = (dataWidth - 1) * this.elementSize;
@@ -215,7 +229,12 @@ class TerrainTile extends Entity {
       mesh.rotation.y = i % 2 == 0 ? 0 : Math.PI / 2;
       this.debugWalls.add(mesh);
     }
-    //this.add(this.debugWalls);
+    // Create root mesh.
+    const tileRoot = new THREE.Mesh(
+      new THREE.BoxGeometry(5, 50, 5),
+      new THREE.MeshLambertMaterial({ color: 0xffff00 })
+    );
+    this.debugWalls.add(tileRoot);
   }
 
   /**

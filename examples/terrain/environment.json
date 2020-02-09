@@ -1,4 +1,10 @@
 {
+  "skybox": {
+    "directory": "skybox/",
+    "file": "bluecloud",
+    "extension": "jpg",
+    "width": 600
+  },
   "fog": {
     "type": "exp2",
     "density": 0.0025
@@ -14,7 +20,7 @@
     "directional": [
       {
         "x": 50,
-        "y": 20,
+        "y": 150,
         "z": 50,
         "color": "ffffff",
         "intensity": 0.8,
