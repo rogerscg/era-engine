@@ -42,7 +42,6 @@ class TerrainMap {
    * @return {number}
    */
   computeElementSize_(geometry) {
-    // geometry.width / # vertices
     geometry.computeBoundingBox();
     const width = geometry.boundingBox.max.x - geometry.boundingBox.min.x;
     const numVertices = Math.sqrt(geometry.vertices.length);

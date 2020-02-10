@@ -55,7 +55,12 @@ class TerrainGameMode extends GameMode {
   async loadTerrain() {
     const terrainMap = new TerrainMap(/* tileSize= */ 64, /* scale=*/ 50.0);
     await terrainMap.loadFromFile('./terrain/heightmap_01.gltf');
-    terrainMap.tiles.forEach((tile) => this.world.add(tile));
+    terrainMap.tiles.forEach((tile) => {
+      if (tile.getCoordinates().x != 0 || tile.getCoordinates().y != 0) {
+        //return;
+      }
+      this.world.add(tile);
+    });
   }
 }
 

@@ -5,6 +5,9 @@ const DEBUG_MATERIAL = new THREE.MeshLambertMaterial({
   wireframe: true
 });
 
+// Perlin equation constants.
+const PERLIN_RANGE = 1;
+
 /**
  * An individual tile of terrain.
  */
@@ -90,90 +93,24 @@ class TerrainTile extends Entity {
     console.time(
       `texture${this.getCoordinates().x},${this.getCoordinates().y}`
     );
+    // Set perlin noise seed.
+    noise.seed(0xbada55);
     // Load in relevant textures.
     const grassTexture = await loadTexture('textures/grass.png');
     const rockTexture = await loadTexture('textures/rock.png');
+
     // Create a canvas for our generated texture.
     const size = 512;
     const canvas = document.createElement('canvas');
     canvas.width = size;
     canvas.height = size;
     const context = canvas.getContext('2d');
-    // Fill out base texture.
-    context.drawImage(grassTexture.image, 0, 0);
 
-    // Detect any height differences.
-    // TODO: Detect if entire mesh is within threshold.
-    // TODO: Set these dynamically.
-    const rockHeightThreshold = 15;
-    const iceHeightThreshold = 19;
-    mesh.geometry.faces.forEach((face) => {
-      const vertices = [
-        mesh.geometry.vertices[face.a],
-        mesh.geometry.vertices[face.b],
-        mesh.geometry.vertices[face.c]
-      ];
-      // Detect if any of the vertices surpass the height thresholds.
-      let heightColor = null;
-      vertices.forEach((vertex) => {
-        if (vertex.y > iceHeightThreshold) {
-          heightColor = 'rgb(150, 150, 150)';
-        } else if (vertex.y > rockHeightThreshold) {
-          heightColor = 'rgb(50, 50, 50)';
-        }
-      });
-      // If not change in color due to height, return early.
-      if (!heightColor) {
-        return;
-      }
-      const canvasBox = this.getFaceSegmentOnCanvas_(mesh, face, canvas);
-
-      // Write to the canvas with the "height color".
-      // TODO: Actually use perlin and height texture.
-      context.fillStyle = heightColor;
-      context.fillRect(
-        canvasBox.min.x,
-        canvasBox.min.y,
-        canvasBox.max.x - canvasBox.min.x,
-        canvasBox.max.y - canvasBox.min.y
-      );
-    });
+    // Detect any changes necessary due to height.
+    this.modifyTextureForHeight_(canvas, mesh);
 
     // Detect any slope differences.
-    const rockSlopeThreshold = Math.PI / 4;
-    const planeVector = new THREE.Vector3();
-    mesh.geometry.faces.forEach((face) => {
-      planeVector.set(face.normal.x, 0, face.normal.z);
-      const angle = Math.PI / 2 - face.normal.angleTo(planeVector);
-      // For each face that should be a rock, compute where in the texture it's
-      // located.
-      if (angle > rockSlopeThreshold) {
-        // Get the face position.
-        const canvasBox = this.getFaceSegmentOnCanvas_(mesh, face, canvas);
-        // Write to the canvas with the "rock texture".
-        // TODO: Actually use perlin and rock texture.
-        context.fillStyle = 'rgb(50, 50, 50)';
-        context.fillRect(
-          canvasBox.min.x,
-          canvasBox.min.y,
-          canvasBox.max.x - canvasBox.min.x,
-          canvasBox.max.y - canvasBox.min.y
-        );
-      }
-    });
-
-    // Generate perlin noise, update based on values.
-    //console.time('noise');
-    //noise.seed(0xbada55);
-    //for (var x = 0; x < canvas.width; x++) {
-    //  for (var y = 0; y < canvas.height; y++) {
-    //    const perlinValue = noise.perlin2(x / 100, y / 100);
-    //    // TODO: Interpolate between two (or more) other textures.
-    //    context.fillStyle = `rgb(${perlinValue * 255}, 0, 0)`;
-    //    context.fillRect(x, y, 1, 1);
-    //  }
-    //}
-    //console.timeEnd('noise');
+    //this.modifyTextureForSlope_(canvas, mesh);
 
     // Set the material texture.
     const texture = new THREE.CanvasTexture(canvas);
@@ -302,9 +239,175 @@ class TerrainTile extends Entity {
     const maxMappedZ =
       ((maxZ - boundingBox.min.z) / (boundingBox.max.z - boundingBox.min.z)) *
       size;
-    this.canvasBox2.min.set(minMappedX, minMappedZ);
-    this.canvasBox2.max.set(maxMappedX, maxMappedZ);
+    this.canvasBox2.min.set(Math.round(minMappedX), Math.round(minMappedZ));
+    this.canvasBox2.max.set(Math.round(maxMappedX), Math.round(maxMappedZ));
     return this.canvasBox2;
+  }
+
+  /**
+   * Modifies the terrain texture for height differences.
+   * @param {Canvas} canvas
+   * @param {THREE.Mesh} mesh
+   * @private
+   */
+  modifyTextureForHeight_(canvas, mesh) {
+    const context = canvas.getContext('2d');
+    // Detect any height differences.
+    // TODO: Set these dynamically.
+    const heightTextures = [
+      // Low Grass
+      {
+        min: -999999999,
+        max: 999999999,
+        solid: -999999999,
+        perlinFactor: 2.0,
+        color: '#2a471e'
+      },
+      // High Grass
+      {
+        min: 3,
+        max: 999999999,
+        solid: 9,
+        perlinFactor: 2.0,
+        color: '#567d46'
+      },
+      // Rock
+      {
+        min: 12,
+        max: 999999999,
+        solid: 20,
+        perlinFactor: 5.0,
+        color: 'rgb(50, 50, 50)'
+      },
+      // Ice
+      {
+        min: 28,
+        max: Infinity,
+        solid: 35,
+        perlinFactor: 3.0,
+        color: 'rgb(150, 150, 150)'
+      }
+    ];
+    // Iterate over each height material.
+    for (let texIndex = 0; texIndex < heightTextures.length; texIndex++) {
+      const heightTexture = heightTextures[texIndex];
+      mesh.geometry.faces.forEach((face) => {
+        const vertices = [
+          mesh.geometry.vertices[face.a],
+          mesh.geometry.vertices[face.b],
+          mesh.geometry.vertices[face.c]
+        ];
+        // Detect if any of the vertices are within the height range for the
+        // given texture.
+        let withinHeightThreshold = false;
+        let runningTotal = 0;
+        vertices.forEach((vertex) => {
+          if (vertex.y >= heightTexture.min && vertex.y <= heightTexture.max) {
+            withinHeightThreshold = true;
+          }
+          runningTotal += vertex.y;
+        });
+        if (!withinHeightThreshold) {
+          return;
+        }
+
+        // We'll use the height average from all of the vertices.
+        const heightAvg = runningTotal / vertices.length;
+
+        // Get the section of the canvas texture that is relevant to the face.
+        const canvasBox = this.getFaceSegmentOnCanvas_(mesh, face, canvas);
+
+        // Get "perlin range". If it covers all of face, do a batch paint and skip
+        // the perlin noise gen.
+        const perlinPercent =
+          (heightAvg - heightTexture.min) /
+          (heightTexture.solid - heightTexture.min);
+
+        if (perlinPercent <= 0.0) {
+          return;
+        }
+
+        // If the "perlin percent" is less than 1.0, we need to blend the
+        // texture to a certain value. Otherwise, do a batch paint.
+        if (perlinPercent < 1.0) {
+          // Get the x and y offset in the perlin space.
+          const xOffset = this.getCoordinates().x * canvas.width;
+          const yOffset = this.getCoordinates().y * canvas.height;
+          for (let i = canvasBox.min.x; i < canvasBox.max.x; i++) {
+            for (let j = canvasBox.min.y; j < canvasBox.max.y; j++) {
+              const x = i + xOffset;
+              const y = j + yOffset;
+              const perlinValue = noise.simplex2(
+                x / heightTexture.perlinFactor,
+                y / heightTexture.perlinFactor
+              );
+              const mappedValue = this.mapPerlinValue_(perlinValue);
+              // TODO: Maybe set alpha.
+              if (mappedValue <= perlinPercent) {
+                context.fillStyle = heightTexture.color;
+                context.fillRect(i, j, 1, 1);
+              }
+            }
+          }
+        } else {
+          this.fillCanvasSection_(context, canvasBox, heightTexture.color);
+        }
+      });
+    }
+  }
+
+  /**
+   * Modifies the terrain texture for face slopes.\
+   * @param {Canvas} canvas
+   * @param {THREE.Mesh} mesh
+   * @private
+   */
+  modifyTextureForSlope_(canvas, mesh) {
+    const context = canvas.getContext('2d');
+    // TODO: Set these dynamically.
+    const rockSlopeThreshold = Math.PI / 4;
+    const planeVector = new THREE.Vector3();
+    mesh.geometry.faces.forEach((face) => {
+      planeVector.set(face.normal.x, 0, face.normal.z);
+      const angle = Math.PI / 2 - face.normal.angleTo(planeVector);
+      // For each face that should be a rock, compute where in the texture it's
+      // located.
+      if (angle > rockSlopeThreshold) {
+        // Get the face position.
+        const canvasBox = this.getFaceSegmentOnCanvas_(mesh, face, canvas);
+        // Write to the canvas with the "rock texture".
+        // TODO: Actually use perlin and rock texture.
+        this.fillCanvasSection_(context, canvasBox, 'rgb(50, 50, 50)');
+      }
+    });
+  }
+
+  /**
+   * Fills an entire section of canvas given a Box2.
+   * @param {CanvasRenderingContext2D} context
+   * @param {THREE.Box2} canvasBox
+   * @param {string} fill
+   * @private
+   */
+  fillCanvasSection_(context, canvasBox, fill) {
+    context.globalAlpha = 1.0;
+    context.fillStyle = fill;
+    context.fillRect(
+      canvasBox.min.x,
+      canvasBox.min.y,
+      canvasBox.max.x - canvasBox.min.x,
+      canvasBox.max.y - canvasBox.min.y
+    );
+  }
+
+  /**
+   * Maps a perlin value to the range [0, 1].
+   * @param {number} perlinValue
+   * @return {number}
+   * @private
+   */
+  mapPerlinValue_(perlinValue) {
+    return (perlinValue + 1) / (PERLIN_RANGE + 1);
   }
 }
 
