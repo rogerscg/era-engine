@@ -103,7 +103,7 @@ class TerrainTile extends Entity {
     );
     geometry.rotateX(-Math.PI / 2);
     const material = new THREE.MeshPhongMaterial({
-      color: 0x010f1c
+      color: 0x55707b
     });
     const mesh = new THREE.Mesh(geometry, material);
     this.add(mesh);
@@ -136,7 +136,7 @@ class TerrainTile extends Entity {
     this.modifyTextureForHeight_(canvas, mesh);
 
     // Detect any slope differences.
-    //this.modifyTextureForSlope_(canvas, mesh);
+    this.modifyTextureForSlope_(canvas, mesh);
 
     // Set the material texture.
     const texture = new THREE.CanvasTexture(canvas);
@@ -389,21 +389,56 @@ class TerrainTile extends Entity {
    * @private
    */
   modifyTextureForSlope_(canvas, mesh) {
+    const slopeModifier = {
+      min: Math.PI / 4,
+      max: Math.PI / 2,
+      solid: Math.PI / 2,
+      perlinFactor: 3.0,
+      color: 'rgb(50, 50, 50)'
+    };
     const context = canvas.getContext('2d');
-    // TODO: Set these dynamically.
-    const rockSlopeThreshold = Math.PI / 4;
     const planeVector = new THREE.Vector3();
+    // Iterate over each face.
     mesh.geometry.faces.forEach((face) => {
       planeVector.set(face.normal.x, 0, face.normal.z);
       const angle = Math.PI / 2 - face.normal.angleTo(planeVector);
-      // For each face that should be a rock, compute where in the texture it's
-      // located.
-      if (angle > rockSlopeThreshold) {
+      // Get "perlin range". If it covers all of face, do a batch paint and skip
+      // the perlin noise gen.
+      const perlinPercent =
+        (angle - slopeModifier.min) / (slopeModifier.solid - slopeModifier.min);
+      if (perlinPercent <= 0.0) {
+        return;
+      }
+
+      // Get the section of the canvas texture that is relevant to the face.
+      const canvasBox = this.getFaceSegmentOnCanvas_(mesh, face, canvas);
+
+      // If the "perlin percent" is less than 1.0, we need to blend the
+      // texture to a certain value. Otherwise, do a batch paint.
+      if (perlinPercent < 1.0) {
         // Get the face position.
-        const canvasBox = this.getFaceSegmentOnCanvas_(mesh, face, canvas);
-        // Write to the canvas with the "rock texture".
-        // TODO: Actually use perlin and rock texture.
-        this.fillCanvasSection_(context, canvasBox, 'rgb(50, 50, 50)');
+        // TODO: Actually use the rock texture.
+        // Get the x and y offset in the perlin space.
+        const xOffset = this.getCoordinates().x * canvas.width;
+        const yOffset = this.getCoordinates().y * canvas.height;
+        for (let i = canvasBox.min.x; i < canvasBox.max.x; i++) {
+          for (let j = canvasBox.min.y; j < canvasBox.max.y; j++) {
+            const x = i + xOffset;
+            const y = j + yOffset;
+            const perlinValue = noise.simplex2(
+              x / slopeModifier.perlinFactor,
+              y / slopeModifier.perlinFactor
+            );
+            const mappedValue = this.mapPerlinValue_(perlinValue);
+            // TODO: Maybe set alpha.
+            if (mappedValue <= perlinPercent) {
+              context.fillStyle = slopeModifier.color;
+              context.fillRect(i, j, 1, 1);
+            }
+          }
+        }
+      } else {
+        this.fillCanvasSection_(context, canvasBox, slopeModifier.color);
       }
     });
   }
