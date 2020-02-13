@@ -1,4 +1,7 @@
-import { Entity, Settings, loadTexture, toDegrees } from '../../../src/era.js';
+import { Entity, Settings, loadTexture } from '../../../src/era.js';
+import * as Comlink from '../../../dependencies/comlink.js';
+import noise from '../../../dependencies/perlin.js';
+import workerPool from './worker_pool.js';
 
 const DEBUG_MATERIAL = new THREE.MeshLambertMaterial({
   color: 0xff0000,
@@ -25,8 +28,11 @@ class TerrainTile extends Entity {
     this.tileCoordinates = new THREE.Vector2();
     // Debug planes to help find boundaries of tiles.
     this.debugWalls = null;
-    // Single Box2 instance for better memory usage.
+    // Image data for fastering blending/processing for the texture.
+    this.imageData = null;
+    // Single instances for better memory usage.
     this.canvasBox2 = new THREE.Box2();
+    this.planeVector = new THREE.Vector3();
   }
 
   /** @override */
@@ -116,14 +122,14 @@ class TerrainTile extends Entity {
    * @async
    */
   async generateTexture(mesh) {
-    console.time(
-      `texture${this.getCoordinates().x},${this.getCoordinates().y}`
-    );
-    // Set perlin noise seed.
+    // Create worker and wrap with Comlink.
+    const worker = await workerPool.buildWorker();
+    const TextureGenerator = Comlink.wrap(worker);
+    this.textureGenerator = await new TextureGenerator();
+    this.textureGenerator[Comlink.releaseProxy]();
+    workerPool.releaseWorker(worker);
+
     noise.seed(0xbada55);
-    // Load in relevant textures.
-    const grassTexture = await loadTexture('textures/grass.png');
-    const rockTexture = await loadTexture('textures/rock.png');
 
     // Create a canvas for our generated texture.
     const size = 512;
@@ -131,6 +137,8 @@ class TerrainTile extends Entity {
     canvas.width = size;
     canvas.height = size;
     const context = canvas.getContext('2d');
+    // Create image data.
+    this.imageData = context.createImageData(size, size);
 
     // Detect any changes necessary due to height.
     this.modifyTextureForHeight_(canvas, mesh);
@@ -138,13 +146,13 @@ class TerrainTile extends Entity {
     // Detect any slope differences.
     this.modifyTextureForSlope_(canvas, mesh);
 
+    // Finalize texture.
+    context.putImageData(this.imageData, 0, 0);
+
     // Set the material texture.
     const texture = new THREE.CanvasTexture(canvas);
     mesh.material.map = texture;
     mesh.material.needsUpdate = true;
-    console.timeEnd(
-      `texture${this.getCoordinates().x},${this.getCoordinates().y}`
-    );
   }
 
   /**
@@ -277,33 +285,32 @@ class TerrainTile extends Entity {
    * @private
    */
   modifyTextureForHeight_(canvas, mesh) {
-    const context = canvas.getContext('2d');
     // Detect any height differences.
     // TODO: Set these dynamically.
     const heightTextures = [
       // Low Grass
       {
         min: -999999999,
-        max: 999999999,
+        max: 10,
         solid: -999999999,
         perlinFactor: 2.0,
-        color: '#2a471e'
+        color: new THREE.Color(0x2a471e)
       },
       // High Grass
       {
         min: 3,
-        max: 999999999,
+        max: 21,
         solid: 9,
         perlinFactor: 2.0,
-        color: '#567d46'
+        color: new THREE.Color(0x567d46)
       },
       // Rock
       {
         min: 12,
-        max: 999999999,
+        max: 36,
         solid: 20,
         perlinFactor: 5.0,
-        color: 'rgb(50, 50, 50)'
+        color: new THREE.Color('rgb(50, 50, 50)')
       },
       // Ice
       {
@@ -311,7 +318,7 @@ class TerrainTile extends Entity {
         max: Infinity,
         solid: 35,
         perlinFactor: 3.0,
-        color: 'rgb(150, 150, 150)'
+        color: new THREE.Color('rgb(150, 150, 150)')
       }
     ];
     // Iterate over each height material.
@@ -370,13 +377,13 @@ class TerrainTile extends Entity {
               const mappedValue = this.mapPerlinValue_(perlinValue);
               // TODO: Maybe set alpha.
               if (mappedValue <= perlinPercent) {
-                context.fillStyle = heightTexture.color;
-                context.fillRect(i, j, 1, 1);
+                // TODO: get color from texture
+                this.fillImageDataPixel_(i, j, heightTexture.color);
               }
             }
           }
         } else {
-          this.fillCanvasSection_(context, canvasBox, heightTexture.color);
+          this.fillImageDataSection_(canvasBox, heightTexture.color);
         }
       });
     }
@@ -394,10 +401,9 @@ class TerrainTile extends Entity {
       max: Math.PI / 2,
       solid: Math.PI / 2,
       perlinFactor: 3.0,
-      color: 'rgb(50, 50, 50)'
+      color: new THREE.Color('rgb(50, 50, 50)')
     };
-    const context = canvas.getContext('2d');
-    const planeVector = new THREE.Vector3();
+    const planeVector = this.planeVector;
     // Iterate over each face.
     mesh.geometry.faces.forEach((face) => {
       planeVector.set(face.normal.x, 0, face.normal.z);
@@ -432,33 +438,43 @@ class TerrainTile extends Entity {
             const mappedValue = this.mapPerlinValue_(perlinValue);
             // TODO: Maybe set alpha.
             if (mappedValue <= perlinPercent) {
-              context.fillStyle = slopeModifier.color;
-              context.fillRect(i, j, 1, 1);
+              this.fillImageDataPixel_(i, j, slopeModifier.color);
             }
           }
         }
       } else {
-        this.fillCanvasSection_(context, canvasBox, slopeModifier.color);
+        this.fillImageDataSection_(canvasBox, slopeModifier.color);
       }
     });
   }
 
   /**
-   * Fills an entire section of canvas given a Box2.
-   * @param {CanvasRenderingContext2D} context
+   * Fills an individual pixel into the tile's image data.
+   * @param {number} x
+   * @param {number} y
+   * @param {THREE.Color} color
+   */
+  fillImageDataPixel_(x, y, color) {
+    // Get the pixel's index in the image data array.
+    const index = (this.imageData.width * y + x) * 4;
+    this.imageData.data[index] = Math.floor(color.r * 255);
+    this.imageData.data[index + 1] = Math.floor(color.g * 255);
+    this.imageData.data[index + 2] = Math.floor(color.b * 255);
+    this.imageData.data[index + 3] = 255;
+  }
+
+  /**
+   * Fills an entire section of image data given a Box2.
    * @param {THREE.Box2} canvasBox
    * @param {string} fill
    * @private
    */
-  fillCanvasSection_(context, canvasBox, fill) {
-    context.globalAlpha = 1.0;
-    context.fillStyle = fill;
-    context.fillRect(
-      canvasBox.min.x,
-      canvasBox.min.y,
-      canvasBox.max.x - canvasBox.min.x,
-      canvasBox.max.y - canvasBox.min.y
-    );
+  fillImageDataSection_(canvasBox, fill) {
+    for (let i = canvasBox.min.x; i < canvasBox.max.x; i++) {
+      for (let j = canvasBox.min.y; j < canvasBox.max.y; j++) {
+        this.fillImageDataPixel_(i, j, fill);
+      }
+    }
   }
 
   /**
