@@ -32,6 +32,7 @@ class TerrainMap {
     // Compute how large each element will be within a tile.
     this.elementSize = this.computeElementSize_(geometry);
     this.tiles = this.breakIntoTiles_(geometry);
+    await this.loadTileTextures_();
     return heightmap;
   }
 
@@ -51,10 +52,15 @@ class TerrainMap {
   /**
    * Breaks the given geometry into tiles.
    * @param {THREE.Geometry} geometry
+   * @async
    * @private
    */
   breakIntoTiles_(geometry) {
     const vertices = geometry.vertices;
+    // Preprocess vertices first.
+    // TODO: This is inefficient, and also depends on stable sorting.
+    vertices.sort((a, b) => a.x - b.x);
+    vertices.sort((a, b) => b.z - a.z);
     // We track tile size by the number of quads in a tile, not by the number
     // of vertices, so add one vertex count.
     const tileVertWidth = this.tileSize + 1;
@@ -94,10 +100,6 @@ class TerrainMap {
    * @private
    */
   loadVerticesIntoTile_(vertices, tile) {
-    // Preprocess vertices first.
-    // TODO: This is inefficient, and also depends on stable sorting.
-    vertices.sort((a, b) => a.x - b.x);
-    vertices.sort((a, b) => b.z - a.z);
     const geometryVertWidth = Math.sqrt(vertices.length);
     const coordinates = tile.getCoordinates();
     // Compute the number of vertices we can skip based on the y coordinate.
@@ -116,6 +118,20 @@ class TerrainMap {
     }
     // Fill tile out with data.
     tile.fromMatrix(matrix);
+  }
+
+  /**
+   * Loads all tile textures before the terrain map is finished loading.
+   * @async
+   * @private
+   */
+  async loadTileTextures_() {
+    const promises = new Array();
+    this.tiles.forEach((tile) => {
+      tile.build();
+      promises.push(tile.generateTexture());
+    });
+    return Promise.all(promises);
   }
 }
 
