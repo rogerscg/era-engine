@@ -1,4 +1,4 @@
-import { Entity, Settings, loadTexture } from '../../../src/era.js';
+import { Entity, Settings } from '../../../src/era.js';
 import * as Comlink from '../../../dependencies/comlink.js';
 import workerPool from './worker_pool.js';
 
@@ -63,7 +63,6 @@ class TerrainTile extends Entity {
     const mesh = new THREE.Mesh(geometry, material);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
-    this.generateWater();
     // Debug init.
     this.generateDebugWalls(mesh);
     this.toggleDebug();
@@ -80,29 +79,6 @@ class TerrainTile extends Entity {
     body.addShape(heightfieldShape);
     body.material = this.physicsWorld.createPhysicalMaterial('ground');
     return body;
-  }
-
-  /**
-   * Adds simple water to the terrain.
-   * TODO: Make this interesting.
-   */
-  generateWater() {
-    const dataHeight = this.data.length;
-    const dataWidth = this.data[0].length;
-    const totalWidth = (dataWidth - 1) * this.elementSize;
-    const totalHeight = (dataHeight - 1) * this.elementSize;
-    const geometry = new THREE.PlaneGeometry(
-      totalWidth,
-      totalHeight,
-      dataWidth - 1,
-      dataHeight - 1
-    );
-    geometry.rotateX(-Math.PI / 2);
-    const material = new THREE.MeshPhongMaterial({
-      color: 0x55707b
-    });
-    const mesh = new THREE.Mesh(geometry, material);
-    this.add(mesh);
   }
 
   /**

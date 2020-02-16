@@ -55,12 +55,20 @@ class TextureGenerator {
     // Detect any height differences.
     // TODO: Set these dynamically.
     const heightTextures = [
-      // Low Grass
+      // River Bed
       {
         min: -999999999,
-        max: 10,
+        max: 5,
         solid: -999999999,
         perlinFactor: 2.0,
+        color: new Color(0x3d2612)
+      },
+      // Low Grass
+      {
+        min: 0,
+        max: 10,
+        solid: 5,
+        perlinFactor: 0.3,
         color: new Color(0x2a471e)
       },
       // High Grass

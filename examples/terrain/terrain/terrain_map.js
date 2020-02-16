@@ -1,4 +1,5 @@
 import TerrainTile from './terrain_tile.js';
+import Water from './water.js';
 import { Models } from '../../../src/era.js';
 
 /**
@@ -16,6 +17,7 @@ class TerrainMap {
     // Must be computed post-load.
     this.elementSize = null;
     this.tiles = null;
+    this.water = null;
   }
 
   /**
@@ -33,6 +35,7 @@ class TerrainMap {
     this.elementSize = this.computeElementSize_(geometry);
     this.tiles = this.breakIntoTiles_(geometry);
     await this.loadTileTextures_();
+    this.water = new Water();
     return heightmap;
   }
 
