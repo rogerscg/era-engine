@@ -14,6 +14,7 @@ class Environment extends Entity {
     this.meshEnabled = false;
     this.clearColor = 0xffffff;
     this.fog = null;
+    this.qualityAdjustEnabled = false;
   }
 
   /**

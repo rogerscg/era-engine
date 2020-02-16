@@ -2,9 +2,6 @@
  * @author rogerscg / https://github.com/rogerscg
  * @author erveon / https://github.com/erveon
  */
-
-import Camera from './camera.js';
-import Engine from './engine.js';
 import Plugin from './plugin.js';
 import Settings from './settings.js';
 import SettingsEvent from '../events/settings_event.js';

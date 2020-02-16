@@ -23,6 +23,7 @@ export { default as Network } from './core/network.js';
 export { default as NetworkRegistry } from './core/network_registry.js';
 export { default as Physics } from './core/physics.js';
 export { default as Plugin } from './core/plugin.js';
+export { default as QualityAdjuster } from './core/quality_adjuster.js';
 export { default as Settings } from './core/settings.js';
 export { default as Skybox } from './core/skybox.js';
 export { default as World } from './core/world.js';

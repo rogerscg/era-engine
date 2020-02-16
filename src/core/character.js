@@ -58,6 +58,7 @@ const DEFAULT_VELO_LERP_FACTOR = 0.15;
 class Character extends Entity {
   constructor() {
     super();
+    this.qualityAdjustEnabled = false;
     // Make all defaults overrideable by subclasses.
     // Height of the character.
     this.height = DEFAULT_HEIGHT;

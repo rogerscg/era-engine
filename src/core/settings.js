@@ -8,7 +8,7 @@ import SettingsEvent from '../events/settings_event.js';
 // TODO: Allow for an enum of options for a setting.
 const DEFAULT_SETTINGS = {
   debug: {
-    value: false
+    value: true
   },
   physics_debug: {
     value: false

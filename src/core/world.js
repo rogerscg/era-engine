@@ -2,6 +2,7 @@
  * @author rogerscg / https://github.com/rogerscg
  */
 import Plugin from './plugin.js';
+import QualityAdjuster from './quality_adjuster.js';
 import RendererStats from '../debug/renderer_stats.js';
 
 const DEFAULT_NAME = 'main';
@@ -24,6 +25,20 @@ class World extends Plugin {
     this.entityCameras = new Map();
     this.entitiesToRenderers = new Map();
     window.addEventListener('resize', this.onWindowResize.bind(this), false);
+
+    // A utility for adjusting quality on world entities.
+    this.qualityAdjuster = null;
+  }
+
+  /**
+   * Enables quality adjustment for the world.
+   * @param {QualityAdjuster} qualityAdjuster
+   * @return {World}
+   */
+  withQualityAdjustment(qualityAdjuster) {
+    qualityAdjuster.setWorld(this);
+    this.qualityAdjuster = qualityAdjuster;
+    return this;
   }
 
   /** @override */
@@ -41,6 +56,11 @@ class World extends Plugin {
     this.camerasToRenderers.forEach((renderer, camera) =>
       renderer.render(this.scene, camera)
     );
+
+    // Update quality.
+    if (this.qualityAdjuster) {
+      this.qualityAdjuster.update();
+    }
   }
 
   /** @override */
@@ -223,6 +243,27 @@ class World extends Plugin {
     }
     entity.onRemove();
     return this;
+  }
+
+  /**
+   * Enables entity physics within the world. Used for quality adjustment.
+   * @param {Entity} entity
+   */
+  enableEntityPhysics(entity) {
+    if (this.physics && entity.physicsEnabled) {
+      entity.registerPhysicsWorld(this.physics);
+      this.physics.registerEntity(entity);
+    }
+  }
+
+  /**
+   * Disables entity physics within the world. Used for quality adjustment.
+   * @param {Entity} entity
+   */
+  disableEntityPhysics(entity) {
+    if (this.physics && entity.physicsEnabled) {
+      this.physics.unregisterEntity(entity);
+    }
   }
 
   /**

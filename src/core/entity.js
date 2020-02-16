@@ -60,6 +60,7 @@ class Entity extends Object3DEventTarget {
     this.cameraArm = null;
     this.registeredCameras = new Set();
     this.meshEnabled = true;
+    this.qualityAdjustEnabled = true;
 
     // Physics properties.
     this.physicsBody = null;

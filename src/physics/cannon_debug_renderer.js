@@ -21,6 +21,10 @@ class CannonDebugRenderer extends DebugRenderer {
       color: 0x00ff00,
       wireframe: true
     });
+    this._sleepMaterial = new THREE.MeshBasicMaterial({
+      wireframe: true,
+      color: 0x0000ff
+    });
     this._sphereGeometry = new THREE.SphereGeometry(1);
     this._boxGeometry = new THREE.BoxGeometry(1, 1, 1);
     this._planeGeometry = new THREE.PlaneGeometry(10, 10, 10, 10);

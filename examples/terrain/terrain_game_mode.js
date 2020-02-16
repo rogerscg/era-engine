@@ -6,6 +6,7 @@ import {
   Environment,
   FreeRoamEntity,
   GameMode,
+  QualityAdjuster,
   World,
   defaultEraRenderer
 } from '../../src/era.js';
@@ -27,7 +28,8 @@ class TerrainGameMode extends GameMode {
     this.world = new World()
       .withPhysics(new CannonPhysics())
       .addRenderer(renderer)
-      .addCameraForRenderer(Camera.get().buildPerspectiveCamera(), renderer);
+      .addCameraForRenderer(Camera.get().buildPerspectiveCamera(), renderer)
+      .withQualityAdjustment(new QualityAdjuster());
 
     // Create environment.
     const environment = await new Environment().loadFromFile(
@@ -53,8 +55,8 @@ class TerrainGameMode extends GameMode {
    * @async
    */
   async loadTerrain() {
-    const terrainMap = new TerrainMap(/* tileSize= */ 128, /* scale=*/ 400.0);
-    await terrainMap.loadFromFile('./terrain/heightmaps/washington.gltf');
+    const terrainMap = new TerrainMap(/* tileSize= */ 64, /* scale=*/ 40.0);
+    await terrainMap.loadFromFile('./terrain/heightmaps/simple.gltf');
     terrainMap.tiles.forEach((tile) => this.world.add(tile));
     //this.world.add(terrainMap.water);
   }
