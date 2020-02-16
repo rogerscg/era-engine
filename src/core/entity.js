@@ -66,6 +66,7 @@ class Entity extends Object3DEventTarget {
     this.physicsEnabled = false;
     this.physicsWorld = null;
     this.autogeneratePhysics = false;
+    this.meshRotationLocked = false;
 
     // Animation properties.
     this.animationMixer = null;
@@ -112,6 +113,16 @@ class Entity extends Object3DEventTarget {
   }
 
   /**
+   * Callback that's fired when an entity is added to a world.
+   */
+  onAdd() {}
+
+  /**
+   * Callback that's fired when an entity is removed from a world.
+   */
+  onRemove() {}
+
+  /**
    * Sets the entity to be attached to a certain local player, used explicitly
    * for split-screen/local co-op experiences.
    * @param {number} playerNumber
@@ -139,6 +150,18 @@ class Entity extends Object3DEventTarget {
    */
   getDefaultBindings() {
     return this.constructor.GetBindings();
+  }
+
+  /**
+   * @param {THREE.Vector3|CANNON.Vec3} position
+   * @return {Entity}
+   */
+  setPosition(position) {
+    if (this.physicsEnabled) {
+      this.physicsBody.position.copy(position);
+    } else {
+      this.position.copy(position);
+    }
   }
 
   /**
@@ -394,7 +417,7 @@ class Entity extends Object3DEventTarget {
     if (position.z != null) {
       this.position.z = position.z;
     }
-    if (rotation.w != null) {
+    if (rotation.w != null && !this.meshRotationLocked) {
       this.mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
     }
   }

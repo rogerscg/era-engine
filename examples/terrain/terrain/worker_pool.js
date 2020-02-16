@@ -7,8 +7,14 @@ class WorkerPool {
     this.capacity = 20;
     // Set of workers currently in use.
     this.workers = new Set();
+    // Available workers.
+    this.availableWorkers = new Array();
     // A queue of resolvers.
     this.queue = new Array();
+    // Initialize workers.
+    for (let i = 0; i < this.capacity; i++) {
+      this.registerWorker_();
+    }
   }
 
   /**
@@ -16,16 +22,13 @@ class WorkerPool {
    * @return {Worker}
    * @async
    */
-  buildWorker() {
+  async getWorker() {
     // If there is capacity in the pool, make a new worker immediately.
-    if (this.workers.size < this.capacity) {
-      return this.registerWorker_();
+    if (this.availableWorkers.length > 0) {
+      return this.availableWorkers.shift();
     }
     // Otherwise, we need to queue to wait for a worker slot to open up.
-    const promise = new Promise((resolve) => {
-      this.queue.push(resolve);
-    });
-    return promise;
+    return new Promise((resolve) => this.queue.push(resolve));
   }
 
   /**
@@ -36,12 +39,12 @@ class WorkerPool {
     if (!this.workers.has(worker)) {
       return console.warn('Worker pool does not contain this worker');
     }
-    this.workers.delete(worker);
-    worker.terminate();
     const resolver = this.queue.shift();
     if (resolver) {
-      resolver(this.registerWorker_());
+      resolver(worker);
+      return;
     }
+    this.availableWorkers.push(worker);
   }
 
   /**
@@ -54,6 +57,7 @@ class WorkerPool {
       type: 'module'
     });
     this.workers.add(worker);
+    this.availableWorkers.push(worker);
     return worker;
   }
 }

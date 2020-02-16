@@ -203,6 +203,7 @@ class World extends Plugin {
     if (entity.physicsEnabled) {
       this.physics.registerEntity(entity);
     }
+    entity.onAdd();
     return this;
   }
 
@@ -220,6 +221,7 @@ class World extends Plugin {
     if (entity.getWorld() == this) {
       entity.setWorld(null);
     }
+    entity.onRemove();
     return this;
   }
 

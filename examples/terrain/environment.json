@@ -3,7 +3,7 @@
     "directory": "skybox/",
     "file": "bluecloud",
     "extension": "jpg",
-    "width": 600
+    "width": 900
   },
   "fog": {
     "type": "exp2",

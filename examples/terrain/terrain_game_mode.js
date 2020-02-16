@@ -53,16 +53,10 @@ class TerrainGameMode extends GameMode {
    * @async
    */
   async loadTerrain() {
-    console.time('load-terrain');
-    const terrainMap = new TerrainMap(/* tileSize= */ 64, /* scale=*/ 50.0);
-    await terrainMap.loadFromFile('./terrain/heightmap_01.gltf');
-    console.timeEnd('load-terrain');
-    terrainMap.tiles.forEach((tile) => {
-      if (tile.getCoordinates().x != 0 || tile.getCoordinates().y != 0) {
-        //return;
-      }
-      this.world.add(tile);
-    });
+    const terrainMap = new TerrainMap(/* tileSize= */ 128, /* scale=*/ 400.0);
+    await terrainMap.loadFromFile('./terrain/heightmaps/washington.gltf');
+    terrainMap.tiles.forEach((tile) => this.world.add(tile));
+    //this.world.add(terrainMap.water);
   }
 }
 
