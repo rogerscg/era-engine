@@ -156,7 +156,7 @@ class TerrainMap {
       const tilesInMapRow = Math.sqrt(this.tiles.length);
       // We want the middle of the terrain map to be at the world origin, so we
       // create an offset based on half of the terrain map width.
-      const tileOffset = tilesInMapRow / 2;
+      const tileOffset = tilesInMapRow / 2 - 0.5;
       const x = (coords.x - tileOffset) * this.tileSize * this.elementSize;
       const z = -(coords.y - tileOffset) * this.tileSize * this.elementSize;
       tile.setPosition(new THREE.Vector3(x, 0, z));

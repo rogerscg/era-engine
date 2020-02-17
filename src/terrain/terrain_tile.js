@@ -142,7 +142,7 @@ class TerrainTile extends Entity {
    * Toggles debug meshes for the tile.
    */
   toggleDebug() {
-    if (Settings.get('debug')) {
+    if (Settings.get('terrain_debug')) {
       this.add(this.debugWalls);
     } else {
       this.remove(this.debugWalls);

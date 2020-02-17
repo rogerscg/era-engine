@@ -57,12 +57,16 @@ class FreeRoamEntity extends Entity {
     return CONTROLS_ID;
   }
 
-  constructor() {
+  constructor(speed = VELOCITY_COEFFICIENT) {
+    /**
+     * @param {number} speed
+     */
     super();
     // Input properties.
     this.targetQuaternion = new CANNON.Quaternion();
     this.lerpedVelocity = new THREE.Vector3();
     this.targetVelocity = new THREE.Vector3();
+    this.speed = speed;
   }
 
   /** @override */
@@ -83,7 +87,7 @@ class FreeRoamEntity extends Entity {
       inputY -= this.getActionValue(this.bindings.DOWN);
     }
     this.targetVelocity.set(this.inputVector.x, inputY, this.inputVector.z);
-    this.targetVelocity.multiplyScalar(VELOCITY_COEFFICIENT);
+    this.targetVelocity.multiplyScalar(this.speed);
     if (this.getActionValue(this.bindings.SPRINT)) {
       this.targetVelocity.multiplyScalar(SPRINT_COEFFICIENT);
     }

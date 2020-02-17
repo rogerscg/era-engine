@@ -84,6 +84,11 @@ class Models {
     if (options.scale) {
       root.scale.setScalar(options.scale);
     }
+    if (options.lod) {
+      const lod = this.loadLod_(root, options.lod);
+      this.storage.set(name, lod);
+      return lod;
+    }
     // Set the model in storage.
     this.storage.set(name, root);
     return root;
@@ -216,6 +221,40 @@ class Models {
     const original = this.storage.get(name);
     const clone = THREE.SkeletonUtils.clone(original);
     return clone;
+  }
+
+  /**
+   * Loads a Level of Detail wrapper object for the given model. This works
+   * under the assumption that the user has provided groups of meshes, each with
+   * a suffix "_LOD{n}".
+   * @param {THREE.Object3D} root
+   * @param {Array<number>} levels
+   * @return {THREE.LOD}
+   * @private
+   */
+  loadLod_(root, levels) {
+    // Ensure the root contains a list of children.
+    if (!root || !root.children || root.children.length != levels.length) {
+      console.error(
+        'Root children and levels do not match:',
+        root.children,
+        levels
+      );
+    }
+    const lod = new THREE.LOD();
+    levels.forEach((levelThreshold, index) => {
+      let lodObject = null;
+      root.children.forEach((child) => {
+        if (new RegExp(`.*LOD${index}`).test(child.name)) {
+          lodObject = child;
+        }
+      });
+      if (!lodObject) {
+        return console.error('No LOD mesh for level', index);
+      }
+      lod.addLevel(lodObject, levelThreshold);
+    });
+    return lod;
   }
 }
 

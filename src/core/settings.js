@@ -13,6 +13,9 @@ const DEFAULT_SETTINGS = {
   physics_debug: {
     value: false
   },
+  terrain_debug: {
+    value: false
+  },
   movement_deadzone: {
     value: 0.15,
     min: 0.0,

@@ -1,0 +1,7 @@
+{
+  "pine_01": {
+    "scale": 1.0,
+    "extension": "gltf",
+    "lod": [0, 10, 30]
+  }
+}
