@@ -1,5 +1,5 @@
-import { Entity } from '../../../src/era.js';
-import { Water as WebGLWater } from '../../../dependencies/water.js';
+import Entity from '../core/entity.js';
+import { Water as WebGLWater } from '../../dependencies/water.js';
 
 /**
  * Simple water entity for terrain.

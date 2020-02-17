@@ -1,6 +1,6 @@
-import noise from '../../../dependencies/perlin.js';
-import * as Comlink from '../../../dependencies/comlink.js';
-import { Box2, Color, Vector3 } from '../../../dependencies/three.module.js';
+import noise from '../../dependencies/perlin.js';
+import * as Comlink from '../../dependencies/comlink.js';
+import { Box2, Color, Vector3 } from '../../dependencies/three.module.js';
 
 // Perlin equation constants.
 const PERLIN_RANGE = 1;

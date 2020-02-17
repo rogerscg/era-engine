@@ -1,6 +1,6 @@
+import Models from '../core/models.js';
 import TerrainTile from './terrain_tile.js';
 import Water from './water.js';
-import { Models } from '../../../src/era.js';
 
 /**
  * Handles loading a terrain map from a 3D model and parsing it into digestible
@@ -38,6 +38,21 @@ class TerrainMap {
     this.positionTiles_();
     this.water = new Water();
     return heightmap;
+  }
+
+  /**
+   * Loads the terrain map from a geometry.
+   * @param {THREE.Geometry} geometry
+   * @async
+   */
+  async loadFromGeometry(geometry) {
+    geometry.mergeVertices();
+    // Compute how large each element will be within a tile.
+    this.elementSize = this.computeElementSize_(geometry);
+    this.tiles = this.breakIntoTiles_(geometry);
+    await this.loadTileTextures_();
+    this.positionTiles_();
+    this.water = new Water();
   }
 
   /**

@@ -44,3 +44,9 @@ export * from './events/event_target.js';
 export { default as AmmoPhysics } from './physics/ammo_physics.js';
 export { default as Box2DPhysics } from './physics/box2d_physics.js';
 export { default as CannonPhysics } from './physics/cannon_physics.js';
+
+// Terrain
+export { default as TerrainMap } from './terrain/terrain_map.js';
+export { default as TerrainTile } from './terrain/terrain_tile.js';
+export { default as Water } from './terrain/water.js';
+export { default as WorkerPool } from './terrain/worker_pool.js';

@@ -1,0 +1,37 @@
+{
+  "skybox": {
+    "directory": "skybox/",
+    "file": "bluecloud",
+    "extension": "jpg",
+    "width": 900
+  },
+  "fog": {
+    "type": "exp2",
+    "density": 0.0025
+  },
+  "background": "cccccc",
+  "lights": {
+    "ambient": [
+      {
+        "color": "eeeeee",
+        "intensity": 0.4
+      }
+    ],
+    "directional": [
+      {
+        "x": 50,
+        "y": 150,
+        "z": 50,
+        "color": "ffffff",
+        "intensity": 0.8,
+        "shadow": {
+          "frustum": 40,
+          "mapSize": 2048,
+          "near": 1,
+          "far": 250,
+          "radius": 4
+        }
+      }
+    ]
+  }
+}

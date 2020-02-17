@@ -14,7 +14,7 @@ import {
 /**
  * Game mode for walking around terrain. It's not very exciting.
  */
-class TerrainGameMode extends GameMode {
+class LodGameMode extends GameMode {
   constructor() {
     super();
     this.world = null;
@@ -55,11 +55,12 @@ class TerrainGameMode extends GameMode {
    * @async
    */
   async loadTerrain() {
-    const terrainMap = new TerrainMap(/* tileSize= */ 64, /* scale=*/ 40.0);
-    await terrainMap.loadFromFile('./heightmaps/simple.gltf');
+    const terrainMap = new TerrainMap(/* tileSize= */ 64);
+    const terrainGeometry = new THREE.PlaneGeometry(100, 100, 256, 256);
+    terrainGeometry.rotateX(-Math.PI / 2);
+    await terrainMap.loadFromGeometry(terrainGeometry);
     terrainMap.tiles.forEach((tile) => this.world.add(tile));
-    //this.world.add(terrainMap.water);
   }
 }
 
-export default TerrainGameMode;
+export default LodGameMode;

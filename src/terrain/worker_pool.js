@@ -53,7 +53,8 @@ class WorkerPool {
    * @private
    */
   registerWorker_() {
-    const worker = new Worker('terrain/texture_worker.js', {
+    // TODO: This needs to be more flexible.
+    const worker = new Worker('/src/terrain/texture_worker.js', {
       type: 'module'
     });
     this.workers.add(worker);

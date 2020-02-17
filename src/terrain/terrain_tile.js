@@ -1,5 +1,6 @@
-import { Entity, Settings } from '../../../src/era.js';
-import * as Comlink from '../../../dependencies/comlink.js';
+import Entity from '../core/entity.js';
+import Settings from '../core/settings.js';
+import * as Comlink from '../../dependencies/comlink.js';
 import workerPool from './worker_pool.js';
 
 const DEBUG_MATERIAL = new THREE.MeshLambertMaterial({
