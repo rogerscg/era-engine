@@ -177,6 +177,25 @@ async function loadJsonFromFile(path) {
 }
 
 /**
+ * Loads a texture from a file.
+ * TODO: Move this to a Texture ERA lib for better disposal.
+ * @param {string} url
+ * @return {THREE.Texture}
+ * @async
+ */
+async function loadTexture(url) {
+  return new Promise((resolve, reject) => {
+    const loader = new THREE.TextureLoader();
+    loader.load(
+      url,
+      (texture) => resolve(texture),
+      undefined,
+      (err) => reject(err)
+    );
+  });
+}
+
+/**
  * Traverses the provided object's ancestors to get the root scene in the ERA
  * world.
  * @param {THREE.Object3D} object
@@ -232,6 +251,7 @@ export {
   getRootWorld,
   lerp,
   loadJsonFromFile,
+  loadTexture,
   shuffleArray,
   toDegrees,
   toRadians,

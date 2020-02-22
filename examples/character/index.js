@@ -15,6 +15,7 @@ import {
   Engine,
   Environment,
   Models,
+  QualityAdjuster,
   World,
   defaultEraRenderer
 } from '../../src/era.js';
@@ -34,7 +35,8 @@ async function start() {
   const world = new World()
     .withPhysics(new CannonPhysics())
     .addRenderer(renderer)
-    .addCameraForRenderer(Camera.get().buildPerspectiveCamera());
+    .addCameraForRenderer(Camera.get().buildPerspectiveCamera())
+    .withQualityAdjustment(new QualityAdjuster());
 
   // Create environment.
   const environment = await new Environment().loadFromFile('environment.json');

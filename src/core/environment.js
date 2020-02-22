@@ -14,6 +14,7 @@ class Environment extends Entity {
     this.meshEnabled = false;
     this.clearColor = 0xffffff;
     this.fog = null;
+    this.qualityAdjustEnabled = false;
   }
 
   /**
@@ -75,7 +76,7 @@ class Environment extends Entity {
       return;
     }
     // Create skybox.
-    const skybox = new Skybox();
+    const skybox = new Skybox(skyboxData.width);
     const directory = skyboxData.directory;
     const file = skyboxData.file;
     const extension = skyboxData.extension;

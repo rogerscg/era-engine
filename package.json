@@ -22,5 +22,8 @@
     "@rollup/plugin-buble": "^0.21.0",
     "express": "^4.17.1",
     "rollup": "^1.25.1"
+  },
+  "dependencies": {
+    "comlink": "^4.2.0"
   }
 }

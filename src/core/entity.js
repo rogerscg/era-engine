@@ -60,12 +60,14 @@ class Entity extends Object3DEventTarget {
     this.cameraArm = null;
     this.registeredCameras = new Set();
     this.meshEnabled = true;
+    this.qualityAdjustEnabled = true;
 
     // Physics properties.
     this.physicsBody = null;
     this.physicsEnabled = false;
     this.physicsWorld = null;
     this.autogeneratePhysics = false;
+    this.meshRotationLocked = false;
 
     // Animation properties.
     this.animationMixer = null;
@@ -79,6 +81,10 @@ class Entity extends Object3DEventTarget {
     this.playerNumber = null;
     this.lastMouseMovement = new THREE.Vector2();
     this.mouseMovement = new THREE.Vector2();
+    this.inputVector = new THREE.Vector3();
+    this.cameraQuaternion = new THREE.Quaternion();
+    this.cameraEuler = new THREE.Euler();
+    this.cameraEuler.order = 'YXZ';
 
     SettingsEvent.listen(this.handleSettingsChange.bind(this));
   }
@@ -108,6 +114,16 @@ class Entity extends Object3DEventTarget {
   }
 
   /**
+   * Callback that's fired when an entity is added to a world.
+   */
+  onAdd() {}
+
+  /**
+   * Callback that's fired when an entity is removed from a world.
+   */
+  onRemove() {}
+
+  /**
    * Sets the entity to be attached to a certain local player, used explicitly
    * for split-screen/local co-op experiences.
    * @param {number} playerNumber
@@ -135,6 +151,18 @@ class Entity extends Object3DEventTarget {
    */
   getDefaultBindings() {
     return this.constructor.GetBindings();
+  }
+
+  /**
+   * @param {THREE.Vector3|CANNON.Vec3} position
+   * @return {Entity}
+   */
+  setPosition(position) {
+    if (this.physicsEnabled) {
+      this.physicsBody.position.copy(position);
+    } else {
+      this.position.copy(position);
+    }
   }
 
   /**
@@ -238,9 +266,9 @@ class Entity extends Object3DEventTarget {
    * @param {THREE.Camera} camera
    */
   positionCamera(camera) {
+    this.cameraArm.add(camera);
     camera.position.set(0, 0, 0);
     camera.rotation.set(0, 0, 0);
-    this.cameraArm.add(camera);
   }
 
   /**
@@ -371,6 +399,11 @@ class Entity extends Object3DEventTarget {
    * synchronized.
    */
   update() {
+    this.lastMouseMovement.copy(this.mouseMovement);
+    this.mouseMovement.set(0, 0);
+    if (this.bindings) {
+      this.calculateInputVector();
+    }
     if (!this.mesh || !this.physicsBody || !this.physicsWorld) {
       return;
     }
@@ -385,11 +418,43 @@ class Entity extends Object3DEventTarget {
     if (position.z != null) {
       this.position.z = position.z;
     }
-    if (rotation.w != null) {
+    if (rotation.w != null && !this.meshRotationLocked) {
       this.mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
     }
-    this.lastMouseMovement.copy(this.mouseMovement);
-    this.mouseMovement.set(0, 0);
+  }
+
+  /**
+   * Calculates the input vector of the entity.
+   */
+  calculateInputVector() {
+    const inputVector = this.inputVector;
+    inputVector.set(0, 0, 0);
+    if (this.getActionValue(this.bindings.FORWARD)) {
+      inputVector.z -= this.getActionValue(this.bindings.FORWARD);
+    }
+    if (this.getActionValue(this.bindings.BACKWARD)) {
+      inputVector.z += this.getActionValue(this.bindings.BACKWARD);
+    }
+    if (this.getActionValue(this.bindings.LEFT)) {
+      inputVector.x -= this.getActionValue(this.bindings.LEFT);
+    }
+    if (this.getActionValue(this.bindings.RIGHT)) {
+      inputVector.x += this.getActionValue(this.bindings.RIGHT);
+    }
+    // Update input vector with camera direction.
+    const camera = this.getWorld()
+      ? this.getWorld().getAssociatedCamera(this)
+      : null;
+    if (camera) {
+      camera.getWorldQuaternion(this.cameraQuaternion);
+      this.cameraEuler.setFromQuaternion(this.cameraQuaternion);
+      // We only care about the X and Z axis, so remove the angle looking down
+      // on the character.
+      this.cameraEuler.x = 0;
+      this.cameraQuaternion.setFromEuler(this.cameraEuler);
+    }
+    inputVector.applyQuaternion(this.cameraQuaternion);
+    inputVector.normalize();
   }
 
   /**

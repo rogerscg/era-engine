@@ -10,9 +10,10 @@ const SUFFIXES = ['ft', 'bk', 'up', 'dn', 'rt', 'lf'];
  * Wrapper class for a cube geometry, representing a skybox.
  */
 class Skybox extends THREE.Object3D {
-  constructor() {
+  constructor(width = WIDTH) {
     super();
     this.cube = null;
+    this.width = width;
   }
 
   /**
@@ -41,7 +42,7 @@ class Skybox extends THREE.Object3D {
       extension
     );
 
-    const geometry = new THREE.CubeGeometry(WIDTH, WIDTH, WIDTH);
+    const geometry = new THREE.CubeGeometry(this.width, this.width, this.width);
     const cube = new THREE.Mesh(geometry, cubeMaterials);
     this.cube = cube;
     this.add(cube);

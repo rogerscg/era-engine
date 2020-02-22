@@ -24,8 +24,8 @@ class Camera {
     const height = window.innerHeight;
     const viewAngle = 70;
     const aspect = width / height;
-    const near = 1;
-    const far = 1000;
+    const near = 0.1;
+    const far = 2000;
     const camera = new THREE.PerspectiveCamera(viewAngle, aspect, near, far);
     camera.rotation.order = 'YXZ';
     camera.userData.resize = (width, height) => {

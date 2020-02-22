@@ -58,6 +58,7 @@ const DEFAULT_VELO_LERP_FACTOR = 0.15;
 class Character extends Entity {
   constructor() {
     super();
+    this.qualityAdjustEnabled = false;
     // Make all defaults overrideable by subclasses.
     // Height of the character.
     this.height = DEFAULT_HEIGHT;
@@ -115,14 +116,9 @@ class Character extends Entity {
     this.rayEndBox = new THREE.Mesh(RAYCAST_GEO, RAYCAST_MATERIAL);
 
     // Input properties.
-    this.inputVector = new THREE.Vector3();
     this.targetQuaternion = new CANNON.Quaternion();
     this.lerpedVelocity = new THREE.Vector3();
     this.targetVelocity = new THREE.Vector3();
-    this.cameraQuaternion = new THREE.Quaternion();
-    this.cameraEuler = new THREE.Euler();
-    this.cameraEuler.order = 'YXZ';
-    this.cameraDirection = new THREE.Vector3();
   }
 
   /** @override */
@@ -303,38 +299,9 @@ class Character extends Entity {
     if (this.frozen) {
       return;
     }
-    const inputVector = this.inputVector;
-    inputVector.set(0, 0, 0);
-    if (this.getActionValue(this.bindings.FORWARD)) {
-      inputVector.z -= this.getActionValue(this.bindings.FORWARD);
-    }
-    if (this.getActionValue(this.bindings.BACKWARD)) {
-      inputVector.z += this.getActionValue(this.bindings.BACKWARD);
-    }
-    if (this.getActionValue(this.bindings.LEFT)) {
-      inputVector.x -= this.getActionValue(this.bindings.LEFT);
-    }
-    if (this.getActionValue(this.bindings.RIGHT)) {
-      inputVector.x += this.getActionValue(this.bindings.RIGHT);
-    }
-    // Update input vector with camera direction.
-    const camera = this.getWorld()
-      ? this.getWorld().getAssociatedCamera(this)
-      : null;
-    if (camera) {
-      camera.getWorldQuaternion(this.cameraQuaternion);
-      this.cameraEuler.setFromQuaternion(this.cameraQuaternion);
-      // We only care about the X and Z axis, so remove the angle looking down
-      // on the character.
-      this.cameraEuler.x = 0;
-      this.cameraQuaternion.setFromEuler(this.cameraEuler);
-    }
-    inputVector.applyQuaternion(this.cameraQuaternion);
-    inputVector.normalize();
-
     if (this.grounded) {
-      this.targetVelocity.x = inputVector.x * 2.5;
-      this.targetVelocity.z = inputVector.z * 2.5;
+      this.targetVelocity.x = this.inputVector.x * 2.5;
+      this.targetVelocity.z = this.inputVector.z * 2.5;
       if (this.getActionValue(this.bindings.SPRINT)) {
         this.targetVelocity.x *= 2.5;
         this.targetVelocity.z *= 2.5;
@@ -345,8 +312,8 @@ class Character extends Entity {
       this.physicsBody.velocity.copy(this.lerpedVelocity);
     }
     // Update body rotation.
-    if (inputVector.x || inputVector.z) {
-      const angle = vectorToAngle(inputVector.z, inputVector.x);
+    if (this.inputVector.x || this.inputVector.z) {
+      const angle = vectorToAngle(this.inputVector.z, this.inputVector.x);
       this.targetQuaternion.setFromAxisAngle(CANNON.Vec3.UNIT_Y, angle);
       this.updateRotation();
     }
@@ -371,7 +338,7 @@ class Character extends Entity {
     if (!world) {
       return console.warn('World not set on character');
     }
-    if (Settings.get('debug')) {
+    if (Settings.get('physics_debug')) {
       const scene = world.getScene();
       scene.add(this.rayStartBox);
       scene.add(this.rayEndBox);

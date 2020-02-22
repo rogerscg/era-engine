@@ -204,14 +204,19 @@ class Light extends Plugin {
    */
   addHelpers(light) {
     // Handle base light helper first.
-    let rootScene = getRootScene;
+    let rootScene = getRootScene(light);
     if (light.helper && !light.helper.parent) {
       rootScene = getRootScene(light);
       if (rootScene) {
         rootScene.add(light.helper);
       }
     }
-    if (light.shadow && light.shadow.helper && !light.shadow.helper.parent) {
+    if (
+      Settings.get('shadows') &&
+      light.shadow &&
+      light.shadow.helper &&
+      !light.shadow.helper.parent
+    ) {
       if (!rootScene) {
         rootScene = getRootScene(light);
       }

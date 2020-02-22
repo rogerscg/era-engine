@@ -15,6 +15,7 @@ export { default as Controls } from './core/controls.js';
 export { default as Engine } from './core/engine.js';
 export { default as Entity } from './core/entity.js';
 export { default as Environment } from './core/environment.js';
+export { default as FreeRoamEntity } from './core/free_roam_entity.js';
 export { default as GameMode } from './core/game_mode.js';
 export { default as Light } from './core/light.js';
 export { default as Models } from './core/models.js';
@@ -22,6 +23,7 @@ export { default as Network } from './core/network.js';
 export { default as NetworkRegistry } from './core/network_registry.js';
 export { default as Physics } from './core/physics.js';
 export { default as Plugin } from './core/plugin.js';
+export { default as QualityAdjuster } from './core/quality_adjuster.js';
 export { default as Settings } from './core/settings.js';
 export { default as Skybox } from './core/skybox.js';
 export { default as World } from './core/world.js';
@@ -42,3 +44,9 @@ export * from './events/event_target.js';
 export { default as AmmoPhysics } from './physics/ammo_physics.js';
 export { default as Box2DPhysics } from './physics/box2d_physics.js';
 export { default as CannonPhysics } from './physics/cannon_physics.js';
+
+// Terrain
+export { default as TerrainMap } from './terrain/terrain_map.js';
+export { default as TerrainTile } from './terrain/terrain_tile.js';
+export { default as Water } from './terrain/water.js';
+export { default as WorkerPool } from './terrain/worker_pool.js';
