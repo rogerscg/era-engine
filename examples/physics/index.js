@@ -5,7 +5,6 @@
 import Ball from './ball.js';
 import Stage from './stage.js';
 import {
-  AmmoPhysics,
   Camera,
   Controls,
   Engine,
@@ -19,7 +18,7 @@ async function start() {
   const engine = Engine.get();
 
   // Create world and renderer.
-  const world = new World().withPhysics(new AmmoPhysics());
+  const world = new World().withPhysics();
   const renderer = defaultEraRenderer();
   world.addRenderer(renderer);
   world.addCameraForRenderer(Camera.get().buildIsometricCamera(), renderer);
@@ -29,13 +28,14 @@ async function start() {
   world.setEnvironment(environment);
 
   // Create stage.
-  const stage = new Stage().withPhysics();
+  const stage = new Stage();
   world.add(stage).attachCameraToEntity(stage);
 
   // Create characters.
   for (let i = 0; i < 4; i++) {
-    const ball = new Ball().withPhysics().setPlayerNumber(i);
+    const ball = new Ball().setPlayerNumber(i);
     world.add(ball);
+    ball.setPosition(new CANNON.Vec3((i - 2) * 5, 3, 0));
     Controls.get().registerEntity(ball);
   }
 

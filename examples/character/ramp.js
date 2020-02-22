@@ -20,10 +20,16 @@ class Ramp extends Entity {
     const body = new CANNON.Body({
       mass: 0,
       shape: new CANNON.Box(new CANNON.Vec3(SIDE / 2, SIDE / 2, SIDE / 2)),
-      quaternion: quaternion,
+      quaternion: quaternion
     });
-    body.material = this.physicsWorld.createPhysicalMaterial('ground');
     return body;
+  }
+
+  /** @override */
+  onAdd() {
+    this.physicsBody.material = this.physicsWorld.createPhysicalMaterial(
+      'ground'
+    );
   }
 }
 

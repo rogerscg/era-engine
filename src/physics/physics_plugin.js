@@ -1,15 +1,19 @@
 /**
  * @author rogerscg / https://github.com/rogerscg
  */
-import Plugin from './plugin.js';
-import Settings from './settings.js';
+import DebugRenderer from './debug_renderer.js';
+import Plugin from '../core/plugin.js';
+import Settings from '../core/settings.js';
+
+const MAX_DELTA = 1;
+const MAX_SUBSTEPS = 10;
 
 let instance = null;
 /**
- * Core implementation for managing the game's physics. The
- * actual physics engine is provided by the user.
+ * API implementation for Cannon.js, a pure JavaScript physics engine.
+ * https://github.com/schteppe/cannon.js
  */
-class Physics extends Plugin {
+class PhysicsPlugin extends Plugin {
   /**
    * Enforces singleton physics instance.
    */
@@ -26,6 +30,9 @@ class Physics extends Plugin {
     this.world = this.createWorld();
     this.eraWorld = null;
     this.lastTime = performance.now();
+    this.physicalMaterials = new Map();
+    this.contactMaterials = new Map();
+    this.debugRenderer = null;
   }
 
   /** @override */
@@ -78,14 +85,18 @@ class Physics extends Plugin {
    * @param {number} delta
    */
   step(delta) {
-    console.warn('Step not defined');
+    delta /= 1000;
+    delta = Math.min(MAX_DELTA, delta);
+    this.world.step(1 / 60, delta, MAX_SUBSTEPS);
   }
 
   /**
    * Instantiates the physics world.
    */
   createWorld() {
-    console.warn('Create world not defined');
+    const world = new CANNON.World();
+    world.gravity.set(0, -9.82, 0);
+    return world;
   }
 
   /**
@@ -107,6 +118,7 @@ class Physics extends Plugin {
     this.registeredEntities.set(entity.uuid, entity);
     entity.registerPhysicsWorld(this);
     this.registerContactHandler(entity);
+    this.world.addBody(entity.physicsBody);
     return true;
   }
 
@@ -121,23 +133,8 @@ class Physics extends Plugin {
     }
     this.registeredEntities.delete(entity.uuid);
     entity.unregisterPhysicsWorld(this);
+    this.world.remove(entity.physicsBody);
     return true;
-  }
-
-  /**
-   * Registers a component to partake in physics simulations. This
-   * differs from an entity in that it is a single body unattached
-   * to a mesh.
-   */
-  registerComponent(body) {
-    console.warn('Unregister entity not defined');
-  }
-
-  /**
-   * Unregisters a component to partake in physics simulations.
-   */
-  unregisterComponent(body) {
-    console.warn('Unregister component not defined');
   }
 
   /**
@@ -152,10 +149,10 @@ class Physics extends Plugin {
    * Gets the position of the given entity. Must be implemented by
    * engine-specific implementations.
    * @param {Entity} entity
-   * @returns {Object}
+   * @returns {CANNON.Vec3}
    */
   getPosition(entity) {
-    console.warn('getPosition(entity) not implemented');
+    return entity.physicsBody.position;
   }
 
   /**
@@ -165,7 +162,7 @@ class Physics extends Plugin {
    * @returns {Object}
    */
   getRotation(entity) {
-    console.warn('getRotation(entity) not implemented');
+    return entity.physicsBody.quaternion;
   }
 
   /**
@@ -173,7 +170,13 @@ class Physics extends Plugin {
    * each engine-specific implementation for ease of use.
    */
   enableDebugRenderer() {
-    console.warn('Debug renderer not implemented');
+    const scene = this.getEraWorld() ? this.getEraWorld().getScene() : null;
+    const world = this.getWorld();
+    if (!scene || !world) {
+      return console.warn('Debug renderer missing scene or world.');
+    }
+    this.debugRenderer = new DebugRenderer(scene, world);
+    return this.debugRenderer;
   }
 
   /**
@@ -201,8 +204,51 @@ class Physics extends Plugin {
    * @param {Entity} entity
    */
   registerContactHandler(entity) {
-    console.warn('Contact handler not supported');
+    entity.physicsBody.addEventListener('collide', (e) => {
+      entity.handleCollision(e);
+    });
+  }
+
+  /**
+   * Creates a new physical material for the given name and options. If the
+   * physical material already exists, return the existing one.
+   */
+  createPhysicalMaterial(name, options) {
+    if (!this.physicalMaterials.has(name)) {
+      const material = new CANNON.Material(options);
+      this.physicalMaterials.set(name, material);
+    }
+    return this.physicalMaterials.get(name);
+  }
+
+  /**
+   * Creates a new contact material between two given names. If the contact
+   * material already exists, return the existing one.
+   */
+  createContactMaterial(name1, name2, options) {
+    // TODO: Allow for "pending" contact material if one of the materials has
+    // not been created yet.
+    const key = this.createContactKey(name1, name2);
+    if (!this.contactMaterials.has(key)) {
+      const mat1 = this.createPhysicalMaterial(name1);
+      const mat2 = this.createPhysicalMaterial(name2);
+      const contactMat = new CANNON.ContactMaterial(mat1, mat2, options);
+      this.contactMaterials.set(key, contactMat);
+      this.world.addContactMaterial(contactMat);
+    }
+    return this.contactMaterials.get(key);
+  }
+
+  /**
+   * Creates a combined string to use as a key for contact materials.
+   */
+  createContactKey(name1, name2) {
+    // Alphabetize, then concatenate.
+    if (name1 < name2) {
+      return `${name1},${name2}`;
+    }
+    return `${name2},${name1}`;
   }
 }
 
-export default Physics;
+export default PhysicsPlugin;

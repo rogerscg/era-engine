@@ -1,8 +1,8 @@
-import Controls from './controls.js';
+import Controls from '../core/controls.js';
 import Entity from './entity.js';
-import Settings from './settings.js';
-import { Bindings } from './bindings.js';
-import { lerp, vectorToAngle } from './util.js';
+import Settings from '../core/settings.js';
+import { Bindings } from '../core/bindings.js';
+import { lerp, vectorToAngle } from '../core/util.js';
 
 const CHARACTER_BINDINGS = {
   SPRINT: {
@@ -134,18 +134,25 @@ class Character extends Entity {
   }
 
   /** @override */
+  onAdd() {
+    this.physicsBody.material = this.physicsWorld.createPhysicalMaterial(
+      'character',
+      {
+        friction: 0
+      }
+    );
+    this.physicsWorld.createContactMaterial('character', 'ground', {
+      friction: 0,
+      contactEquationStiffness: 1e8
+    });
+  }
+
+  /** @override */
   generatePhysicsBody() {
     const capsule = new CANNON.Body({ mass: this.mass });
     // TODO: Remove this collison filter group and make it more explicit to the
     // user.
     capsule.collisionFilterGroup = 2;
-    capsule.material = this.physicsWorld.createPhysicalMaterial('character', {
-      friction: 0
-    });
-    this.physicsWorld.createContactMaterial('character', 'ground', {
-      friction: 0,
-      contactEquationStiffness: 1e8
-    });
 
     // Create center portion of capsule.
     const height = this.height - this.capsuleRadius * 2 - this.capsuleOffset;

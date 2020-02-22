@@ -33,7 +33,6 @@ class Terrain extends Entity {
     });
     body.quaternion.setFromEuler(-Math.PI / 2, 0, 0, 'XYZ');
     body.addShape(heightfieldShape);
-    body.material = this.physicsWorld.createPhysicalMaterial('ground');
     return body;
   }
 
@@ -52,6 +51,13 @@ class Terrain extends Entity {
       data.push(row);
     }
     return data;
+  }
+
+  /** @override */
+  onAdd() {
+    this.physicsBody.material = this.physicsWorld.createPhysicalMaterial(
+      'ground'
+    );
   }
 }
 

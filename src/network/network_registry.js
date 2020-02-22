@@ -2,12 +2,12 @@
  * @author rogerscg / https://github.com/rogerscg
  */
 
- import Network from './network.js';
+import Network from './network.js';
 
- /**
-  * A map of all network instances, keyed by their server name. This is useful
-  * when a client has to track multiple servers with which it communicates.
-  */
+/**
+ * A map of all network instances, keyed by their server name. This is useful
+ * when a client has to track multiple servers with which it communicates.
+ */
 class NetworkRegistry extends Map {
   /**
    * Creates a new network instance for a server.

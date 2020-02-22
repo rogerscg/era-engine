@@ -31,20 +31,24 @@ class Stairs extends Entity {
   /** @override */
   generatePhysicsBody() {
     const body = new CANNON.Body({
-      mass: 0,
+      mass: 0
     });
     for (let i = 0; i < this.steps; i++) {
-      const step = new CANNON.Box(new CANNON.Vec3(
-                                    this.run / 2,
-                                    this.rise / 2,
-                                    this.width / 2
-                                  ));
+      const step = new CANNON.Box(
+        new CANNON.Vec3(this.run / 2, this.rise / 2, this.width / 2)
+      );
       const x = i * this.run;
       const y = i * this.rise;
       body.addShape(step, new CANNON.Vec3(x, y, 0));
     }
-    body.material = this.physicsWorld.createPhysicalMaterial('ground');
     return body;
+  }
+
+  /** @override */
+  onAdd() {
+    this.physicsBody.material = this.physicsWorld.createPhysicalMaterial(
+      'ground'
+    );
   }
 }
 

@@ -10,22 +10,14 @@ export { Action, Bindings } from './core/bindings.js';
 export { default as Animation } from './core/animation.js';
 export { default as Audio } from './core/audio.js';
 export { default as Camera } from './core/camera.js';
-export { default as Character } from './core/character.js';
 export { default as Controls } from './core/controls.js';
 export { default as Engine } from './core/engine.js';
-export { default as Entity } from './core/entity.js';
-export { default as Environment } from './core/environment.js';
-export { default as FreeRoamEntity } from './core/free_roam_entity.js';
 export { default as GameMode } from './core/game_mode.js';
 export { default as Light } from './core/light.js';
 export { default as Models } from './core/models.js';
-export { default as Network } from './core/network.js';
-export { default as NetworkRegistry } from './core/network_registry.js';
-export { default as Physics } from './core/physics.js';
 export { default as Plugin } from './core/plugin.js';
 export { default as QualityAdjuster } from './core/quality_adjuster.js';
 export { default as Settings } from './core/settings.js';
-export { default as Skybox } from './core/skybox.js';
 export { default as World } from './core/world.js';
 export * from './core/util.js';
 
@@ -40,10 +32,19 @@ export { default as EraEvent } from './events/era_event.js';
 export { default as SettingsEvent } from './events/settings_event.js';
 export * from './events/event_target.js';
 
+// Network
+export { default as Network } from './network/network.js';
+export { default as NetworkRegistry } from './network/network_registry.js';
+
+// Objects
+export { default as Character } from './objects/character.js';
+export { default as Entity } from './objects/entity.js';
+export { default as Environment } from './objects/environment.js';
+export { default as FreeRoamEntity } from './objects/free_roam_entity.js';
+export { default as Skybox } from './objects/skybox.js';
+
 // Physics
-export { default as AmmoPhysics } from './physics/ammo_physics.js';
-export { default as Box2DPhysics } from './physics/box2d_physics.js';
-export { default as CannonPhysics } from './physics/cannon_physics.js';
+export { default as PhysicsPlugin } from './physics/physics_plugin.js';
 
 // Terrain
 export { default as TerrainMap } from './terrain/terrain_map.js';

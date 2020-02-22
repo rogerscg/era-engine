@@ -1,4 +1,4 @@
-import Entity from '../core/entity.js';
+import Entity from '../objects/entity.js';
 import { Water as WebGLWater } from '../../dependencies/water.js';
 
 /**

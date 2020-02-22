@@ -3,7 +3,6 @@ import Level from './level.js';
 import {
   Audio,
   Camera,
-  CannonPhysics,
   Controls,
   Environment,
   GameMode,
@@ -38,7 +37,7 @@ class MazeGameMode extends GameMode {
     // Create world.
     const renderer = defaultEraRenderer();
     this.world = new World()
-      .withPhysics(new CannonPhysics())
+      .withPhysics()
       .addRenderer(renderer)
       .addCameraForRenderer(Camera.get().buildPerspectiveCamera(), renderer);
 
@@ -71,7 +70,7 @@ class MazeGameMode extends GameMode {
    */
   async loadLevel(levelIndex) {
     const levelName = LEVELS[levelIndex];
-    const level = new Level(levelName).withPhysics(this.physics);
+    const level = new Level(levelName).withPhysics();
     level.addOneShotEventListener('complete', () => {
       setTimeout(() => this.completeLevel(), 1000);
     });

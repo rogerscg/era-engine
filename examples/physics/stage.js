@@ -1,8 +1,8 @@
-import {Entity} from '../../src/era.js';
+import { Entity } from '../../src/era.js';
 
 const SIDE = 50;
 const GEOMETRY = new THREE.BoxGeometry(SIDE, SIDE, SIDE);
-const MATERIAL = new THREE.MeshLambertMaterial({color: 0x999999});
+const MATERIAL = new THREE.MeshLambertMaterial({ color: 0x999999 });
 
 /**
  * The stage for ball arena.
@@ -11,7 +11,6 @@ class Stage extends Entity {
   /** @override */
   generateMesh() {
     const ground = new THREE.Mesh(GEOMETRY, MATERIAL);
-    ground.position.y -= SIDE / 2;
     return ground;
   }
 
@@ -19,24 +18,21 @@ class Stage extends Entity {
   positionCamera(camera) {
     this.cameraArm.add(camera);
     camera.position.x = 135;
+    camera.position.y = 20;
     this.cameraArm.rotation.z = Math.PI / 6;
     this.cameraArm.rotation.y = -Math.PI / 4;
-    camera.lookAt(this.position);
+    const target = new THREE.Vector3().copy(this.position);
+    target.y += 20;
+    camera.lookAt(target);
   }
 
   /** @override */
   generatePhysicsBody() {
-    const compoundShape = new Ammo.btCompoundShape();
-    const shape = new Ammo.btBoxShape(
-                    new Ammo.btVector3(SIDE / 2, SIDE / 2, SIDE / 2));
-    const transform = new Ammo.btTransform();
-    transform.setIdentity();
-    transform.setOrigin(new Ammo.btVector3(0, -SIDE / 2, 0));
-    compoundShape.addChildShape(transform, shape);
-    const motionState = new Ammo.btDefaultMotionState(transform);
-    const mass = 0;
-    const bodyInfo = new Ammo.btRigidBodyConstructionInfo(mass, motionState, compoundShape, null);
-    const body = new Ammo.btRigidBody(bodyInfo);
+    const body = new CANNON.Body({
+      mass: 0,
+      shape: new CANNON.Box(new CANNON.Vec3(SIDE / 2, SIDE / 2, SIDE / 2)),
+      position: new CANNON.Vec3(0, -SIDE / 2, 0)
+    });
     return body;
   }
 }
