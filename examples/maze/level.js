@@ -12,7 +12,7 @@ class Level extends Entity {
     super();
     this.modelName = levelName;
     this.autogeneratePhysics = true;
-    this.objective = null;
+    this.objective = this.loadObjective_();
   }
 
   /** @override */
@@ -32,20 +32,7 @@ class Level extends Entity {
     camera.position.x = 20;
     this.cameraArm.rotation.z = Math.PI / 4;
     this.cameraArm.rotation.y = Math.PI / 2;
-    camera.lookAt(this.position);
-  }
-
-  /** @override */
-  build() {
-    super.build();
-    this.loadObjective();
-    return this;
-  }
-
-  /** @override */
-  destroy() {
-    super.destroy();
-    this.objective.destroy();
+    camera.lookAt(this.visualRoot.position);
   }
 
   /**
@@ -54,22 +41,24 @@ class Level extends Entity {
    */
   async load() {
     // Load maze model.
-    await Models.get().loadModel('levels/', this.modelName);
+    const model = await Models.get().loadModel('levels/', this.modelName);
+    const objectivePoint = model.getObjectByName('Objective');
+    if (!objectivePoint) {
+      return console.error('No objective point found.');
+    }
+    this.objective.setPosition(objectivePoint.position);
   }
 
   /**
    * Loads the objective entity into the level.
+   * @return {Objective}
+   * @private
    */
-  loadObjective() {
-    this.objective = new Objective().withPhysics();
+  loadObjective_() {
+    const objective = new Objective().withPhysics();
     // Register listener for when the objective has been reached.
-    this.objective.addEventListener('completed', () => this.complete());
-    const objectivePoint = this.getObjectByName('Objective');
-    if (!objectivePoint) {
-      return console.error('No objective point found.');
-    }
-    this.getWorld().add(this.objective);
-    this.objective.physicsBody.position.copy(objectivePoint.position);
+    objective.addEventListener('completed', () => this.complete());
+    return objective;
   }
 
   /**
@@ -77,7 +66,7 @@ class Level extends Entity {
    * @returns {THREE.Object3D}
    */
   getSpawnPoint() {
-    return this.getObjectByName('Spawn');
+    return this.visualRoot.getObjectByName('Spawn');
   }
 
   /**

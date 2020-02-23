@@ -45,12 +45,12 @@ class Environment extends Entity {
     }
     if (lightsData.ambient) {
       lightsData.ambient.forEach((data) =>
-        this.add(Light.get().createAmbientLight(data))
+        this.visualRoot.add(Light.get().createAmbientLight(data))
       );
     }
     if (lightsData.directional) {
       lightsData.directional.forEach((data) =>
-        this.add(Light.get().createDirectionalLight(data))
+        this.visualRoot.add(Light.get().createDirectionalLight(data))
       );
     }
   }
@@ -81,7 +81,7 @@ class Environment extends Entity {
     const file = skyboxData.file;
     const extension = skyboxData.extension;
     await skybox.load(directory, file, extension);
-    this.add(skybox);
+    this.visualRoot.add(skybox);
   }
 
   /**

@@ -29,8 +29,8 @@ export { default as SettingsPanel } from './debug/settings_panel.js';
 export { default as Events } from './events/events.js';
 export { default as EngineResetEvent } from './events/engine_reset_event.js';
 export { default as EraEvent } from './events/era_event.js';
+export { default as EventTarget } from './events/event_target.js';
 export { default as SettingsEvent } from './events/settings_event.js';
-export * from './events/event_target.js';
 
 // Network
 export { default as Network } from './network/network.js';

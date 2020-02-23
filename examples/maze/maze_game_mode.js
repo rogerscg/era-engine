@@ -85,8 +85,8 @@ class MazeGameMode extends GameMode {
   startLevel() {
     const spawnPoint = this.currentLevel.getSpawnPoint();
     if (spawnPoint) {
-      this.character.physicsBody.position.copy(spawnPoint.position);
-      this.character.physicsBody.quaternion.copy(spawnPoint.quaternion);
+      this.character.setPosition(spawnPoint.position);
+      this.character.setRotation(spawnPoint.quaternion);
     }
   }
 

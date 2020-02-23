@@ -5,12 +5,12 @@
 import Animation from '../core/animation.js';
 import Autogenerator from '../physics/autogenerator.js';
 import Controls from '../core/controls.js';
+import EventTarget from '../events/event_target.js';
 import Models from '../core/models.js';
 import Physics from '../physics/physics_plugin.js';
 import Settings from '../core/settings.js';
 import SettingsEvent from '../events/settings_event.js';
 import { Bindings } from '../core/bindings.js';
-import { Object3DEventTarget } from '../events/event_target.js';
 import { createUUID, getRootWorld } from '../core/util.js';
 
 const ENTITY_BINDINGS = {
@@ -46,16 +46,20 @@ const CONTROLS_ID = 'Entity';
  * Super class for all entities within the game, mostly those
  * that are updated by the physics engine.
  */
-class Entity extends Object3DEventTarget {
+class Entity extends EventTarget {
   static GetBindings() {
     return new Bindings(CONTROLS_ID).load(ENTITY_BINDINGS);
   }
 
   constructor() {
     super();
+    // ERA Engine Properties.
     this.uuid = createUUID();
     this.world = null;
     this.built = false;
+
+    // Rendering properties.
+    this.visualRoot = new THREE.Object3D();
     this.modelName = null;
     this.mesh = null;
     this.cameraArm = null;
@@ -162,7 +166,19 @@ class Entity extends Object3DEventTarget {
     if (this.physicsEnabled && this.physicsBody) {
       this.physicsBody.position.copy(position);
     } else {
-      this.position.copy(position);
+      this.visualRoot.position.copy(position);
+    }
+  }
+
+  /**
+   * @param {THREE.Quaternion|CANNON.Quaternion} quaternion
+   * @return {Entity}
+   */
+  setRotation(quaternion) {
+    if (this.physicsEnabled && this.physicsBody) {
+      this.physicsBody.quaternion.copy(quaternion);
+    } else {
+      this.visualRoot.quaternion.copy(quaternion);
     }
   }
 
@@ -175,10 +191,10 @@ class Entity extends Object3DEventTarget {
     }
     this.mesh = this.generateMesh();
     if (this.mesh) {
-      this.add(this.mesh);
+      this.visualRoot.add(this.mesh);
       this.animationMixer = Animation.get().createAnimationMixer(
         this.modelName,
-        this
+        this.visualRoot
       );
       this.animationClips = Animation.get().getClips(this.modelName);
       if (Settings.get('shadows')) {
@@ -242,7 +258,7 @@ class Entity extends Object3DEventTarget {
    */
   createCameraArm() {
     const obj = new THREE.Object3D();
-    this.add(obj);
+    this.visualRoot.add(obj);
     return obj;
   }
 
@@ -401,13 +417,13 @@ class Entity extends Object3DEventTarget {
     const position = this.physicsWorld.getPosition(this);
     const rotation = this.physicsWorld.getRotation(this);
     if (position.x != null) {
-      this.position.x = position.x;
+      this.visualRoot.position.x = position.x;
     }
     if (position.y != null) {
-      this.position.y = position.y;
+      this.visualRoot.position.y = position.y;
     }
     if (position.z != null) {
-      this.position.z = position.z;
+      this.visualRoot.position.z = position.z;
     }
     if (rotation.w != null && !this.meshRotationLocked) {
       this.mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
@@ -453,28 +469,12 @@ class Entity extends Object3DEventTarget {
    */
   consumeUpdate(physics) {
     if (!physics) return;
-    // TODO: make this engine-agnostic.
+    // TODO: Update this to use Cannon.
     const [angVelo, pos, velo, rot] = physics;
     this.physicsBody.angularVelocity = angVelo;
     this.physicsBody.angle = rot;
     p2.vec2.copy(this.physicsBody.position, pos);
     p2.vec2.copy(this.physicsBody.velocity, velo);
-  }
-
-  /**
-   * Registers the entity to the physics engine.
-   */
-  registerToPhysics() {
-    Physics.get().registerEntity(this);
-  }
-
-  /**
-   * Registers a component of an entity to the physics engine. This
-   * is primarily used if there is a body separate from the entity's
-   * main physics body.
-   */
-  registerComponent(body) {
-    Physics.get().registerComponent(body);
   }
 
   /**
@@ -524,7 +524,7 @@ class Entity extends Object3DEventTarget {
    * Enables shadows to be cast and received by the entity.
    */
   enableShadows() {
-    this.traverse((child) => {
+    this.visualRoot.traverse((child) => {
       child.castShadow = true;
       child.receiveShadow = true;
     });
@@ -534,7 +534,7 @@ class Entity extends Object3DEventTarget {
    * Disabled shadows from being cast and received by the entity.
    */
   disableShadows() {
-    this.traverse((child) => {
+    this.visualRoot.traverse((child) => {
       child.castShadow = false;
       child.receiveShadow = false;
     });

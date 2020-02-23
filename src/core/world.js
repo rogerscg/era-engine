@@ -219,7 +219,7 @@ class World extends Plugin {
     entity.setWorld(this);
     entity.build();
     this.entities.add(entity);
-    this.scene.add(entity);
+    this.scene.add(entity.visualRoot);
     if (entity.physicsBody) {
       this.physics.registerEntity(entity);
     }
