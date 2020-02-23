@@ -2,6 +2,7 @@
  * @author rogerscg / https://github.com/rogerscg
  */
 import DebugRenderer from './debug_renderer.js';
+import MaterialManager from './material_manager.js';
 import Plugin from '../core/plugin.js';
 import Settings from '../core/settings.js';
 
@@ -30,14 +31,13 @@ class PhysicsPlugin extends Plugin {
     this.world = this.createWorld();
     this.eraWorld = null;
     this.lastTime = performance.now();
-    this.physicalMaterials = new Map();
-    this.contactMaterials = new Map();
     this.debugRenderer = null;
   }
 
   /** @override */
   reset() {
     this.terminate();
+    MaterialManager.get().unregisterWorld(this.world);
     // TODO: Clean up physics bodies.
   }
 
@@ -96,6 +96,7 @@ class PhysicsPlugin extends Plugin {
   createWorld() {
     const world = new CANNON.World();
     world.gravity.set(0, -9.82, 0);
+    MaterialManager.get().registerWorld(world);
     return world;
   }
 
@@ -207,47 +208,6 @@ class PhysicsPlugin extends Plugin {
     entity.physicsBody.addEventListener('collide', (e) => {
       entity.handleCollision(e);
     });
-  }
-
-  /**
-   * Creates a new physical material for the given name and options. If the
-   * physical material already exists, return the existing one.
-   */
-  createPhysicalMaterial(name, options) {
-    if (!this.physicalMaterials.has(name)) {
-      const material = new CANNON.Material(options);
-      this.physicalMaterials.set(name, material);
-    }
-    return this.physicalMaterials.get(name);
-  }
-
-  /**
-   * Creates a new contact material between two given names. If the contact
-   * material already exists, return the existing one.
-   */
-  createContactMaterial(name1, name2, options) {
-    // TODO: Allow for "pending" contact material if one of the materials has
-    // not been created yet.
-    const key = this.createContactKey(name1, name2);
-    if (!this.contactMaterials.has(key)) {
-      const mat1 = this.createPhysicalMaterial(name1);
-      const mat2 = this.createPhysicalMaterial(name2);
-      const contactMat = new CANNON.ContactMaterial(mat1, mat2, options);
-      this.contactMaterials.set(key, contactMat);
-      this.world.addContactMaterial(contactMat);
-    }
-    return this.contactMaterials.get(key);
-  }
-
-  /**
-   * Creates a combined string to use as a key for contact materials.
-   */
-  createContactKey(name1, name2) {
-    // Alphabetize, then concatenate.
-    if (name1 < name2) {
-      return `${name1},${name2}`;
-    }
-    return `${name2},${name1}`;
   }
 }
 

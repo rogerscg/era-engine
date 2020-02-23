@@ -1,4 +1,5 @@
 import Entity from '../objects/entity.js';
+import MaterialManager from '../physics/material_manager.js';
 import Settings from '../core/settings.js';
 import * as Comlink from '../../dependencies/comlink.js';
 import WorkerPool from './worker_pool.js';
@@ -90,16 +91,8 @@ class TerrainTile extends Entity {
     );
     const shapeOffset = new CANNON.Vec3(-totalWidth / 2, 0, -totalHeight / 2);
     body.addShape(heightfieldShape, shapeOffset, shapeQuaternion);
+    body.material = MaterialManager.get().createPhysicalMaterial('ground');
     return body;
-  }
-
-  /** @override */
-  onAdd() {
-    if (this.physicsBody) {
-      this.physicsBody.material = this.physicsWorld.createPhysicalMaterial(
-        'ground'
-      );
-    }
   }
 
   /**

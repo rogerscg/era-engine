@@ -1,4 +1,4 @@
-import { Entity } from '../../src/era.js';
+import { Entity, MaterialManager } from '../../src/era.js';
 
 const MATERIAL = new THREE.MeshLambertMaterial({ color: 0x555555 });
 
@@ -41,14 +41,8 @@ class Stairs extends Entity {
       const y = i * this.rise;
       body.addShape(step, new CANNON.Vec3(x, y, 0));
     }
+    body.material = MaterialManager.get().createPhysicalMaterial('ground');
     return body;
-  }
-
-  /** @override */
-  onAdd() {
-    this.physicsBody.material = this.physicsWorld.createPhysicalMaterial(
-      'ground'
-    );
   }
 }
 

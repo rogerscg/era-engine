@@ -44,6 +44,7 @@ export { default as FreeRoamEntity } from './objects/free_roam_entity.js';
 export { default as Skybox } from './objects/skybox.js';
 
 // Physics
+export { default as MaterialManager } from './physics/material_manager.js';
 export { default as PhysicsPlugin } from './physics/physics_plugin.js';
 
 // Terrain

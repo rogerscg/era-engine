@@ -1,4 +1,4 @@
-import { Entity } from '../../src/era.js';
+import { Entity, MaterialManager } from '../../src/era.js';
 
 const SIDE = 15;
 const GEOMETRY = new THREE.BoxGeometry(SIDE, SIDE, SIDE);
@@ -30,14 +30,8 @@ class Stage extends Entity {
       shape: new CANNON.Box(new CANNON.Vec3(SIDE / 2, SIDE / 2, SIDE / 2)),
       position: new CANNON.Vec3(0, -SIDE / 2, 0)
     });
+    body.material = MaterialManager.get().createPhysicalMaterial('ground');
     return body;
-  }
-
-  /** @override */
-  onAdd() {
-    this.physicsBody.material = this.physicsWorld.createPhysicalMaterial(
-      'ground'
-    );
   }
 }
 

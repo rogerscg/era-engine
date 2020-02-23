@@ -1,5 +1,6 @@
 import Controls from '../core/controls.js';
 import Entity from './entity.js';
+import MaterialManager from '../physics/material_manager.js';
 import Settings from '../core/settings.js';
 import { Bindings } from '../core/bindings.js';
 import { lerp, vectorToAngle } from '../core/util.js';
@@ -134,20 +135,6 @@ class Character extends Entity {
   }
 
   /** @override */
-  onAdd() {
-    this.physicsBody.material = this.physicsWorld.createPhysicalMaterial(
-      'character',
-      {
-        friction: 0
-      }
-    );
-    this.physicsWorld.createContactMaterial('character', 'ground', {
-      friction: 0,
-      contactEquationStiffness: 1e8
-    });
-  }
-
-  /** @override */
   generatePhysicsBody() {
     const capsule = new CANNON.Body({ mass: this.mass });
     // TODO: Remove this collison filter group and make it more explicit to the
@@ -185,6 +172,17 @@ class Character extends Entity {
     // Prevent capsule from tipping over.
     capsule.fixedRotation = true;
     capsule.updateMassProperties();
+
+    capsule.material = MaterialManager.get().createPhysicalMaterial(
+      'character',
+      {
+        friction: 0
+      }
+    );
+    MaterialManager.get().createContactMaterial('character', 'ground', {
+      friction: 0,
+      contactEquationStiffness: 1e8
+    });
 
     // Raycast debug.
     this.toggleRaycastDebug();
