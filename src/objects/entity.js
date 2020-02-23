@@ -57,6 +57,8 @@ class Entity extends EventTarget {
     this.uuid = createUUID();
     this.world = null;
     this.built = false;
+    this.parent = null;
+    this.children = new Set();
 
     // Rendering properties.
     this.visualRoot = new THREE.Object3D();
@@ -116,6 +118,47 @@ class Entity extends EventTarget {
    */
   getWorld() {
     return this.world;
+  }
+
+  /**
+   * Adds an entity as a child of the current entity. This affects both visual
+   * and physical properties of the entities, adding the visual root of the
+   * provided entity to the current entity's visual root, delegating control to
+   * Three.js. In order to assume physical components, the provided entity's
+   * shapes must be added to the current entity's body (or fired upwards to the
+   * root entity's body).
+   * @param {Entity} entity
+   */
+  add(entity) {
+    if (!entity) {
+      return console.error('Added entity not provided');
+    }
+    // Remove provided entity from their existing parent, if it has one.
+    if (entity.parent) {
+      if (this.children.has(entity)) {
+        return console.warn('Added entity already child');
+      }
+      entity.parent.remove(entity);
+    }
+    this.children.add(entity);
+    entity.parent = this;
+    // Build the entity if the current entity has been built and the provided
+    // entity has not.
+    if (this.built && !entity.built) {
+      entity.build();
+    }
+    // Add visual root
+    this.visualRoot.add(entity.visualRoot);
+    // TODO: Handle physics shapes
+  }
+
+  /**
+   * Removes the provided entity from the current entity. This also implicitly
+   * forces the shapes of the provided entity to be placed into their own body.
+   * @param {Entity} entity
+   */
+  remove(entity) {
+    // TODO: Implement.
   }
 
   /**
@@ -187,6 +230,8 @@ class Entity extends EventTarget {
    */
   build() {
     if (this.built) {
+      // Build children in case they haven't been built yet.
+      this.children.forEach((child) => child.build());
       return this;
     }
     this.mesh = this.generateMesh();
@@ -204,6 +249,7 @@ class Entity extends EventTarget {
     this.cameraArm = this.createCameraArm();
     this.physicsBody = this.generatePhysicsBody();
     this.built = true;
+    this.children.forEach((child) => child.build());
     return this;
   }
 
@@ -406,6 +452,7 @@ class Entity extends EventTarget {
    * synchronized.
    */
   update() {
+    this.children.forEach((child) => child.update());
     this.lastMouseMovement.copy(this.mouseMovement);
     this.mouseMovement.set(0, 0);
     if (this.bindings) {

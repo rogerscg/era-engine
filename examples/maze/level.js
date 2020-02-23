@@ -58,6 +58,7 @@ class Level extends Entity {
     const objective = new Objective().withPhysics();
     // Register listener for when the objective has been reached.
     objective.addEventListener('completed', () => this.complete());
+    this.add(objective);
     return objective;
   }
 
