@@ -4,6 +4,7 @@
 import Plugin from './plugin.js';
 import QualityAdjuster from './quality_adjuster.js';
 import RendererStats from '../debug/renderer_stats.js';
+import PhysicsPlugin from '../physics/physics_plugin.js';
 
 const DEFAULT_NAME = 'main';
 
@@ -47,7 +48,7 @@ class World extends Plugin {
     // handling updates on its own.
     // TODO: Separate physics updates from entity updates.
     this.entities.forEach((entity) => {
-      if (!entity.physicsEnabled) {
+      if (!entity.physicsBody) {
         entity.update();
       }
     });
@@ -117,12 +118,11 @@ class World extends Plugin {
 
   /**
    * Adds a physics implementation instance to the world.
-   * @param {Physics} physics
    * @return {World}
    */
-  withPhysics(physics) {
-    this.physics = physics;
-    physics.setEraWorld(this);
+  withPhysics() {
+    this.physics = new PhysicsPlugin();
+    this.physics.setEraWorld(this);
     return this;
   }
 
@@ -213,14 +213,14 @@ class World extends Plugin {
       console.warn('Entity already added to the world');
       return this;
     }
-    if (entity.physicsEnabled) {
+    if (entity.physicsBody) {
       entity.registerPhysicsWorld(this.physics);
     }
     entity.setWorld(this);
     entity.build();
     this.entities.add(entity);
     this.scene.add(entity);
-    if (entity.physicsEnabled) {
+    if (entity.physicsBody) {
       this.physics.registerEntity(entity);
     }
     entity.onAdd();
@@ -250,7 +250,7 @@ class World extends Plugin {
    * @param {Entity} entity
    */
   enableEntityPhysics(entity) {
-    if (this.physics && entity.physicsEnabled) {
+    if (this.physics && entity.physicsEnabled && entity.physicsBody) {
       entity.registerPhysicsWorld(this.physics);
       this.physics.registerEntity(entity);
     }
@@ -261,7 +261,7 @@ class World extends Plugin {
    * @param {Entity} entity
    */
   disableEntityPhysics(entity) {
-    if (this.physics && entity.physicsEnabled) {
+    if (this.physics && entity.physicsEnabled && entity.physicsBody) {
       this.physics.unregisterEntity(entity);
     }
   }

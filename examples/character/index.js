@@ -9,7 +9,6 @@ import Stage from './stage.js';
 import Stairs from './stairs.js';
 import Terrain from './terrain.js';
 import {
-  CannonPhysics,
   Camera,
   Controls,
   Engine,
@@ -33,7 +32,7 @@ async function start() {
 
   // Build world.
   const world = new World()
-    .withPhysics(new CannonPhysics())
+    .withPhysics()
     .addRenderer(renderer)
     .addCameraForRenderer(Camera.get().buildPerspectiveCamera())
     .withQualityAdjustment(new QualityAdjuster());
@@ -43,35 +42,35 @@ async function start() {
   world.setEnvironment(environment);
 
   // Create arena.
-  const stage = new Stage().withPhysics();
+  const stage = new Stage();
   world.add(stage);
 
   // Create stairs.
-  const stairs = new Stairs(0.2, 0.4, 10, 2).withPhysics();
+  const stairs = new Stairs(0.2, 0.4, 10, 2);
   world.add(stairs);
   stairs.physicsBody.position.set(-5, 0, 6);
 
-  const stairs2 = new Stairs(0.5, 0.8, 5, 2).withPhysics();
+  const stairs2 = new Stairs(0.5, 0.8, 5, 2);
   world.add(stairs2);
   stairs2.physicsBody.position.set(-5, 0, 4);
 
   // Create ramp.
-  const ramp = new Ramp().withPhysics();
+  const ramp = new Ramp();
   world.add(ramp);
   ramp.physicsBody.position.set(3, -1, -3);
 
   // Create sphere.
-  const sphere = new Sphere().withPhysics();
+  const sphere = new Sphere();
   world.add(sphere);
   sphere.physicsBody.position.set(2, -1, 2);
 
   // Create some basic terrain.
-  const terrain = new Terrain().withPhysics();
+  const terrain = new Terrain();
   world.add(terrain);
   terrain.physicsBody.position.set(7.5, -0.125, 5);
 
   // Create character.
-  const character = new Character().withPhysics();
+  const character = new Character();
   world.add(character).attachCameraToEntity(character);
   Controls.get().registerEntity(character);
   Controls.get().usePointerLockControls();

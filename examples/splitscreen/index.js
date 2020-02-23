@@ -5,7 +5,6 @@
 import Character from './character.js';
 import Terrain from './terrain.js';
 import {
-  CannonPhysics,
   Camera,
   Controls,
   Engine,
@@ -25,7 +24,7 @@ async function start() {
   await Models.get().loadAllFromFile('models.json');
 
   // Create world.
-  const world = new World().withPhysics(new CannonPhysics());
+  const world = new World().withPhysics();
 
   // Create renderers.
   for (let i = 0; i < NUM_PLAYERS; i++) {

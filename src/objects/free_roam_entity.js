@@ -1,6 +1,6 @@
-import Controls from './controls.js';
-import Entity from './entity.js';
-import { Bindings } from './bindings.js';
+import Controls from '../core/controls.js';
+import Entity from '../objects/entity.js';
+import { Bindings } from '../core/bindings.js';
 
 const FREE_ROAM_BINDINGS = {
   UP: {

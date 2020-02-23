@@ -1,7 +1,6 @@
 import Tree from './tree.js';
 import {
   Camera,
-  CannonPhysics,
   Controls,
   Environment,
   FreeRoamEntity,
@@ -30,7 +29,7 @@ class LodGameMode extends GameMode {
     // Create world.
     const renderer = defaultEraRenderer();
     this.world = new World()
-      .withPhysics(new CannonPhysics())
+      .withPhysics()
       .addRenderer(renderer)
       .addCameraForRenderer(Camera.get().buildPerspectiveCamera(), renderer)
       .withQualityAdjustment(new QualityAdjuster());

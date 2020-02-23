@@ -1,7 +1,6 @@
 import { Bindings, Controls, Entity } from '../../src/era.js';
 
-const DISABLE_DEACTIVATION = 4;
-const FORCE_STRENGTH = 5;
+const FORCE_STRENGTH = 15;
 const RADIUS = 2;
 const GEOMETRY = new THREE.SphereGeometry(RADIUS, 32, 32);
 const MATERIAL = new THREE.MeshLambertMaterial({ color: 0xff0000 });
@@ -50,7 +49,7 @@ class Ball extends Entity {
   constructor(playerNumber) {
     super();
     this.playerNumber = playerNumber;
-    this.forceVector = new Ammo.btVector3(0, 0, 0);
+    this.forceVector = new CANNON.Vec3(0, 0, 0);
     this.rotationEuler = new THREE.Euler();
     this.rotationEuler.order = 'YXZ';
     this.rotationQuat = new THREE.Quaternion();
@@ -70,22 +69,10 @@ class Ball extends Entity {
 
   /** @override */
   generatePhysicsBody() {
-    const shape = new Ammo.btSphereShape(RADIUS);
-    const mass = 10;
-    const localInertia = new Ammo.btVector3(0, 0, 0);
-    shape.calculateLocalInertia(mass, localInertia);
-    const transform = new Ammo.btTransform();
-    transform.setOrigin(new Ammo.btVector3(0, 5, 0));
-    const motionState = new Ammo.btDefaultMotionState(transform);
-    const bodyInfo = new Ammo.btRigidBodyConstructionInfo(
-      mass,
-      motionState,
-      shape,
-      localInertia
-    );
-    const body = new Ammo.btRigidBody(bodyInfo);
-    body.setActivationState(DISABLE_DEACTIVATION);
-    return body;
+    return new CANNON.Body({
+      mass: 10,
+      shape: new CANNON.Sphere(RADIUS)
+    });
   }
 
   /** @override */
@@ -100,38 +87,10 @@ class Ball extends Entity {
   /** @override */
   update() {
     super.update();
-    // TODO: This seems like a useful utility, move to base entity.
-    const inputVector = { x: 0, z: 0 };
-    if (this.getActionValue(this.bindings.FORWARD)) {
-      inputVector.x -= this.getActionValue(this.bindings.FORWARD);
-    }
-    if (this.getActionValue(this.bindings.BACKWARD)) {
-      inputVector.x += this.getActionValue(this.bindings.BACKWARD);
-    }
-    if (this.getActionValue(this.bindings.RIGHT)) {
-      inputVector.z += this.getActionValue(this.bindings.RIGHT);
-    }
-    if (this.getActionValue(this.bindings.LEFT)) {
-      inputVector.z -= this.getActionValue(this.bindings.LEFT);
-    }
-    const camera = this.getWorld()
-      ? this.getWorld().getAssociatedCamera(this)
-      : null;
-    let angle = 0;
-    if (camera) {
-      camera.getWorldQuaternion(this.rotationQuat);
-      this.rotationEuler.setFromQuaternion(this.rotationQuat);
-      angle = this.rotationEuler.y;
-    }
-    const leftRightAngle = angle + Math.PI / 2;
-    this.forceVector.setX(
-      inputVector.x * Math.sin(angle) + inputVector.z * Math.sin(leftRightAngle)
-    );
-    this.forceVector.setZ(
-      inputVector.x * Math.cos(angle) + inputVector.z * Math.cos(leftRightAngle)
-    );
-    this.forceVector.op_mul(FORCE_STRENGTH);
-    this.physicsBody.applyCentralImpulse(this.forceVector);
+    this.forceVector.x = this.inputVector.x;
+    this.forceVector.z = this.inputVector.z;
+    this.forceVector.scale(FORCE_STRENGTH, this.forceVector);
+    this.physicsBody.applyImpulse(this.forceVector, CANNON.Vec3.ZERO);
   }
 }
 

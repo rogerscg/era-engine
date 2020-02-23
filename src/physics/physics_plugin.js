@@ -1,15 +1,20 @@
 /**
  * @author rogerscg / https://github.com/rogerscg
  */
-import Plugin from './plugin.js';
-import Settings from './settings.js';
+import DebugRenderer from './debug_renderer.js';
+import MaterialManager from './material_manager.js';
+import Plugin from '../core/plugin.js';
+import Settings from '../core/settings.js';
+
+const MAX_DELTA = 1;
+const MAX_SUBSTEPS = 10;
 
 let instance = null;
 /**
- * Core implementation for managing the game's physics. The
- * actual physics engine is provided by the user.
+ * API implementation for Cannon.js, a pure JavaScript physics engine.
+ * https://github.com/schteppe/cannon.js
  */
-class Physics extends Plugin {
+class PhysicsPlugin extends Plugin {
   /**
    * Enforces singleton physics instance.
    */
@@ -26,11 +31,13 @@ class Physics extends Plugin {
     this.world = this.createWorld();
     this.eraWorld = null;
     this.lastTime = performance.now();
+    this.debugRenderer = null;
   }
 
   /** @override */
   reset() {
     this.terminate();
+    MaterialManager.get().unregisterWorld(this.world);
     // TODO: Clean up physics bodies.
   }
 
@@ -78,14 +85,19 @@ class Physics extends Plugin {
    * @param {number} delta
    */
   step(delta) {
-    console.warn('Step not defined');
+    delta /= 1000;
+    delta = Math.min(MAX_DELTA, delta);
+    this.world.step(1 / 60, delta, MAX_SUBSTEPS);
   }
 
   /**
    * Instantiates the physics world.
    */
   createWorld() {
-    console.warn('Create world not defined');
+    const world = new CANNON.World();
+    world.gravity.set(0, -9.82, 0);
+    MaterialManager.get().registerWorld(world);
+    return world;
   }
 
   /**
@@ -107,6 +119,7 @@ class Physics extends Plugin {
     this.registeredEntities.set(entity.uuid, entity);
     entity.registerPhysicsWorld(this);
     this.registerContactHandler(entity);
+    this.world.addBody(entity.physicsBody);
     return true;
   }
 
@@ -121,23 +134,8 @@ class Physics extends Plugin {
     }
     this.registeredEntities.delete(entity.uuid);
     entity.unregisterPhysicsWorld(this);
+    this.world.remove(entity.physicsBody);
     return true;
-  }
-
-  /**
-   * Registers a component to partake in physics simulations. This
-   * differs from an entity in that it is a single body unattached
-   * to a mesh.
-   */
-  registerComponent(body) {
-    console.warn('Unregister entity not defined');
-  }
-
-  /**
-   * Unregisters a component to partake in physics simulations.
-   */
-  unregisterComponent(body) {
-    console.warn('Unregister component not defined');
   }
 
   /**
@@ -152,10 +150,10 @@ class Physics extends Plugin {
    * Gets the position of the given entity. Must be implemented by
    * engine-specific implementations.
    * @param {Entity} entity
-   * @returns {Object}
+   * @returns {CANNON.Vec3}
    */
   getPosition(entity) {
-    console.warn('getPosition(entity) not implemented');
+    return entity.physicsBody.position;
   }
 
   /**
@@ -165,7 +163,7 @@ class Physics extends Plugin {
    * @returns {Object}
    */
   getRotation(entity) {
-    console.warn('getRotation(entity) not implemented');
+    return entity.physicsBody.quaternion;
   }
 
   /**
@@ -173,7 +171,13 @@ class Physics extends Plugin {
    * each engine-specific implementation for ease of use.
    */
   enableDebugRenderer() {
-    console.warn('Debug renderer not implemented');
+    const scene = this.getEraWorld() ? this.getEraWorld().getScene() : null;
+    const world = this.getWorld();
+    if (!scene || !world) {
+      return console.warn('Debug renderer missing scene or world.');
+    }
+    this.debugRenderer = new DebugRenderer(scene, world);
+    return this.debugRenderer;
   }
 
   /**
@@ -201,8 +205,10 @@ class Physics extends Plugin {
    * @param {Entity} entity
    */
   registerContactHandler(entity) {
-    console.warn('Contact handler not supported');
+    entity.physicsBody.addEventListener('collide', (e) => {
+      entity.handleCollision(e);
+    });
   }
 }
 
-export default Physics;
+export default PhysicsPlugin;

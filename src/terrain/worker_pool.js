@@ -1,8 +1,16 @@
+let instance = null;
 /**
  * A pool for maintaining WebWorkers in order to prevent creating too many
  * workers at once.
  */
 class WorkerPool {
+  static get() {
+    if (!instance) {
+      instance = new WorkerPool();
+    }
+    return instance;
+  }
+
   constructor() {
     this.capacity = 20;
     // Set of workers currently in use.
@@ -63,4 +71,4 @@ class WorkerPool {
   }
 }
 
-export default new WorkerPool();
+export default WorkerPool;

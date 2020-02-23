@@ -2,15 +2,16 @@
  * @author rogerscg / https://github.com/rogerscg
  */
 
-import Animation from './animation.js';
-import Controls from './controls.js';
-import Models from './models.js';
-import Physics from './physics.js';
-import Settings from './settings.js';
+import Animation from '../core/animation.js';
+import Autogenerator from '../physics/autogenerator.js';
+import Controls from '../core/controls.js';
+import Models from '../core/models.js';
+import Physics from '../physics/physics_plugin.js';
+import Settings from '../core/settings.js';
 import SettingsEvent from '../events/settings_event.js';
-import { Bindings } from './bindings.js';
+import { Bindings } from '../core/bindings.js';
 import { Object3DEventTarget } from '../events/event_target.js';
-import { createUUID, getRootWorld } from './util.js';
+import { createUUID, getRootWorld } from '../core/util.js';
 
 const ENTITY_BINDINGS = {
   BACKWARD: {
@@ -64,7 +65,7 @@ class Entity extends Object3DEventTarget {
 
     // Physics properties.
     this.physicsBody = null;
-    this.physicsEnabled = false;
+    this.physicsEnabled = true;
     this.physicsWorld = null;
     this.autogeneratePhysics = false;
     this.meshRotationLocked = false;
@@ -158,7 +159,7 @@ class Entity extends Object3DEventTarget {
    * @return {Entity}
    */
   setPosition(position) {
-    if (this.physicsEnabled) {
+    if (this.physicsEnabled && this.physicsBody) {
       this.physicsBody.position.copy(position);
     } else {
       this.position.copy(position);
@@ -185,9 +186,7 @@ class Entity extends Object3DEventTarget {
       }
     }
     this.cameraArm = this.createCameraArm();
-    if (this.physicsEnabled) {
-      this.physicsBody = this.generatePhysicsBody();
-    }
+    this.physicsBody = this.generatePhysicsBody();
     this.built = true;
     return this;
   }
@@ -286,24 +285,16 @@ class Entity extends Object3DEventTarget {
   /**
    * Creates the physics object for the entity. This should be defined by each
    * entity.
+   * @return {CANNON.Body}
    */
   generatePhysicsBody() {
     if (!this.physicsEnabled) {
-      return;
+      return null;
     }
     if (this.autogeneratePhysics) {
-      return this.autogeneratePhysicsBody();
+      return Autogenerator.generatePhysicsBody(this.mesh);
     }
-    console.warn('generatePhysicsBody not implemented for entity');
-  }
-
-  /**
-   * Creates a physics body based on extra data provided from the model, such as
-   * userData. This only works for a select number of objects, so please use
-   * this carefully.
-   */
-  autogeneratePhysicsBody() {
-    return this.physicsWorld.autogeneratePhysicsBody(this.mesh);
+    return null;
   }
 
   /**

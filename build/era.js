@@ -711,6 +711,9 @@
       value: true
     },
     physics_debug: {
+      value: true
+    },
+    terrain_debug: {
       value: false
     },
     movement_deadzone: {
@@ -724,7 +727,7 @@
       max: 200
     },
     shadows: {
-      value: false
+      value: true
     },
     volume: {
       value: 50,
@@ -4775,10 +4778,447 @@
   }
 
   /**
+   * A standard event target.
+   * @implements {EventTargetInterface}
+   */
+  class EventTarget {
+    constructor() {
+      this.listeners = new Map();
+      this.uuidToLabels = new Map();
+    }
+
+    /** @override */
+    addEventListener(label, handler) {
+      if (!this.listeners.has(label)) {
+        this.listeners.set(label, new Map());
+      }
+      var uuid = createUUID();
+      this.listeners.get(label).set(uuid, handler);
+      this.uuidToLabels.set(uuid, label);
+      return uuid;
+    }
+
+    /** @override */
+    removeEventListener(uuid) {
+      var label = this.uuidToLabels.get(uuid);
+      if (!label) {
+        return false;
+      }
+      this.uuidToLabels.delete(uuid);
+      var labelListeners = this.listeners.get(label);
+      if (!labelListeners) {
+        return false;
+      }
+      return labelListeners.delete(uuid);
+    }
+
+    /** @override */
+    dispatchEvent(label, data) {
+      var labelListeners = this.listeners.get(label);
+      if (!labelListeners) {
+        return;
+      }
+      labelListeners.forEach((handler) => handler(data));
+    }
+  }
+
+  /**
+   * An EventTarget that extends THREE.Object3D for use by Entities.
+   * TODO: Try and reduce duplicate code between these two due to lack of
+   *       multiple inheritance in JS.
+   * @implements {EventTargetInterface}
+   */
+  class Object3DEventTarget extends THREE.Object3D {
+    constructor() {
+      super();
+      this.listeners = new Map();
+      this.uuidToLabels = new Map();
+    }
+
+    /** @override */
+    addEventListener(label, handler) {
+      if (!this.listeners.has(label)) {
+        this.listeners.set(label, new Map());
+      }
+      var uuid = createUUID();
+      this.listeners.get(label).set(uuid, handler);
+      this.uuidToLabels.set(uuid, label);
+      return uuid;
+    }
+
+    /** @override */
+    addOneShotEventListener(label, handler) {
+      var listener = this.addEventListener(label, (data) => {
+        this.removeEventListener(listener);
+        handler(data);
+      });
+    }
+
+    /** @override */
+    removeEventListener(uuid) {
+      var label = this.uuidToLabels.get(uuid);
+      if (!label) {
+        return false;
+      }
+      this.uuidToLabels.delete(uuid);
+      var labelListeners = this.listeners.get(label);
+      if (!labelListeners) {
+        return false;
+      }
+      return labelListeners.delete(uuid);
+    }
+
+    /** @override */
+    dispatchEvent(label, data) {
+      var labelListeners = this.listeners.get(label);
+      if (!labelListeners) {
+        return;
+      }
+      labelListeners.forEach((handler) => handler(data));
+    }
+  }
+
+  /**
+   * Represents a game that will be run on the engine. The purpose of a game
+   * mode is to better control the state of a game as well as assist conditions to
+   * start and end a game. Developers should extend GameMode to create their own
+   * games.
+   */
+  class GameMode extends EventTarget {
+    /**
+     * Loads a game mode for the first time. This should include loading necessary
+     * models, environment, stages, etc.
+     * @async
+     */
+    async load() {}
+
+    /**
+     * Starts the game mode. At this point, all necessary components of the game
+     * mode should be readily available.
+     * @async
+     */
+    async start() {}
+
+    /**
+     * Ends the game mode. The end function should perform any clean up necessary
+     * for the objects created during the game, **not** the items loaded in the
+     * load method. This is to prevent any issues with restarting the game mode.
+     * @async
+     */
+    async end() {
+      this.dispatchEvent('end');
+    }
+
+    /**
+     * Restarts the game mode by calling the `end` function, then `start`.
+     * @async
+     */
+    async restart() {
+      await this.end();
+      await this.start();
+    }
+
+    /**
+     * Macro fro adding an event listener to the end event.
+     * @param {function} handler
+     * @return {string} The uuid of the handler.
+     */
+    onEnd(handler) {
+      return this.addEventListener('end', handler);
+    }
+  }
+
+  /**
    * @author rogerscg / https://github.com/rogerscg
    */
 
   var instance$5 = null;
+  /**
+   * Light core for the game engine. Creates and manages light
+   * sources in-game. Should be used as a singleton.
+   */
+  class Light extends Plugin {
+    /**
+     * Enforces singleton light instance.
+     */
+    static get() {
+      if (!instance$5) {
+        instance$5 = new Light();
+      }
+      return instance$5;
+    }
+
+    constructor() {
+      super();
+      this.ambientLight = null;
+      this.lights = new Array();
+      this.debugEnabled = false;
+      this.shadowsEnabled = false;
+      this.handleSettingsChange();
+    }
+
+    /** @override */
+    reset() {
+      this.ambientLight = null;
+      this.lights.forEach((light) => {
+        this.removeHelpers(light);
+        if (light.parent) {
+          light.parent.remove(light);
+        }
+      });
+      this.lights = new Array();
+    }
+
+    /** @override */
+    update() {
+      this.updateHelpers();
+    }
+
+    /**
+     * Updates all helpers attached to lights.
+     */
+    updateHelpers() {
+      // If debug settings are enabled, check for lights and their debug helpers.
+      if (this.debugEnabled) {
+        this.lights.forEach((light) => this.addHelpers(light));
+      } else {
+        this.lights.forEach((light) => this.removeHelpers(light));
+      }
+    }
+
+    /**
+     * Creates the ambient lighting. Use this for easing/darkening shadows.
+     * @param {Object|LightOptions} options
+     */
+    createAmbientLight(options) {
+      options = new LightOptions(options);
+      var light = new THREE.AmbientLight(options.color);
+      light.intensity = options.intensity;
+      this.ambientLight = light;
+      return light;
+    }
+
+    /**
+     * Creates a directional light.
+     * @param {Object|LightOptions} options
+     */
+
+    createDirectionalLight(options) {
+      options = new LightOptions(options);
+      var light = new THREE.DirectionalLight(options.color);
+      light.userData.options = options;
+      light.position.copy(options.position);
+      light.intensity = options.intensity;
+      this.createShadows(light, options.shadow);
+      light.helper = new THREE.DirectionalLightHelper(light, 10);
+      this.lights.push(light);
+      return light;
+    }
+
+    /**
+     * Creates a spot light.
+     * @param {Object|LightOptions} options
+     */
+    createSpotLight(options) {
+      options = new LightOptions(options);
+      var light = new THREE.SpotLight(options.color);
+      light.userData.options = options;
+      light.position.copy(options.position);
+      light.intensity = options.intensity;
+      if (options.angle) {
+        light.angle = options.angle;
+      }
+      if (options.penumbra) {
+        light.penumbra = options.penumbra;
+      }
+      this.createShadows(light, options.shadow);
+      light.helper = new THREE.SpotLightHelper(light);
+      this.lights.push(light);
+      return light;
+    }
+
+    /**
+     * Creates the shadows for a light.
+     * @param {THREE.Light} light
+     * @param {ShadowOptions} options
+     */
+    createShadows(light, options) {
+      if (!options) {
+        return;
+      }
+      var cameraRange = options.frustum;
+      light.shadow.camera.bottom = -cameraRange;
+      light.shadow.camera.left = -cameraRange;
+      light.shadow.camera.right = cameraRange;
+      light.shadow.camera.top = cameraRange;
+      light.shadow.camera.near = options.near;
+      light.shadow.camera.far = options.far;
+      if (options.radius) {
+        light.shadow.radius = options.radius;
+      }
+      if (options.bias) {
+        light.shadow.bias = options.bias;
+      }
+      light.shadow.mapSize.width = options.mapSize;
+      light.shadow.mapSize.height = options.mapSize;
+      light.shadow.helper = new THREE.CameraHelper(light.shadow.camera);
+      if (Settings$1.get('shadows')) {
+        light.castShadow = true;
+      }
+    }
+
+    /** @override */
+    handleSettingsChange() {
+      Settings$1.get('shadows') ? this.enableShadows() : this.disableShadows();
+      Settings$1.get('debug') ? this.enableDebug() : this.disableDebug();
+    }
+
+    /**
+     * Enables shadows.
+     */
+    enableShadows() {
+      if (this.shadowsEnabled) {
+        return;
+      }
+      this.shadowsEnabled = true;
+      this.lights.forEach((light) => {
+        var options = light.userData.options;
+        if (!options) {
+          return;
+        }
+        if (options.shadow) {
+          light.castShadow = true;
+        }
+      });
+    }
+
+    /**
+     * Disables shadows.
+     */
+    disableShadows() {
+      if (!this.shadowsEnabled) {
+        return;
+      }
+      this.shadowsEnabled = false;
+      this.lights.forEach((light) => (light.castShadow = false));
+    }
+
+    /**
+     * Enables debug renderering.
+     */
+    enableDebug() {
+      if (this.debugEnabled) {
+        return;
+      }
+      this.debugEnabled = true;
+      this.lights.forEach((light) => this.addHelpers(light));
+    }
+
+    /**
+     * Disables debug rendering.
+     */
+    disableDebug() {
+      if (!this.debugEnabled) {
+        return;
+      }
+      this.debugEnabled = false;
+      this.lights.forEach((light) => this.removeHelpers(light));
+    }
+
+    /**
+     * Adds the provided light's helpers to the root scene.
+     * @param {THREE.Light} light
+     */
+    addHelpers(light) {
+      // Handle base light helper first.
+      var rootScene = getRootScene(light);
+      if (light.helper && !light.helper.parent) {
+        rootScene = getRootScene(light);
+        if (rootScene) {
+          rootScene.add(light.helper);
+        }
+      }
+      if (
+        Settings$1.get('shadows') &&
+        light.shadow &&
+        light.shadow.helper &&
+        !light.shadow.helper.parent
+      ) {
+        if (!rootScene) {
+          rootScene = getRootScene(light);
+        }
+        if (rootScene) {
+          rootScene.add(light.shadow.helper);
+        }
+      }
+    }
+
+    /**
+     * Removes a light's helpers from their scene.
+     * @param {THREE.Light} light
+     */
+    removeHelpers(light) {
+      if (light.helper && light.helper.parent) {
+        light.helper.parent.remove(light.helper);
+      }
+      if (light.shadow && light.shadow.helper && light.shadow.helper.parent) {
+        light.shadow.helper.parent.remove(light.shadow.helper);
+      }
+      light.userData.addedToScene = false;
+    }
+  }
+
+  /**
+   * Light options created from a light config passed in by the user.
+   * @record
+   */
+  class LightOptions {
+    /**
+     * @param {Object} options
+     */
+    constructor(options) {
+      this.angle = options.angle;
+      this.color = options.color ? parseInt(options.color, 16) : 0xffffff;
+      this.decay = options.decay;
+      this.distance = options.distance;
+      this.groundColor = options.groundColor
+        ? parseInt(options.groundColor, 16)
+        : 0xffffff;
+      this.intensity = options.intensity || 1.0;
+      this.penumbra = options.penumbra;
+      this.position = new THREE.Vector3(
+        options.x || 0,
+        options.y || 0,
+        options.z || 0
+      );
+      this.power = options.power;
+      this.shadow = options.shadow ? new ShadowOptions(options.shadow) : null;
+    }
+  }
+
+  /**
+   * Shadow options attached to a light config.
+   * @record
+   */
+  class ShadowOptions {
+    /**
+     * @param {Object} options
+     */
+    constructor(options) {
+      this.frustum = options.frustum || 10;
+      this.mapSize = options.mapSize || 1024;
+      this.near = options.near || 1;
+      this.far = options.far || 100;
+      this.radius = options.radius || null;
+      this.bias = options.bias || null;
+    }
+  }
+
+  /**
+   * @author rogerscg / https://github.com/rogerscg
+   */
+
+  var instance$6 = null;
 
   /**
    * Core implementation for loading 3D models for use in-game.
@@ -4789,10 +5229,10 @@
      * @returns {Models}
      */
     static get() {
-      if (!instance$5) {
-        instance$5 = new Models();
+      if (!instance$6) {
+        instance$6 = new Models();
       }
-      return instance$5;
+      return instance$6;
     }
 
     constructor() {
@@ -4859,6 +5299,11 @@
       // Scale the model based on options.
       if (options.scale) {
         root.scale.setScalar(options.scale);
+      }
+      if (options.lod) {
+        var lod = this.loadLod_(root, options.lod);
+        this.storage.set(name, lod);
+        return lod;
       }
       // Set the model in storage.
       this.storage.set(name, root);
@@ -4993,26 +5438,1376 @@
       var clone = THREE.SkeletonUtils.clone(original);
       return clone;
     }
+
+    /**
+     * Loads a Level of Detail wrapper object for the given model. This works
+     * under the assumption that the user has provided groups of meshes, each with
+     * a suffix "_LOD{n}".
+     * @param {THREE.Object3D} root
+     * @param {Array<number>} levels
+     * @return {THREE.LOD}
+     * @private
+     */
+    loadLod_(root, levels) {
+      // Ensure the root contains a list of children.
+      if (!root || !root.children || root.children.length != levels.length) {
+        console.error(
+          'Root children and levels do not match:',
+          root.children,
+          levels
+        );
+      }
+      var lod = new THREE.LOD();
+      levels.forEach((levelThreshold, index) => {
+        var lodObject = null;
+        root.children.forEach((child) => {
+          if (new RegExp((".*LOD" + index)).test(child.name)) {
+            lodObject = child;
+          }
+        });
+        if (!lodObject) {
+          return console.error('No LOD mesh for level', index);
+        }
+        lod.addLevel(lodObject, levelThreshold);
+      });
+      return lod;
+    }
+  }
+
+  // Range for the quality adjustment.
+  // TODO: Make this dynamic, with multiple levels.
+  var QUALITY_RANGE = new THREE.Vector3().setScalar(2);
+
+  /**
+   * A world plugin for adjusting the quality of entities given their proximity to
+   * the camera or main entity. These adjustments include enabling/disabling
+   * physics for entities, lowering geometry quality (redundant vertices), etc.
+   */
+  class QualityAdjuster {
+    constructor() {
+      this.rootBox = new THREE.Box3();
+      this.rootBoxHelper = new THREE.Box3Helper(this.rootBox, 0xffff00);
+      this.vectorDummy = new THREE.Vector3();
+      this.entityBox = new THREE.Box3();
+
+      SettingsEvent.listen(this.handleSettingsChange.bind(this));
+    }
+
+    /**
+     * @param {World} world Parent world that the adjuster operates on.
+     * @return {QualityAdjuster}
+     */
+    setWorld(world) {
+      this.world = world;
+      this.handleSettingsChange();
+      return this;
+    }
+
+    /**
+     * Iterates through all of the worlds entities and adjusts their quality, if
+     * necessary.
+     */
+    update() {
+      var entities = this.world.entities;
+      Controls.get().registeredEntities.forEach((attachedEntity) => {
+        this.rootBox.setFromCenterAndSize(attachedEntity.position, QUALITY_RANGE);
+        entities.forEach((entity) => {
+          if (entity == attachedEntity) {
+            return;
+          }
+          if (!entity.qualityAdjustEnabled) {
+            return;
+          }
+          this.entityBox.setFromObject(entity);
+          if (this.rootBox.intersectsBox(this.entityBox)) {
+            this.world.enableEntityPhysics(entity);
+          } else {
+            this.world.disableEntityPhysics(entity);
+          }
+        });
+      });
+    }
+
+    handleSettingsChange() {
+      if (!this.world) {
+        return;
+      }
+      if (Settings$1.get('debug')) {
+        this.world.getScene().add(this.rootBoxHelper);
+      } else {
+        this.world.getScene().remove(this.rootBoxHelper);
+      }
+    }
+  }
+
+  /**
+   * @author mrdoob / http://mrdoob.com/
+   * @author jetienne / http://jetienne.com/
+   * @author rogerscg / https://github.com/rogerscg
+   */
+
+  var STATS_CONTAINER_CSS = "\n  bottom: 0;\n  position: absolute;\n  left: 0;\n";
+
+  var WEBGL_CONTAINER_CSS = "\n  background-color: #002;\n  color: #0ff;\n  cursor: pointer;\n  font-family: Helvetica,Arial,sans-serif;\n  font-size: 9px;\n  font-weight: bold;\n  line-height: 15px;\n  opacity: 0.9;\n  padding: 0 0 3px 3px;\n  text-align: left;\n  width: 80px;\n";
+
+  var FPS_CONTAINER_CSS = "\n  cursor: pointer;\n  opacity: 0.9;\n";
+
+  /**
+   * A plugin wrapper for WebGL renderer stats and FPS in Three.js.
+   */
+  class RendererStats extends Plugin {
+    /**
+     * @param {THREE.WebGLRenderer} renderer
+     */
+    constructor(renderer) {
+      super();
+      this.renderer = renderer;
+      this.enabled = Settings$1.get('debug');
+      this.webGLStats = new WebGLStats(renderer);
+      this.fpsStats = new FpsStats();
+      this.dom = this.createDom();
+      this.dom.appendChild(this.webGLStats.dom);
+      this.dom.appendChild(this.fpsStats.dom);
+      if (this.enabled) {
+        renderer.domElement.parentElement.appendChild(this.dom);
+      }
+    }
+
+    /**
+     * Creates the container DOM.
+     */
+    createDom() {
+      var container = document.createElement('div');
+      container.style.cssText = STATS_CONTAINER_CSS;
+      return container;
+    }
+
+    /**
+     * Enables renderer stats.
+     */
+    enable() {
+      this.enabled = true;
+      this.renderer.domElement.parentElement.appendChild(this.dom);
+    }
+
+    /**
+     * Disables renderer stats.
+     */
+    disable() {
+      this.enabled = false;
+      if (this.dom.parentElement) {
+        this.dom.parentElement.removeChild(this.dom);
+      }
+    }
+
+    /** @override */
+    update() {
+      if (!this.enabled) {
+        return;
+      }
+      this.fpsStats.update();
+      this.webGLStats.update();
+    }
+
+    /** @override */
+    reset() {
+      this.disable();
+    }
+
+    /** @override */
+    handleSettingsChange() {
+      var currEnabled = Settings$1.get('debug');
+      if (currEnabled && !this.enabled) {
+        return this.enable();
+      }
+      if (!currEnabled && this.enabled) {
+        return this.disable();
+      }
+    }
+  }
+
+  /**
+   * Interface for a stats component.
+   */
+  class Stats {
+    constructor() {
+      this.dom = this.createDom();
+    }
+
+    /**
+     * Updates the stats DOM.
+     */
+    update() {
+      return console.warn('Stats update function not defined');
+    }
+
+    /**
+     * Enables the stats DOM.
+     */
+    enable() {
+      return console.warn('Stats enable function not defined');
+    }
+
+    /**
+     * Disables the stats DOM.
+     */
+    disable() {
+      return console.warn('Stats disable function not defined');
+    }
+  }
+
+  class WebGLStats extends Stats {
+    constructor(renderer) {
+      super();
+      this.renderer = renderer;
+    }
+
+    /** @override */
+    createDom() {
+      var container = document.createElement('div');
+      container.setAttribute('class', 'render-stats');
+      container.style.cssText = WEBGL_CONTAINER_CSS;
+
+      var msText = document.createElement('div');
+      msText.innerHTML = 'WebGLRenderer';
+      container.appendChild(msText);
+
+      var msTexts = [];
+      var nLines = 9;
+      for (var i = 0; i < nLines; i++) {
+        msTexts[i] = document.createElement('div');
+        msTexts[i].style.backgroundColor = '#001632';
+        container.appendChild(msTexts[i]);
+      }
+      this.msTexts = msTexts;
+      return container;
+    }
+
+    /** @override */
+    update() {
+      if (!this.msTexts) {
+        return;
+      }
+      var msTexts = this.msTexts;
+      var i = 0;
+      msTexts[i++].textContent = '=== Memory ===';
+      msTexts[i++].textContent =
+        'Programs: ' + this.renderer.info.programs.length;
+      msTexts[i++].textContent =
+        'Geometries: ' + this.renderer.info.memory.geometries;
+      msTexts[i++].textContent =
+        'Textures: ' + this.renderer.info.memory.textures;
+
+      msTexts[i++].textContent = '=== Render ===';
+      msTexts[i++].textContent = 'Calls: ' + this.renderer.info.render.calls;
+      msTexts[i++].textContent =
+        'Triangles: ' + this.renderer.info.render.triangles;
+      msTexts[i++].textContent = 'Lines: ' + this.renderer.info.render.lines;
+      msTexts[i++].textContent = 'Points: ' + this.renderer.info.render.points;
+    }
+  }
+
+  class FpsStats extends Stats {
+    constructor() {
+      super();
+      this.mode = 0;
+      this.fps = 0;
+      this.beginTime = (performance || Date).now();
+      this.prevTime = this.beginTime;
+      this.frames = 0;
+    }
+
+    /** @override */
+    createDom() {
+      // Create root.
+      var container = document.createElement('div');
+      this.dom = container;
+      container.classList.add('render-stats');
+      container.style.cssText = FPS_CONTAINER_CSS;
+
+      // Switch panels on click.
+      container.addEventListener(
+        'click',
+        (event) => {
+          event.preventDefault();
+          this.showPanel(++this.mode % container.children.length);
+        },
+        false
+      );
+
+      this.fpsPanel = this.addPanel(new Panel('FPS', '#0ff', '#002', true));
+      this.msPanel = this.addPanel(new Panel('MS', '#0f0', '#020', false));
+      this.timerPanel = this.addPanel(
+        new Panel('Render', '#ff3800', '#210', false)
+      );
+      if (self.performance && self.performance.memory) {
+        this.memPanel = this.addPanel(new Panel('MB', '#f08', '#201', true));
+      }
+      this.showPanel(0);
+      return container;
+    }
+
+    addPanel(panel) {
+      this.dom.appendChild(panel.dom);
+      return panel;
+    }
+
+    showPanel(id) {
+      for (var i = 0; i < this.dom.children.length; i++) {
+        this.dom.children[i].style.display = i === id ? 'block' : 'none';
+      }
+      this.mode = id;
+    }
+
+    begin() {
+      this.beginTime = (performance || Date).now();
+    }
+
+    getFPS() {
+      return this.fps;
+    }
+
+    end() {
+      this.frames++;
+      var time = (performance || Date).now();
+      this.msPanel.update(time - this.beginTime, 30);
+      var engStats = EngineTimer$1.export();
+      if (engStats) {
+        this.timerPanel.update(engStats.avg, 30);
+      }
+      if (time >= this.prevTime + 1000) {
+        this.fps = (this.frames * 1000) / (time - this.prevTime);
+        this.fpsPanel.update(this.fps, 100);
+        this.prevTime = time;
+        this.frames = 0;
+        if (this.memPanel) {
+          var memory = performance.memory;
+          this.memPanel.update(
+            memory.usedJSHeapSize / 1048576,
+            memory.jsHeapSizeLimit / 1048576
+          );
+        }
+      }
+      return time;
+    }
+
+    update() {
+      this.beginTime = this.end();
+    }
+  }
+
+  // Panel constants.
+  var PR = Math.round(window.devicePixelRatio || 1);
+  var WIDTH = 83 * PR;
+  var HEIGHT = 48 * PR;
+  var TEXT_X = 3 * PR;
+  var TEXT_Y = 2 * PR;
+  var GRAPH_X = 3 * PR;
+  var GRAPH_Y = 15 * PR;
+  var GRAPH_WIDTH = 74 * PR;
+  var GRAPH_HEIGHT = 30 * PR;
+
+  /**
+   * An individual panel on the FPS stats component.
+   */
+  class Panel {
+    constructor(name, fg, bg, shouldRound) {
+      this.name = name;
+      this.fg = fg;
+      this.bg = bg;
+      this.min = Infinity;
+      this.max = 0;
+      this.shouldRound = shouldRound;
+      this.createDom();
+    }
+
+    createDom() {
+      var canvas = document.createElement('canvas');
+      canvas.width = WIDTH;
+      canvas.height = HEIGHT;
+      canvas.style.cssText = 'width:83px;height:48px';
+
+      var context = canvas.getContext('2d');
+      context.font = 'bold ' + 9 * PR + 'px Helvetica,Arial,sans-serif';
+      context.textBaseline = 'top';
+
+      context.fillStyle = this.bg;
+      context.fillRect(0, 0, WIDTH, HEIGHT);
+
+      context.fillStyle = this.fg;
+      context.fillText(name, TEXT_X, TEXT_Y);
+      context.fillRect(GRAPH_X, GRAPH_Y, GRAPH_WIDTH, GRAPH_HEIGHT);
+
+      context.fillStyle = this.bg;
+      context.globalAlpha = 0.9;
+      context.fillRect(GRAPH_X, GRAPH_Y, GRAPH_WIDTH, GRAPH_HEIGHT);
+      this.dom = canvas;
+      this.canvas = canvas;
+      this.context = context;
+    }
+
+    update(value, maxValue) {
+      var canvas = this.canvas;
+      var context = this.context;
+      this.min = Math.min(this.min, value);
+      this.max = Math.max(this.max, value);
+      var roundedValue = this.shouldRound
+        ? Math.round(value)
+        : value.toFixed(2);
+
+      context.fillStyle = this.bg;
+      context.globalAlpha = 1;
+      context.fillRect(0, 0, WIDTH, GRAPH_Y);
+      context.fillStyle = this.fg;
+      context.fillText(
+        (roundedValue + " " + (this.name) + " (" + (Math.round(this.min)) + "-" + (Math.round(
+          this.max
+        )) + ")"),
+        TEXT_X,
+        TEXT_Y
+      );
+
+      context.drawImage(
+        canvas,
+        GRAPH_X + PR,
+        GRAPH_Y,
+        GRAPH_WIDTH - PR,
+        GRAPH_HEIGHT,
+        GRAPH_X,
+        GRAPH_Y,
+        GRAPH_WIDTH - PR,
+        GRAPH_HEIGHT
+      );
+
+      context.fillRect(GRAPH_X + GRAPH_WIDTH - PR, GRAPH_Y, PR, GRAPH_HEIGHT);
+
+      context.fillStyle = this.bg;
+      context.globalAlpha = 0.9;
+      context.fillRect(
+        GRAPH_X + GRAPH_WIDTH - PR,
+        GRAPH_Y,
+        PR,
+        Math.round((1 - value / maxValue) * GRAPH_HEIGHT)
+      );
+    }
   }
 
   /**
    * @author rogerscg / https://github.com/rogerscg
    */
 
-  var instance$6 = null;
+  var DEFAULT_NAME = 'main';
+
   /**
-   * Core implementation for managing the game's physics. The
-   * actual physics engine is provided by the user.
+   * Represents a world used to both manage rendering and physics simulations.
    */
-  class Physics extends Plugin {
+  class World extends Plugin {
+    constructor() {
+      super();
+      this.scene = new THREE.Scene();
+      // Set an `isRootScene` bit for use by other parts of ERA.
+      this.scene.isRootScene = true;
+      this.scene.parentWorld = this;
+      this.physics = null;
+      this.renderers = new Map();
+      this.cameras = new Map();
+      this.camerasToRenderers = new Map();
+      this.entities = new Set();
+      this.entityCameras = new Map();
+      this.entitiesToRenderers = new Map();
+      window.addEventListener('resize', this.onWindowResize.bind(this), false);
+
+      // A utility for adjusting quality on world entities.
+      this.qualityAdjuster = null;
+    }
+
+    /**
+     * Enables quality adjustment for the world.
+     * @param {QualityAdjuster} qualityAdjuster
+     * @return {World}
+     */
+    withQualityAdjustment(qualityAdjuster) {
+      qualityAdjuster.setWorld(this);
+      this.qualityAdjuster = qualityAdjuster;
+      return this;
+    }
+
+    /** @override */
+    update() {
+      // Update all entities, if physics is not enabled. This is due to physics
+      // handling updates on its own.
+      // TODO: Separate physics updates from entity updates.
+      this.entities.forEach((entity) => {
+        if (!entity.physicsEnabled) {
+          entity.update();
+        }
+      });
+
+      // Update all renderers.
+      this.camerasToRenderers.forEach((renderer, camera) =>
+        renderer.render(this.scene, camera)
+      );
+
+      // Update quality.
+      if (this.qualityAdjuster) {
+        this.qualityAdjuster.update();
+      }
+    }
+
+    /** @override */
+    reset() {
+      this.entities.forEach((entity) => entity.destroy());
+      while (scene.children.length > 0) {
+        scene.remove(scene.children[0]);
+      }
+    }
+
+    getScene() {
+      return this.scene;
+    }
+
+    getPhysics() {
+      return this.physics;
+    }
+
+    /**
+     * Retrieves the camera with the given name.
+     * @param {string} name
+     */
+    getCamera(name) {
+      if ( name === void 0 ) name = DEFAULT_NAME;
+
+      return this.cameras.get(name);
+    }
+
+    /**
+     * Retrieves a renderer with the given name.
+     * @param {string} name
+     */
+    getRenderer(name) {
+      if ( name === void 0 ) name = DEFAULT_NAME;
+
+      return this.renderers.get(name);
+    }
+
+    /**
+     * Iterates over all cameras and resizes them.
+     */
+    onWindowResize() {
+      // Set timeout in order to allow the renderer dom element to resize.
+      setTimeout(() => {
+        this.cameras.forEach((camera) => {
+          var width = window.innerWidth;
+          var height = window.innerHeight;
+          var renderer = this.camerasToRenderers.get(camera);
+          if (renderer) {
+            var rect = renderer.domElement.getBoundingClientRect();
+            width = rect.width;
+            height = rect.height;
+          }
+          camera.userData.resize(width, height);
+        });
+      });
+    }
+
+    /**
+     * Adds a physics implementation instance to the world.
+     * @param {Physics} physics
+     * @return {World}
+     */
+    withPhysics(physics) {
+      this.physics = physics;
+      physics.setEraWorld(this);
+      return this;
+    }
+
+    /**
+     * Adds a renderer that is used to display the world as well as the name of
+     * the renderer. This name is used for finding the element in the DOM to which
+     * the renderer should be attached via the data-renderer attribute.
+     * @param {THREE.WebGLRenderer} renderer
+     * @param {string} name
+     * @return {World}
+     */
+    addRenderer(renderer, name) {
+      if ( name === void 0 ) name = DEFAULT_NAME;
+
+      if (!renderer || !name) {
+        return console.error('Need both renderer and name for world.');
+      }
+      var container = document.querySelector(("[data-renderer='" + name + "']"));
+      if (!container) {
+        return console.error(("Element with data-renderer " + name + " not found."));
+      }
+      var rect = container.getBoundingClientRect();
+      renderer.setSize(rect.width, rect.height);
+      container.appendChild(renderer.domElement);
+      window.addEventListener(
+        'resize',
+        () => {
+          var rect = container.getBoundingClientRect();
+          renderer.setSize(rect.width, rect.height);
+        },
+        false
+      );
+      renderer.name = name;
+      new RendererStats(renderer);
+      this.renderers.set(name, renderer);
+      return this;
+    }
+
+    /**
+     * Adds a camera for a specific renderer. If a renderer isn't specified, add
+     * for all renderers.
+     * @param {THREE.Camera} camera
+     * @param {THREE.WebGLRenderer} renderer
+     * @return {World}
+     */
+    addCameraForRenderer(camera, renderer) {
+      if (!camera) {
+        return this;
+      }
+      if (!renderer) {
+        this.renderers.forEach((renderer) =>
+          this.addCameraForRenderer(camera, renderer)
+        );
+        return this;
+      }
+      if (!renderer.name || !this.renderers.has(renderer.name)) {
+        console.error('Passed renderer not created in world');
+        return this;
+      }
+      this.cameras.set(renderer.name, camera);
+      this.camerasToRenderers.set(camera, renderer);
+      // Fire a resize event to adjust camera to renderer.
+      this.onWindowResize();
+      return this;
+    }
+
+    /**
+     * Sets the environment of the world.
+     * @param {Environment} environment
+     * @return {World}
+     */
+    setEnvironment(environment) {
+      this.add(environment);
+      this.renderers.forEach((renderer) =>
+        renderer.setClearColor(environment.getClearColor())
+      );
+      if (environment.getFog()) {
+        this.scene.fog = environment.getFog();
+      }
+      return this;
+    }
+
+    /**
+     * Adds an entity or other ERA object to the world.
+     * @param {Entity} entity
+     * @return {World}
+     */
+    add(entity) {
+      if (this.entities.has(entity)) {
+        console.warn('Entity already added to the world');
+        return this;
+      }
+      if (entity.physicsBody) {
+        entity.registerPhysicsWorld(this.physics);
+      }
+      entity.setWorld(this);
+      entity.build();
+      this.entities.add(entity);
+      this.scene.add(entity);
+      if (entity.physicsBody) {
+        this.physics.registerEntity(entity);
+      }
+      entity.onAdd();
+      return this;
+    }
+
+    /**
+     * Removes an entity from the ERA world.
+     * @param {Entity} entity
+     * @return {World}
+     */
+    remove(entity) {
+      if (this.physics && entity.physicsEnabled) {
+        this.physics.unregisterEntity(entity);
+      }
+      this.scene.remove(entity);
+      this.entities.delete(entity);
+      if (entity.getWorld() == this) {
+        entity.setWorld(null);
+      }
+      entity.onRemove();
+      return this;
+    }
+
+    /**
+     * Enables entity physics within the world. Used for quality adjustment.
+     * @param {Entity} entity
+     */
+    enableEntityPhysics(entity) {
+      if (this.physics && entity.physicsEnabled) {
+        entity.registerPhysicsWorld(this.physics);
+        this.physics.registerEntity(entity);
+      }
+    }
+
+    /**
+     * Disables entity physics within the world. Used for quality adjustment.
+     * @param {Entity} entity
+     */
+    disableEntityPhysics(entity) {
+      if (this.physics && entity.physicsEnabled) {
+        this.physics.unregisterEntity(entity);
+      }
+    }
+
+    /**
+     * Request to attach the camera with the given name to the provided entity.
+     * @param {Entity} entity
+     * @param {string} cameraName
+     * @return {World}
+     */
+    attachCameraToEntity(entity, cameraName) {
+      if ( cameraName === void 0 ) cameraName = DEFAULT_NAME;
+
+      if (!entity || !this.cameras.has(cameraName)) {
+        console.warn(("Camera with name " + cameraName + " does not exist"));
+        return this;
+      }
+      var camera = this.cameras.get(cameraName);
+      var prevEntity = this.entityCameras.get(camera);
+      if (prevEntity) {
+        prevEntity.detachCamera(camera);
+      }
+      entity.attachCamera(camera);
+      this.entityCameras.set(camera, entity);
+      return this;
+    }
+
+    /**
+     * Associates an entity with a renderer for controls purposes, i.e. the
+     * direction a camera is facing in a split-screen tile.
+     * @param {Entity} entity
+     * @param {string} name
+     * @return {World}
+     */
+    associateEntityWithRenderer(entity, name) {
+      if ( name === void 0 ) name = DEFAULT_NAME;
+
+      if (!entity || !name) {
+        console.error('Need to provide entity and name to associate');
+        return this;
+      }
+      if (!this.entities.has(entity) || !this.renderers.has(name)) {
+        console.error('Both entity and renderer need to be registered to world');
+        return this;
+      }
+      this.entitiesToRenderers.set(entity, name);
+      return this;
+    }
+
+    /**
+     * Finds the associated camera, aka the camera used by the main "controlling"
+     * renderer, for a given entity. Any value returned will be a result of
+     * associating a renderer and camera with a given entity in the world.
+     * @param {Entity} entity
+     * @return {THREE.Camera}
+     */
+    getAssociatedCamera(entity) {
+      var name = this.entitiesToRenderers.get(entity);
+      if (!name) {
+        name = DEFAULT_NAME;
+      }
+      return this.cameras.get(name);
+    }
+  }
+
+  /**
+   * @author rogerscg / https://github.com/rogerscg
+   */
+
+  /**
+   * Custom event fired when a soft error occurs.
+   */
+  class ErrorEvent extends EraEvent {
+    constructor(message) {
+      var label = 'error';
+      var data = {
+        message: message
+      };
+      super(label, data);
+    }
+    
+    /** @override */
+    static listen(callback) {
+      EraEvent.listen('error', callback);
+    }
+  }
+
+  /**
+   * @author rogerscg / https://github.com/rogerscg
+   */
+
+  /**
+   * Core functionality for network procedures in the engine. Can be extended
+   * in the case of different servers.
+   */
+  class Network {
+    constructor(protocol, host, port) {
+      this.protocol = protocol;
+      this.host = host;
+      this.port = port;
+      this.origin = this.createPath(protocol, host, port);
+      this.pendingResponses = new Set();
+      this.connectionResolve = null;
+      this.socket = null;
+      this.token = null;
+      this.name = null;
+    }
+
+    /**
+     * Give the server a name.
+     * @param {string} name
+     * @returns {Network}
+     */
+    withName(name) {
+      this.name = name;
+      return this;
+    }
+
+    /**
+     * Disconnects the network instance.
+     */
+    disconnect() {
+      if (this.socket) {
+        this.socket.disconnect();
+      }
+    }
+
+    /**
+     * Creates a path given the protocol, host, and port.
+     */
+    createPath(protocol, host, port) {
+      return (protocol + "://" + host + ":" + port);
+    }
+
+    setAuthToken(token) {
+      this.token = token;
+    }
+
+    /**
+     * Creates and sends an HTTP POST request, awaiting for the response.
+     * @param {string} path Endpoint path on the server, i.e. /path/to/endpoint.
+     * @param {Object} data
+     * @returns {Object}
+     * @async
+     */
+    async createPostRequest(path, data) {
+      var url = this.origin + path;
+      var req = this.buildRequest('POST', url);
+      var response = await this.sendRequest(req, data);
+      return response;
+    }
+
+    /** 
+     * Creates and sends an HTTP GET request, awaiting for the response.
+     * @param {string} path Endpoint path on the server, i.e. /path/to/endpoint.
+     * @returns {Object}
+     * @async
+     */
+    async createGetRequest(path) {
+      var url = this.origin + path;
+      var req = this.buildRequest('GET', url);
+      var response = await this.sendRequest(req);
+      return response;
+    }
+
+    /**
+     * Creates and sends an HTTP DELETE request, awaiting for the response.
+     * @param {string} path Endpoint path on the server, i.e. /path/to/endpoint.
+     * @returns {Object}
+     * @async
+     */
+    async createDeleteRequest(path, data) {
+      var url = this.origin + path;
+      var req = this.buildRequest('DELETE', url);
+      var response = await this.sendRequest(req, data);
+      return response;
+    }
+
+    /**
+     * Creates an error for a failed or invalid HTTP request.
+     */
+    createError(req) {
+      var message;
+      try {
+        message = JSON.parse(req.responseText).message;
+      } catch (e) {
+        message = req.responseText;
+      }
+      return new Error(message);
+    }
+
+    /**
+     * Begins to establish a WebSockets connection to the server. The query
+     * parameter is a map of query params used in the connection string.
+     * Returns a promise with the resolver set in a field. Once the connection
+     * is successful, it resolves.
+     */
+    async createSocketConnection(query, required) {
+      if ( required === void 0 ) required = false;
+
+      return new Promise((resolve) => {
+        if (this.socket) {
+          return resolve(this.socket);
+        }
+        this.connectionResolver = resolve;
+        var params = {
+          reconnection: false
+        };
+        if (!query) {
+          query = new Map();
+        }
+        if (this.token) {
+          query.set('token', this.token);
+        }
+        var queryString = '';
+        for (var pair of query) {
+          var pairString = pair[0] + '=' + pair[1];
+          if (queryString) {
+            pairString = '&' + pairString;
+          }
+          queryString += pairString;
+        }
+        if (queryString) {
+          params.query = queryString;
+        }
+        this.socket = io.connect(this.origin, params);
+        this.socket.on('connect', () => this.handleConnect(required));
+      });
+    }
+
+    /**
+     * Handles a successful connection to the WebSockets server.
+     */
+    handleConnect() {
+      this.connectionResolver(this.socket);
+      // TODO: Create base socket endpoints for easier registration of handlers.
+      this.socket.on('error', (err) => {
+        var message = 'Socket error:' + JSON.stringify(err);
+        console.error(message);
+        new ErrorEvent(message).fire();
+      });
+    }
+
+    /**
+     * Sends a WS message and waits for a specific reply indicating that the
+     * message was received. The key is the socket endpoint, so only one call
+     * to a certain endpoint can be awaited at once.
+     * @param {string} endpoint The emitted endpoint name.
+     * @param {*} sentData The data to emit, if any.
+     * @param {string=} responseEndpoint Optional response endpoint name.
+     */
+    async emitAndAwaitResponse(endpoint, sentData, responseEndpoint) {
+      if (!this.socket) {
+        throw new Error('No socket installed.');
+      }
+      // Default the response endpoint to the emitted endpoint.
+      if (!responseEndpoint) {
+        responseEndpoint = endpoint;
+      }
+      // Don't install a listener for something twice.
+      if (this.pendingResponses.has(endpoint) ||
+          this.pendingResponses.has(responseEndpoint)) {
+        throw new Error('Listener already installed.');
+      }
+      this.pendingResponses.add(endpoint);
+      this.pendingResponses.add(responseEndpoint);
+      this.socket.removeAllListeners(endpoint);
+      this.socket.removeAllListeners(responseEndpoint);
+
+      return new Promise((resolve, reject) => {
+        this.socket.once(responseEndpoint, (data) => {
+          resolve(data);
+        });
+        this.socket.emit(endpoint, sentData);
+      });
+    }
+
+    /**
+     * Waits for a message to be received, then resolves.
+     * @param {string} endpoint
+     */
+    async waitForMessage(endpoint) {
+      if (!this.socket) {
+        throw new Error('No socket installed.');
+      }
+      if (this.pendingResponses.has(endpoint)) {
+        throw new Error('Listener already installed.');
+      }
+      this.pendingResponses.add(endpoint);
+      this.socket.removeAllListeners(endpoint);
+      return new Promise((resolve) => {
+        this.socket.once(endpoint, (data) => {
+          return resolve(data);
+        });
+      });
+    }
+
+    /**
+     * Builds a request object given a method and url.
+     * @param {string} method
+     * @param {string} url
+     */
+    buildRequest(method, url) {
+      var req = new XMLHttpRequest();
+      req.open(method, url, true);
+      req.setRequestHeader('Content-type', 'application/json');
+      if(this.token) {
+        req.setRequestHeader('Authorization', this.token);
+      }
+      return req;
+    }
+
+    /**
+     * Sends the request and awaits the response.
+     * @param {XMLHttpRequest} req
+     * @param {Object=} data
+     * @async
+     */
+    sendRequest(req, data) {
+      if ( data === void 0 ) data = null;
+
+      return new Promise((resolve, reject) => {
+        // Install load listener.
+        req.addEventListener('load', () => {
+          if (req.status == 200 || req.status == 304) {
+            var responseStr = req.responseText;
+            try {
+              var response = JSON.parse(responseStr);
+              resolve(response);
+            } catch (e) {
+              resolve(responseStr);
+            }
+          } else {
+            reject(this.createError(req));
+          }
+        });
+        // Install error listener.
+        req.addEventListener('error', () => reject(this.createError(req)));
+        // Send request.
+        if (data) {
+          req.send(JSON.stringify(data));
+        } else {
+          req.send();
+        }
+      });
+    }
+  }
+
+  /**
+   * @author rogerscg / https://github.com/rogerscg
+   */
+
+  /**
+   * A map of all network instances, keyed by their server name. This is useful
+   * when a client has to track multiple servers with which it communicates.
+   */
+  class NetworkRegistry extends Map {
+    /**
+     * Creates a new network instance for a server.
+     * @param {string} name
+     * @param {string} protocol
+     * @param {string} host
+     * @param {number} port
+     * @returns {Network}
+     */
+    registerNewServer(name, protocol, host, port) {
+      if (this.has(name)) {
+        console.warn(("Server with name " + name + " already registered."));
+        return this.get(name);
+      }
+      var server = new Network(protocol, host, port).withName(name);
+      this.set(name, server);
+      return server;
+    }
+  }
+
+  var network_registry = new NetworkRegistry();
+
+  /**
+   * @author schteppe / https://github.com/schteppe
+   * @author rogerscg / https://github.com/rogerscg
+   */
+
+  /**
+   * Adds Three.js primitives into the scene where all the Cannon bodies and
+   * shapes are.
+   */
+  class DebugRenderer {
+    /**
+     * @param {THREE.Scene} scene
+     * @param {CANNON.World} world
+     */
+    constructor(scene, world) {
+      this._meshes = [];
+
+      this._material = new THREE.MeshBasicMaterial({
+        color: 0x00ff00,
+        wireframe: true
+      });
+      this._sleepMaterial = new THREE.MeshBasicMaterial({
+        wireframe: true,
+        color: 0x0000ff
+      });
+      this._sphereGeometry = new THREE.SphereGeometry(1);
+      this._boxGeometry = new THREE.BoxGeometry(1, 1, 1);
+      this._planeGeometry = new THREE.PlaneGeometry(10, 10, 10, 10);
+      this._cylinderGeometry = new THREE.CylinderGeometry(1, 1, 10, 10);
+
+      this.tmpVec0 = new CANNON.Vec3();
+      this.tmpVec1 = new CANNON.Vec3();
+      this.tmpVec2 = new CANNON.Vec3();
+      this.tmpQuat0 = new CANNON.Vec3();
+    }
+
+    /** @override */
+    update() {
+      var bodies = this.world.bodies;
+      var meshes = this._meshes;
+      var shapeWorldPosition = this.tmpVec0;
+      var shapeWorldQuaternion = this.tmpQuat0;
+
+      var meshIndex = 0;
+
+      bodies.forEach((body) => {
+        body.shapes.forEach((shape, shapeIndex) => {
+          this._updateMesh(meshIndex, body, shape);
+          var mesh = meshes[meshIndex];
+          if (mesh) {
+            // Get world position
+            body.quaternion.vmult(
+              body.shapeOffsets[shapeIndex],
+              shapeWorldPosition
+            );
+            body.position.vadd(shapeWorldPosition, shapeWorldPosition);
+
+            // Get world quaternion
+            body.quaternion.mult(
+              body.shapeOrientations[shapeIndex],
+              shapeWorldQuaternion
+            );
+
+            // Copy to meshes
+            mesh.position.copy(shapeWorldPosition);
+            mesh.quaternion.copy(shapeWorldQuaternion);
+          }
+          meshIndex++;
+        });
+      });
+
+      for (var i = meshIndex; i < meshes.length; i++) {
+        var mesh = meshes[i];
+        if (mesh) {
+          this.scene.remove(mesh);
+        }
+      }
+
+      meshes.length = meshIndex;
+    }
+
+    /** @override */
+    destroy() {
+      this._meshes.forEach((mesh) => {
+        if (mesh.parent) {
+          mesh.parent.remove(mesh);
+        }
+      });
+    }
+
+    _updateMesh(index, body, shape) {
+      var mesh = this._meshes[index];
+      if (!this._typeMatch(mesh, shape)) {
+        if (mesh) {
+          this.scene.remove(mesh);
+        }
+        mesh = this._meshes[index] = this._createMesh(shape);
+      }
+      this._scaleMesh(mesh, shape);
+    }
+
+    _typeMatch(mesh, shape) {
+      if (!mesh) {
+        return false;
+      }
+      var geo = mesh.geometry;
+      return (
+        (geo instanceof THREE.SphereGeometry && shape instanceof CANNON.Sphere) ||
+        (geo instanceof THREE.BoxGeometry && shape instanceof CANNON.Box) ||
+        (geo instanceof THREE.PlaneGeometry && shape instanceof CANNON.Plane) ||
+        (geo.id === shape.geometryId &&
+          shape instanceof CANNON.ConvexPolyhedron) ||
+        (geo.id === shape.geometryId && shape instanceof CANNON.Trimesh) ||
+        (geo.id === shape.geometryId && shape instanceof CANNON.Heightfield)
+      );
+    }
+
+    _createMesh(shape) {
+      var mesh;
+      var material = this._material;
+
+      switch (shape.type) {
+        case CANNON.Shape.types.SPHERE:
+          mesh = new THREE.Mesh(this._sphereGeometry, material);
+          break;
+
+        case CANNON.Shape.types.BOX:
+          mesh = new THREE.Mesh(this._boxGeometry, material);
+          break;
+
+        case CANNON.Shape.types.PLANE:
+          mesh = new THREE.Mesh(this._planeGeometry, material);
+          break;
+
+        case CANNON.Shape.types.CONVEXPOLYHEDRON:
+          // Create mesh
+          var geo = new THREE.Geometry();
+
+          // Add vertices
+          for (var i = 0; i < shape.vertices.length; i++) {
+            var v = shape.vertices[i];
+            geo.vertices.push(new THREE.Vector3(v.x, v.y, v.z));
+          }
+
+          for (var i = 0; i < shape.faces.length; i++) {
+            var face = shape.faces[i];
+
+            // add triangles
+            var a = face[0];
+            for (var j = 1; j < face.length - 1; j++) {
+              var b = face[j];
+              var c = face[j + 1];
+              geo.faces.push(new THREE.Face3(a, b, c));
+            }
+          }
+          geo.computeBoundingSphere();
+          geo.computeFaceNormals();
+
+          mesh = new THREE.Mesh(geo, material);
+          shape.geometryId = geo.id;
+          break;
+
+        case CANNON.Shape.types.TRIMESH:
+          var geometry = new THREE.Geometry();
+          var v0 = this.tmpVec0;
+          var v1 = this.tmpVec1;
+          var v2 = this.tmpVec2;
+          for (var i = 0; i < shape.indices.length / 3; i++) {
+            shape.getTriangleVertices(i, v0, v1, v2);
+            geometry.vertices.push(
+              new THREE.Vector3(v0.x, v0.y, v0.z),
+              new THREE.Vector3(v1.x, v1.y, v1.z),
+              new THREE.Vector3(v2.x, v2.y, v2.z)
+            );
+            var j = geometry.vertices.length - 3;
+            geometry.faces.push(new THREE.Face3(j, j + 1, j + 2));
+          }
+          geometry.computeBoundingSphere();
+          geometry.computeFaceNormals();
+          mesh = new THREE.Mesh(geometry, material);
+          shape.geometryId = geometry.id;
+          break;
+
+        case CANNON.Shape.types.HEIGHTFIELD:
+          var geometry = new THREE.Geometry();
+
+          var v0 = this.tmpVec0;
+          var v1 = this.tmpVec1;
+          var v2 = this.tmpVec2;
+          for (var xi = 0; xi < shape.data.length - 1; xi++) {
+            for (var yi = 0; yi < shape.data[xi].length - 1; yi++) {
+              for (var k = 0; k < 2; k++) {
+                shape.getConvexTrianglePillar(xi, yi, k === 0);
+                v0.copy(shape.pillarConvex.vertices[0]);
+                v1.copy(shape.pillarConvex.vertices[1]);
+                v2.copy(shape.pillarConvex.vertices[2]);
+                v0.vadd(shape.pillarOffset, v0);
+                v1.vadd(shape.pillarOffset, v1);
+                v2.vadd(shape.pillarOffset, v2);
+                geometry.vertices.push(
+                  new THREE.Vector3(v0.x, v0.y, v0.z),
+                  new THREE.Vector3(v1.x, v1.y, v1.z),
+                  new THREE.Vector3(v2.x, v2.y, v2.z)
+                );
+                var i = geometry.vertices.length - 3;
+                geometry.faces.push(new THREE.Face3(i, i + 1, i + 2));
+              }
+            }
+          }
+          geometry.computeBoundingSphere();
+          geometry.computeFaceNormals();
+          mesh = new THREE.Mesh(geometry, material);
+          shape.geometryId = geometry.id;
+          break;
+      }
+
+      if (mesh) {
+        this.scene.add(mesh);
+      }
+
+      return mesh;
+    }
+
+    _scaleMesh(mesh, shape) {
+      switch (shape.type) {
+        case CANNON.Shape.types.SPHERE:
+          var radius = shape.radius;
+          mesh.scale.set(radius, radius, radius);
+          break;
+
+        case CANNON.Shape.types.BOX:
+          mesh.scale.copy(shape.halfExtents);
+          mesh.scale.multiplyScalar(2);
+          break;
+
+        case CANNON.Shape.types.CONVEXPOLYHEDRON:
+          mesh.scale.set(1, 1, 1);
+          break;
+
+        case CANNON.Shape.types.TRIMESH:
+          mesh.scale.copy(shape.scale);
+          break;
+
+        case CANNON.Shape.types.HEIGHTFIELD:
+          mesh.scale.set(1, 1, 1);
+          break;
+      }
+    }
+  }
+
+  /**
+   * @author rogerscg / https://github.com/rogerscg
+   */
+
+  var MAX_DELTA = 1;
+  var MAX_SUBSTEPS = 10;
+
+  var instance$7 = null;
+  /**
+   * API implementation for Cannon.js, a pure JavaScript physics engine.
+   * https://github.com/schteppe/cannon.js
+   */
+  class PhysicsPlugin extends Plugin {
     /**
      * Enforces singleton physics instance.
      */
     static get() {
-      if (!instance$6) {
-        instance$6 = new Physics();
+      if (!instance$7) {
+        instance$7 = new Physics();
       }
-      return instance$6;
+      return instance$7;
     }
 
     constructor() {
@@ -5021,6 +6816,9 @@
       this.world = this.createWorld();
       this.eraWorld = null;
       this.lastTime = performance.now();
+      this.physicalMaterials = new Map();
+      this.contactMaterials = new Map();
+      this.debugRenderer = null;
     }
 
     /** @override */
@@ -5073,14 +6871,18 @@
      * @param {number} delta
      */
     step(delta) {
-      console.warn('Step not defined');
+      delta /= 1000;
+      delta = Math.min(MAX_DELTA, delta);
+      this.world.step(1 / 60, delta, MAX_SUBSTEPS);
     }
 
     /**
      * Instantiates the physics world.
      */
     createWorld() {
-      console.warn('Create world not defined');
+      var world = new CANNON.World();
+      world.gravity.set(0, -9.82, 0);
+      return world;
     }
 
     /**
@@ -5102,6 +6904,7 @@
       this.registeredEntities.set(entity.uuid, entity);
       entity.registerPhysicsWorld(this);
       this.registerContactHandler(entity);
+      this.world.addBody(entity.physicsBody);
       return true;
     }
 
@@ -5116,23 +6919,8 @@
       }
       this.registeredEntities.delete(entity.uuid);
       entity.unregisterPhysicsWorld(this);
+      this.world.remove(entity.physicsBody);
       return true;
-    }
-
-    /**
-     * Registers a component to partake in physics simulations. This
-     * differs from an entity in that it is a single body unattached
-     * to a mesh.
-     */
-    registerComponent(body) {
-      console.warn('Unregister entity not defined');
-    }
-
-    /**
-     * Unregisters a component to partake in physics simulations.
-     */
-    unregisterComponent(body) {
-      console.warn('Unregister component not defined');
     }
 
     /**
@@ -5140,17 +6928,17 @@
      */
     terminate() {
       clearInterval(this.updateInterval);
-      instance$6 = null;
+      instance$7 = null;
     }
 
     /**
      * Gets the position of the given entity. Must be implemented by
      * engine-specific implementations.
      * @param {Entity} entity
-     * @returns {Object}
+     * @returns {CANNON.Vec3}
      */
     getPosition(entity) {
-      console.warn('getPosition(entity) not implemented');
+      return entity.physicsBody.position;
     }
 
     /**
@@ -5160,7 +6948,7 @@
      * @returns {Object}
      */
     getRotation(entity) {
-      console.warn('getRotation(entity) not implemented');
+      return entity.physicsBody.quaternion;
     }
 
     /**
@@ -5168,7 +6956,13 @@
      * each engine-specific implementation for ease of use.
      */
     enableDebugRenderer() {
-      console.warn('Debug renderer not implemented');
+      var scene = this.getEraWorld() ? this.getEraWorld().getScene() : null;
+      var world = this.getWorld();
+      if (!scene || !world) {
+        return console.warn('Debug renderer missing scene or world.');
+      }
+      this.debugRenderer = new DebugRenderer(scene, world);
+      return this.debugRenderer;
     }
 
     /**
@@ -5196,108 +6990,84 @@
      * @param {Entity} entity
      */
     registerContactHandler(entity) {
-      console.warn('Contact handler not supported');
-    }
-  }
-
-  /**
-   * A standard event target.
-   * @implements {EventTargetInterface}
-   */
-  class EventTarget {
-    constructor() {
-      this.listeners = new Map();
-      this.uuidToLabels = new Map();
-    }
-
-    /** @override */
-    addEventListener(label, handler) {
-      if (!this.listeners.has(label)) {
-        this.listeners.set(label, new Map());
-      }
-      var uuid = createUUID();
-      this.listeners.get(label).set(uuid, handler);
-      this.uuidToLabels.set(uuid, label);
-      return uuid;
-    }
-
-    /** @override */
-    removeEventListener(uuid) {
-      var label = this.uuidToLabels.get(uuid);
-      if (!label) {
-        return false;
-      }
-      this.uuidToLabels.delete(uuid);
-      var labelListeners = this.listeners.get(label);
-      if (!labelListeners) {
-        return false;
-      }
-      return labelListeners.delete(uuid);
-    }
-
-    /** @override */
-    dispatchEvent(label, data) {
-      var labelListeners = this.listeners.get(label);
-      if (!labelListeners) {
-        return;
-      }
-      labelListeners.forEach((handler) => handler(data));
-    }
-  }
-
-  /**
-   * An EventTarget that extends THREE.Object3D for use by Entities.
-   * TODO: Try and reduce duplicate code between these two due to lack of
-   *       multiple inheritance in JS.
-   * @implements {EventTargetInterface}
-   */
-  class Object3DEventTarget extends THREE.Object3D {
-    constructor() {
-      super();
-      this.listeners = new Map();
-      this.uuidToLabels = new Map();
-    }
-
-    /** @override */
-    addEventListener(label, handler) {
-      if (!this.listeners.has(label)) {
-        this.listeners.set(label, new Map());
-      }
-      var uuid = createUUID();
-      this.listeners.get(label).set(uuid, handler);
-      this.uuidToLabels.set(uuid, label);
-      return uuid;
-    }
-
-    /** @override */
-    addOneShotEventListener(label, handler) {
-      var listener = this.addEventListener(label, (data) => {
-        this.removeEventListener(listener);
-        handler(data);
+      entity.physicsBody.addEventListener('collide', (e) => {
+        entity.handleCollision(e);
       });
     }
 
     /** @override */
-    removeEventListener(uuid) {
-      var label = this.uuidToLabels.get(uuid);
-      if (!label) {
-        return false;
-      }
-      this.uuidToLabels.delete(uuid);
-      var labelListeners = this.listeners.get(label);
-      if (!labelListeners) {
-        return false;
-      }
-      return labelListeners.delete(uuid);
+    autogeneratePhysicsBody(mesh) {
+      // Root body.
+      var body = new CANNON.Body({ mass: 0 });
+      mesh.traverse((child) => {
+        var physicsType = child.userData.physics;
+        if (!physicsType) {
+          return;
+        }
+        switch (physicsType) {
+          case 'BOX':
+            this.autogenerateBox(body, child);
+            break;
+        }
+      });
+      return body;
+    }
+    /**
+     * Generates a box shape and attaches it to the root body.
+     * @param {CANNON.Body} body
+     * @param {THREE.Mesh} mesh
+     */
+    autogenerateBox(body, mesh) {
+      var boundingBox = mesh.geometry.boundingBox;
+      var size = new THREE.Vector3();
+      boundingBox.getSize(size);
+      size.divideScalar(2);
+      size = size.multiplyVectors(size, mesh.scale);
+      var shape = new CANNON.Box(new CANNON.Vec3().copy(size));
+      var position = new CANNON.Vec3().copy(mesh.position);
+      var quaternion = new CANNON.Quaternion().copy(mesh.quaternion);
+      body.addShape(shape, position, quaternion);
     }
 
-    /** @override */
-    dispatchEvent(label, data) {
-      var labelListeners = this.listeners.get(label);
-      if (!labelListeners) {
-        return;
+    /**
+     * Creates a new physical material for the given name and options. If the
+     * physical material already exists, return the existing one.
+     */
+    createPhysicalMaterial(name, options) {
+      if (!this.physicalMaterials.has(name)) {
+        var material = new CANNON.Material(options);
+        this.physicalMaterials.set(name, material);
       }
-      labelListeners.forEach((handler) => handler(data));
+      return this.physicalMaterials.get(name);
+    }
+
+    /**
+     * Creates a new contact material between two given names. If the contact
+     * material already exists, return the existing one.
+     */
+    createContactMaterial(name1, name2, options) {
+      // TODO: Allow for "pending" contact material if one of the materials has
+      // not been created yet.
+      var key = this.createContactKey(name1, name2);
+      if (!this.contactMaterials.has(key)) {
+        var mat1 = this.createPhysicalMaterial(name1);
+        var mat2 = this.createPhysicalMaterial(name2);
+        var contactMat = new CANNON.ContactMaterial(mat1, mat2, options);
+        this.contactMaterials.set(key, contactMat);
+        this.world.addContactMaterial(contactMat);
+      }
+      return this.contactMaterials.get(key);
+    }
+
+    /**
+     * Creates a combined string to use as a key for contact materials.
+     */
+    createContactKey(name1, name2) {
+      // Alphabetize, then concatenate.
+      if (name1 < name2) {
+        return (name1 + "," + name2);
+      }
+      return (name2 + "," + name1);
     }
   }
 
@@ -5357,7 +7127,7 @@
 
       // Physics properties.
       this.physicsBody = null;
-      this.physicsEnabled = false;
+      this.physicsEnabled = true;
       this.physicsWorld = null;
       this.autogeneratePhysics = false;
       this.meshRotationLocked = false;
@@ -5451,7 +7221,7 @@
      * @return {Entity}
      */
     setPosition(position) {
-      if (this.physicsEnabled) {
+      if (this.physicsEnabled && this.physicsBody) {
         this.physicsBody.position.copy(position);
       } else {
         this.position.copy(position);
@@ -5478,9 +7248,7 @@
         }
       }
       this.cameraArm = this.createCameraArm();
-      if (this.physicsEnabled) {
-        this.physicsBody = this.generatePhysicsBody();
-      }
+      this.physicsBody = this.generatePhysicsBody();
       this.built = true;
       return this;
     }
@@ -5579,15 +7347,16 @@
     /**
      * Creates the physics object for the entity. This should be defined by each
      * entity.
+     * @return {CANNON.Body}
      */
     generatePhysicsBody() {
       if (!this.physicsEnabled) {
-        return;
+        return null;
       }
       if (this.autogeneratePhysics) {
         return this.autogeneratePhysicsBody();
       }
-      console.warn('generatePhysicsBody not implemented for entity');
+      return null;
     }
 
     /**
@@ -5770,7 +7539,7 @@
      * Registers the entity to the physics engine.
      */
     registerToPhysics() {
-      Physics.get().registerEntity(this);
+      PhysicsPlugin.get().registerEntity(this);
     }
 
     /**
@@ -5779,7 +7548,7 @@
      * main physics body.
      */
     registerComponent(body) {
-      Physics.get().registerComponent(body);
+      PhysicsPlugin.get().registerComponent(body);
     }
 
     /**
@@ -5981,18 +7750,25 @@
     }
 
     /** @override */
+    onAdd() {
+      this.physicsBody.material = this.physicsWorld.createPhysicalMaterial(
+        'character',
+        {
+          friction: 0
+        }
+      );
+      this.physicsWorld.createContactMaterial('character', 'ground', {
+        friction: 0,
+        contactEquationStiffness: 1e8
+      });
+    }
+
+    /** @override */
     generatePhysicsBody() {
       var capsule = new CANNON.Body({ mass: this.mass });
       // TODO: Remove this collison filter group and make it more explicit to the
       // user.
       capsule.collisionFilterGroup = 2;
-      capsule.material = this.physicsWorld.createPhysicalMaterial('character', {
-        friction: 0
-      });
-      this.physicsWorld.createContactMaterial('character', 'ground', {
-        friction: 0,
-        contactEquationStiffness: 1e8
-      });
 
       // Create center portion of capsule.
       var height = this.height - this.capsuleRadius * 2 - this.capsuleOffset;
@@ -6362,293 +8138,7 @@
    * @author rogerscg / https://github.com/rogerscg
    */
 
-  var instance$7 = null;
-  /**
-   * Light core for the game engine. Creates and manages light
-   * sources in-game. Should be used as a singleton.
-   */
-  class Light extends Plugin {
-    /**
-     * Enforces singleton light instance.
-     */
-    static get() {
-      if (!instance$7) {
-        instance$7 = new Light();
-      }
-      return instance$7;
-    }
-
-    constructor() {
-      super();
-      this.ambientLight = null;
-      this.lights = new Array();
-      this.debugEnabled = false;
-      this.shadowsEnabled = false;
-      this.handleSettingsChange();
-    }
-
-    /** @override */
-    reset() {
-      this.ambientLight = null;
-      this.lights.forEach((light) => {
-        this.removeHelpers(light);
-        if (light.parent) {
-          light.parent.remove(light);
-        }
-      });
-      this.lights = new Array();
-    }
-
-    /** @override */
-    update() {
-      this.updateHelpers();
-    }
-
-    /**
-     * Updates all helpers attached to lights.
-     */
-    updateHelpers() {
-      // If debug settings are enabled, check for lights and their debug helpers.
-      if (this.debugEnabled) {
-        this.lights.forEach((light) => this.addHelpers(light));
-      } else {
-        this.lights.forEach((light) => this.removeHelpers(light));
-      }
-    }
-
-    /**
-     * Creates the ambient lighting. Use this for easing/darkening shadows.
-     * @param {Object|LightOptions} options
-     */
-    createAmbientLight(options) {
-      options = new LightOptions(options);
-      var light = new THREE.AmbientLight(options.color);
-      light.intensity = options.intensity;
-      this.ambientLight = light;
-      return light;
-    }
-
-    /**
-     * Creates a directional light.
-     * @param {Object|LightOptions} options
-     */
-
-    createDirectionalLight(options) {
-      options = new LightOptions(options);
-      var light = new THREE.DirectionalLight(options.color);
-      light.userData.options = options;
-      light.position.copy(options.position);
-      light.intensity = options.intensity;
-      this.createShadows(light, options.shadow);
-      light.helper = new THREE.DirectionalLightHelper(light, 10);
-      this.lights.push(light);
-      return light;
-    }
-
-    /**
-     * Creates a spot light.
-     * @param {Object|LightOptions} options
-     */
-    createSpotLight(options) {
-      options = new LightOptions(options);
-      var light = new THREE.SpotLight(options.color);
-      light.userData.options = options;
-      light.position.copy(options.position);
-      light.intensity = options.intensity;
-      if (options.angle) {
-        light.angle = options.angle;
-      }
-      if (options.penumbra) {
-        light.penumbra = options.penumbra;
-      }
-      this.createShadows(light, options.shadow);
-      light.helper = new THREE.SpotLightHelper(light);
-      this.lights.push(light);
-      return light;
-    }
-
-    /**
-     * Creates the shadows for a light.
-     * @param {THREE.Light} light
-     * @param {ShadowOptions} options
-     */
-    createShadows(light, options) {
-      if (!options) {
-        return;
-      }
-      var cameraRange = options.frustum;
-      light.shadow.camera.bottom = -cameraRange;
-      light.shadow.camera.left = -cameraRange;
-      light.shadow.camera.right = cameraRange;
-      light.shadow.camera.top = cameraRange;
-      light.shadow.camera.near = options.near;
-      light.shadow.camera.far = options.far;
-      if (options.radius) {
-        light.shadow.radius = options.radius;
-      }
-      if (options.bias) {
-        light.shadow.bias = options.bias;
-      }
-      light.shadow.mapSize.width = options.mapSize;
-      light.shadow.mapSize.height = options.mapSize;
-      light.shadow.helper = new THREE.CameraHelper(light.shadow.camera);
-      if (Settings$1.get('shadows')) {
-        light.castShadow = true;
-      }
-    }
-
-    /** @override */
-    handleSettingsChange() {
-      Settings$1.get('shadows') ? this.enableShadows() : this.disableShadows();
-      Settings$1.get('debug') ? this.enableDebug() : this.disableDebug();
-    }
-
-    /**
-     * Enables shadows.
-     */
-    enableShadows() {
-      if (this.shadowsEnabled) {
-        return;
-      }
-      this.shadowsEnabled = true;
-      this.lights.forEach((light) => {
-        var options = light.userData.options;
-        if (!options) {
-          return;
-        }
-        if (options.shadow) {
-          light.castShadow = true;
-        }
-      });
-    }
-
-    /**
-     * Disables shadows.
-     */
-    disableShadows() {
-      if (!this.shadowsEnabled) {
-        return;
-      }
-      this.shadowsEnabled = false;
-      this.lights.forEach((light) => (light.castShadow = false));
-    }
-
-    /**
-     * Enables debug renderering.
-     */
-    enableDebug() {
-      if (this.debugEnabled) {
-        return;
-      }
-      this.debugEnabled = true;
-      this.lights.forEach((light) => this.addHelpers(light));
-    }
-
-    /**
-     * Disables debug rendering.
-     */
-    disableDebug() {
-      if (!this.debugEnabled) {
-        return;
-      }
-      this.debugEnabled = false;
-      this.lights.forEach((light) => this.removeHelpers(light));
-    }
-
-    /**
-     * Adds the provided light's helpers to the root scene.
-     * @param {THREE.Light} light
-     */
-    addHelpers(light) {
-      // Handle base light helper first.
-      var rootScene = getRootScene(light);
-      if (light.helper && !light.helper.parent) {
-        rootScene = getRootScene(light);
-        if (rootScene) {
-          rootScene.add(light.helper);
-        }
-      }
-      if (
-        Settings$1.get('shadows') &&
-        light.shadow &&
-        light.shadow.helper &&
-        !light.shadow.helper.parent
-      ) {
-        if (!rootScene) {
-          rootScene = getRootScene(light);
-        }
-        if (rootScene) {
-          rootScene.add(light.shadow.helper);
-        }
-      }
-    }
-
-    /**
-     * Removes a light's helpers from their scene.
-     * @param {THREE.Light} light
-     */
-    removeHelpers(light) {
-      if (light.helper && light.helper.parent) {
-        light.helper.parent.remove(light.helper);
-      }
-      if (light.shadow && light.shadow.helper && light.shadow.helper.parent) {
-        light.shadow.helper.parent.remove(light.shadow.helper);
-      }
-      light.userData.addedToScene = false;
-    }
-  }
-
-  /**
-   * Light options created from a light config passed in by the user.
-   * @record
-   */
-  class LightOptions {
-    /**
-     * @param {Object} options
-     */
-    constructor(options) {
-      this.angle = options.angle;
-      this.color = options.color ? parseInt(options.color, 16) : 0xffffff;
-      this.decay = options.decay;
-      this.distance = options.distance;
-      this.groundColor = options.groundColor
-        ? parseInt(options.groundColor, 16)
-        : 0xffffff;
-      this.intensity = options.intensity || 1.0;
-      this.penumbra = options.penumbra;
-      this.position = new THREE.Vector3(
-        options.x || 0,
-        options.y || 0,
-        options.z || 0
-      );
-      this.power = options.power;
-      this.shadow = options.shadow ? new ShadowOptions(options.shadow) : null;
-    }
-  }
-
-  /**
-   * Shadow options attached to a light config.
-   * @record
-   */
-  class ShadowOptions {
-    /**
-     * @param {Object} options
-     */
-    constructor(options) {
-      this.frustum = options.frustum || 10;
-      this.mapSize = options.mapSize || 1024;
-      this.near = options.near || 1;
-      this.far = options.far || 100;
-      this.radius = options.radius || null;
-      this.bias = options.bias || null;
-    }
-  }
-
-  /**
-   * @author rogerscg / https://github.com/rogerscg
-   */
-
-  var WIDTH = 500;
+  var WIDTH$1 = 500;
 
   var SUFFIXES = ['ft', 'bk', 'up', 'dn', 'rt', 'lf'];
 
@@ -6657,7 +8147,7 @@
    */
   class Skybox extends THREE.Object3D {
     constructor(width) {
-      if ( width === void 0 ) width = WIDTH;
+      if ( width === void 0 ) width = WIDTH$1;
 
       super();
       this.cube = null;
@@ -6916,12 +8406,18 @@
       return CONTROLS_ID$2;
     }
 
-    constructor() {
+    constructor(speed) {
+      if ( speed === void 0 ) speed = VELOCITY_COEFFICIENT;
+
+      /**
+       * @param {number} speed
+       */
       super();
       // Input properties.
       this.targetQuaternion = new CANNON.Quaternion();
       this.lerpedVelocity = new THREE.Vector3();
       this.targetVelocity = new THREE.Vector3();
+      this.speed = speed;
     }
 
     /** @override */
@@ -6942,7 +8438,7 @@
         inputY -= this.getActionValue(this.bindings.DOWN);
       }
       this.targetVelocity.set(this.inputVector.x, inputY, this.inputVector.z);
-      this.targetVelocity.multiplyScalar(VELOCITY_COEFFICIENT);
+      this.targetVelocity.multiplyScalar(this.speed);
       if (this.getActionValue(this.bindings.SPRINT)) {
         this.targetVelocity.multiplyScalar(SPRINT_COEFFICIENT);
       }
@@ -6976,1779 +8472,6 @@
   }
 
   Controls.get().registerBindings(FreeRoamEntity);
-
-  /**
-   * Represents a game that will be run on the engine. The purpose of a game
-   * mode is to better control the state of a game as well as assist conditions to
-   * start and end a game. Developers should extend GameMode to create their own
-   * games.
-   */
-  class GameMode extends EventTarget {
-    /**
-     * Loads a game mode for the first time. This should include loading necessary
-     * models, environment, stages, etc.
-     * @async
-     */
-    async load() {}
-
-    /**
-     * Starts the game mode. At this point, all necessary components of the game
-     * mode should be readily available.
-     * @async
-     */
-    async start() {}
-
-    /**
-     * Ends the game mode. The end function should perform any clean up necessary
-     * for the objects created during the game, **not** the items loaded in the
-     * load method. This is to prevent any issues with restarting the game mode.
-     * @async
-     */
-    async end() {
-      this.dispatchEvent('end');
-    }
-
-    /**
-     * Restarts the game mode by calling the `end` function, then `start`.
-     * @async
-     */
-    async restart() {
-      await this.end();
-      await this.start();
-    }
-
-    /**
-     * Macro fro adding an event listener to the end event.
-     * @param {function} handler
-     * @return {string} The uuid of the handler.
-     */
-    onEnd(handler) {
-      return this.addEventListener('end', handler);
-    }
-  }
-
-  /**
-   * @author rogerscg / https://github.com/rogerscg
-   */
-
-  /**
-   * Custom event fired when a soft error occurs.
-   */
-  class ErrorEvent extends EraEvent {
-    constructor(message) {
-      var label = 'error';
-      var data = {
-        message: message
-      };
-      super(label, data);
-    }
-    
-    /** @override */
-    static listen(callback) {
-      EraEvent.listen('error', callback);
-    }
-  }
-
-  /**
-   * @author rogerscg / https://github.com/rogerscg
-   */
-
-  /**
-   * Core functionality for network procedures in the engine. Can be extended
-   * in the case of different servers.
-   */
-  class Network {
-    constructor(protocol, host, port) {
-      this.protocol = protocol;
-      this.host = host;
-      this.port = port;
-      this.origin = this.createPath(protocol, host, port);
-      this.pendingResponses = new Set();
-      this.connectionResolve = null;
-      this.socket = null;
-      this.token = null;
-      this.name = null;
-    }
-
-    /**
-     * Give the server a name.
-     * @param {string} name
-     * @returns {Network}
-     */
-    withName(name) {
-      this.name = name;
-      return this;
-    }
-
-    /**
-     * Disconnects the network instance.
-     */
-    disconnect() {
-      if (this.socket) {
-        this.socket.disconnect();
-      }
-    }
-
-    /**
-     * Creates a path given the protocol, host, and port.
-     */
-    createPath(protocol, host, port) {
-      return (protocol + "://" + host + ":" + port);
-    }
-
-    setAuthToken(token) {
-      this.token = token;
-    }
-
-    /**
-     * Creates and sends an HTTP POST request, awaiting for the response.
-     * @param {string} path Endpoint path on the server, i.e. /path/to/endpoint.
-     * @param {Object} data
-     * @returns {Object}
-     * @async
-     */
-    async createPostRequest(path, data) {
-      var url = this.origin + path;
-      var req = this.buildRequest('POST', url);
-      var response = await this.sendRequest(req, data);
-      return response;
-    }
-
-    /** 
-     * Creates and sends an HTTP GET request, awaiting for the response.
-     * @param {string} path Endpoint path on the server, i.e. /path/to/endpoint.
-     * @returns {Object}
-     * @async
-     */
-    async createGetRequest(path) {
-      var url = this.origin + path;
-      var req = this.buildRequest('GET', url);
-      var response = await this.sendRequest(req);
-      return response;
-    }
-
-    /**
-     * Creates and sends an HTTP DELETE request, awaiting for the response.
-     * @param {string} path Endpoint path on the server, i.e. /path/to/endpoint.
-     * @returns {Object}
-     * @async
-     */
-    async createDeleteRequest(path, data) {
-      var url = this.origin + path;
-      var req = this.buildRequest('DELETE', url);
-      var response = await this.sendRequest(req, data);
-      return response;
-    }
-
-    /**
-     * Creates an error for a failed or invalid HTTP request.
-     */
-    createError(req) {
-      var message;
-      try {
-        message = JSON.parse(req.responseText).message;
-      } catch (e) {
-        message = req.responseText;
-      }
-      return new Error(message);
-    }
-
-    /**
-     * Begins to establish a WebSockets connection to the server. The query
-     * parameter is a map of query params used in the connection string.
-     * Returns a promise with the resolver set in a field. Once the connection
-     * is successful, it resolves.
-     */
-    async createSocketConnection(query, required) {
-      if ( required === void 0 ) required = false;
-
-      return new Promise((resolve) => {
-        if (this.socket) {
-          return resolve(this.socket);
-        }
-        this.connectionResolver = resolve;
-        var params = {
-          reconnection: false
-        };
-        if (!query) {
-          query = new Map();
-        }
-        if (this.token) {
-          query.set('token', this.token);
-        }
-        var queryString = '';
-        for (var pair of query) {
-          var pairString = pair[0] + '=' + pair[1];
-          if (queryString) {
-            pairString = '&' + pairString;
-          }
-          queryString += pairString;
-        }
-        if (queryString) {
-          params.query = queryString;
-        }
-        this.socket = io.connect(this.origin, params);
-        this.socket.on('connect', () => this.handleConnect(required));
-      });
-    }
-
-    /**
-     * Handles a successful connection to the WebSockets server.
-     */
-    handleConnect() {
-      this.connectionResolver(this.socket);
-      // TODO: Create base socket endpoints for easier registration of handlers.
-      this.socket.on('error', (err) => {
-        var message = 'Socket error:' + JSON.stringify(err);
-        console.error(message);
-        new ErrorEvent(message).fire();
-      });
-    }
-
-    /**
-     * Sends a WS message and waits for a specific reply indicating that the
-     * message was received. The key is the socket endpoint, so only one call
-     * to a certain endpoint can be awaited at once.
-     * @param {string} endpoint The emitted endpoint name.
-     * @param {*} sentData The data to emit, if any.
-     * @param {string=} responseEndpoint Optional response endpoint name.
-     */
-    async emitAndAwaitResponse(endpoint, sentData, responseEndpoint) {
-      if (!this.socket) {
-        throw new Error('No socket installed.');
-      }
-      // Default the response endpoint to the emitted endpoint.
-      if (!responseEndpoint) {
-        responseEndpoint = endpoint;
-      }
-      // Don't install a listener for something twice.
-      if (this.pendingResponses.has(endpoint) ||
-          this.pendingResponses.has(responseEndpoint)) {
-        throw new Error('Listener already installed.');
-      }
-      this.pendingResponses.add(endpoint);
-      this.pendingResponses.add(responseEndpoint);
-      this.socket.removeAllListeners(endpoint);
-      this.socket.removeAllListeners(responseEndpoint);
-
-      return new Promise((resolve, reject) => {
-        this.socket.once(responseEndpoint, (data) => {
-          resolve(data);
-        });
-        this.socket.emit(endpoint, sentData);
-      });
-    }
-
-    /**
-     * Waits for a message to be received, then resolves.
-     * @param {string} endpoint
-     */
-    async waitForMessage(endpoint) {
-      if (!this.socket) {
-        throw new Error('No socket installed.');
-      }
-      if (this.pendingResponses.has(endpoint)) {
-        throw new Error('Listener already installed.');
-      }
-      this.pendingResponses.add(endpoint);
-      this.socket.removeAllListeners(endpoint);
-      return new Promise((resolve) => {
-        this.socket.once(endpoint, (data) => {
-          return resolve(data);
-        });
-      });
-    }
-
-    /**
-     * Builds a request object given a method and url.
-     * @param {string} method
-     * @param {string} url
-     */
-    buildRequest(method, url) {
-      var req = new XMLHttpRequest();
-      req.open(method, url, true);
-      req.setRequestHeader('Content-type', 'application/json');
-      if(this.token) {
-        req.setRequestHeader('Authorization', this.token);
-      }
-      return req;
-    }
-
-    /**
-     * Sends the request and awaits the response.
-     * @param {XMLHttpRequest} req
-     * @param {Object=} data
-     * @async
-     */
-    sendRequest(req, data) {
-      if ( data === void 0 ) data = null;
-
-      return new Promise((resolve, reject) => {
-        // Install load listener.
-        req.addEventListener('load', () => {
-          if (req.status == 200 || req.status == 304) {
-            var responseStr = req.responseText;
-            try {
-              var response = JSON.parse(responseStr);
-              resolve(response);
-            } catch (e) {
-              resolve(responseStr);
-            }
-          } else {
-            reject(this.createError(req));
-          }
-        });
-        // Install error listener.
-        req.addEventListener('error', () => reject(this.createError(req)));
-        // Send request.
-        if (data) {
-          req.send(JSON.stringify(data));
-        } else {
-          req.send();
-        }
-      });
-    }
-  }
-
-  /**
-   * @author rogerscg / https://github.com/rogerscg
-   */
-
-   /**
-    * A map of all network instances, keyed by their server name. This is useful
-    * when a client has to track multiple servers with which it communicates.
-    */
-  class NetworkRegistry extends Map {
-    /**
-     * Creates a new network instance for a server.
-     * @param {string} name
-     * @param {string} protocol
-     * @param {string} host
-     * @param {number} port
-     * @returns {Network}
-     */
-    registerNewServer(name, protocol, host, port) {
-      if (this.has(name)) {
-        console.warn(("Server with name " + name + " already registered."));
-        return this.get(name);
-      }
-      var server = new Network(protocol, host, port).withName(name);
-      this.set(name, server);
-      return server;
-    }
-  }
-
-  var network_registry = new NetworkRegistry();
-
-  // Range for the quality adjustment.
-  // TODO: Make this dynamic, with multiple levels.
-  var QUALITY_RANGE = new THREE.Vector3().setScalar(2);
-
-  /**
-   * A world plugin for adjusting the quality of entities given their proximity to
-   * the camera or main entity. These adjustments include enabling/disabling
-   * physics for entities, lowering geometry quality (redundant vertices), etc.
-   */
-  class QualityAdjuster {
-    constructor() {
-      this.rootBox = new THREE.Box3();
-      this.rootBoxHelper = new THREE.Box3Helper(this.rootBox, 0xffff00);
-      this.vectorDummy = new THREE.Vector3();
-      this.entityBox = new THREE.Box3();
-
-      SettingsEvent.listen(this.handleSettingsChange.bind(this));
-    }
-
-    /**
-     * @param {World} world Parent world that the adjuster operates on.
-     * @return {QualityAdjuster}
-     */
-    setWorld(world) {
-      this.world = world;
-      this.handleSettingsChange();
-      return this;
-    }
-
-    /**
-     * Iterates through all of the worlds entities and adjusts their quality, if
-     * necessary.
-     */
-    update() {
-      var entities = this.world.entities;
-      Controls.get().registeredEntities.forEach((attachedEntity) => {
-        this.rootBox.setFromCenterAndSize(attachedEntity.position, QUALITY_RANGE);
-        entities.forEach((entity) => {
-          if (entity == attachedEntity) {
-            return;
-          }
-          if (!entity.qualityAdjustEnabled) {
-            return;
-          }
-          this.entityBox.setFromObject(entity);
-          if (this.rootBox.intersectsBox(this.entityBox)) {
-            this.world.enableEntityPhysics(entity);
-          } else {
-            this.world.disableEntityPhysics(entity);
-          }
-        });
-      });
-    }
-
-    handleSettingsChange() {
-      if (!this.world) {
-        return;
-      }
-      if (Settings$1.get('debug')) {
-        this.world.getScene().add(this.rootBoxHelper);
-      } else {
-        this.world.getScene().remove(this.rootBoxHelper);
-      }
-    }
-  }
-
-  /**
-   * @author mrdoob / http://mrdoob.com/
-   * @author jetienne / http://jetienne.com/
-   * @author rogerscg / https://github.com/rogerscg
-   */
-
-  var STATS_CONTAINER_CSS = "\n  bottom: 0;\n  position: absolute;\n  left: 0;\n";
-
-  var WEBGL_CONTAINER_CSS = "\n  background-color: #002;\n  color: #0ff;\n  cursor: pointer;\n  font-family: Helvetica,Arial,sans-serif;\n  font-size: 9px;\n  font-weight: bold;\n  line-height: 15px;\n  opacity: 0.9;\n  padding: 0 0 3px 3px;\n  text-align: left;\n  width: 80px;\n";
-
-  var FPS_CONTAINER_CSS = "\n  cursor: pointer;\n  opacity: 0.9;\n";
-
-  /**
-   * A plugin wrapper for WebGL renderer stats and FPS in Three.js.
-   */
-  class RendererStats extends Plugin {
-    /**
-     * @param {THREE.WebGLRenderer} renderer
-     */
-    constructor(renderer) {
-      super();
-      this.renderer = renderer;
-      this.enabled = Settings$1.get('debug');
-      this.webGLStats = new WebGLStats(renderer);
-      this.fpsStats = new FpsStats();
-      this.dom = this.createDom();
-      this.dom.appendChild(this.webGLStats.dom);
-      this.dom.appendChild(this.fpsStats.dom);
-      if (this.enabled) {
-        renderer.domElement.parentElement.appendChild(this.dom);
-      }
-    }
-
-    /**
-     * Creates the container DOM.
-     */
-    createDom() {
-      var container = document.createElement('div');
-      container.style.cssText = STATS_CONTAINER_CSS;
-      return container;
-    }
-
-    /**
-     * Enables renderer stats.
-     */
-    enable() {
-      this.enabled = true;
-      this.renderer.domElement.parentElement.appendChild(this.dom);
-    }
-
-    /**
-     * Disables renderer stats.
-     */
-    disable() {
-      this.enabled = false;
-      if (this.dom.parentElement) {
-        this.dom.parentElement.removeChild(this.dom);
-      }
-    }
-
-    /** @override */
-    update() {
-      if (!this.enabled) {
-        return;
-      }
-      this.fpsStats.update();
-      this.webGLStats.update();
-    }
-
-    /** @override */
-    reset() {
-      this.disable();
-    }
-
-    /** @override */
-    handleSettingsChange() {
-      var currEnabled = Settings$1.get('debug');
-      if (currEnabled && !this.enabled) {
-        return this.enable();
-      }
-      if (!currEnabled && this.enabled) {
-        return this.disable();
-      }
-    }
-  }
-
-  /**
-   * Interface for a stats component.
-   */
-  class Stats {
-    constructor() {
-      this.dom = this.createDom();
-    }
-
-    /**
-     * Updates the stats DOM.
-     */
-    update() {
-      return console.warn('Stats update function not defined');
-    }
-
-    /**
-     * Enables the stats DOM.
-     */
-    enable() {
-      return console.warn('Stats enable function not defined');
-    }
-
-    /**
-     * Disables the stats DOM.
-     */
-    disable() {
-      return console.warn('Stats disable function not defined');
-    }
-  }
-
-  class WebGLStats extends Stats {
-    constructor(renderer) {
-      super();
-      this.renderer = renderer;
-    }
-
-    /** @override */
-    createDom() {
-      var container = document.createElement('div');
-      container.setAttribute('class', 'render-stats');
-      container.style.cssText = WEBGL_CONTAINER_CSS;
-
-      var msText = document.createElement('div');
-      msText.innerHTML = 'WebGLRenderer';
-      container.appendChild(msText);
-
-      var msTexts = [];
-      var nLines = 9;
-      for (var i = 0; i < nLines; i++) {
-        msTexts[i] = document.createElement('div');
-        msTexts[i].style.backgroundColor = '#001632';
-        container.appendChild(msTexts[i]);
-      }
-      this.msTexts = msTexts;
-      return container;
-    }
-
-    /** @override */
-    update() {
-      if (!this.msTexts) {
-        return;
-      }
-      var msTexts = this.msTexts;
-      var i = 0;
-      msTexts[i++].textContent = '=== Memory ===';
-      msTexts[i++].textContent =
-        'Programs: ' + this.renderer.info.programs.length;
-      msTexts[i++].textContent =
-        'Geometries: ' + this.renderer.info.memory.geometries;
-      msTexts[i++].textContent =
-        'Textures: ' + this.renderer.info.memory.textures;
-
-      msTexts[i++].textContent = '=== Render ===';
-      msTexts[i++].textContent = 'Calls: ' + this.renderer.info.render.calls;
-      msTexts[i++].textContent =
-        'Triangles: ' + this.renderer.info.render.triangles;
-      msTexts[i++].textContent = 'Lines: ' + this.renderer.info.render.lines;
-      msTexts[i++].textContent = 'Points: ' + this.renderer.info.render.points;
-    }
-  }
-
-  class FpsStats extends Stats {
-    constructor() {
-      super();
-      this.mode = 0;
-      this.fps = 0;
-      this.beginTime = (performance || Date).now();
-      this.prevTime = this.beginTime;
-      this.frames = 0;
-    }
-
-    /** @override */
-    createDom() {
-      // Create root.
-      var container = document.createElement('div');
-      this.dom = container;
-      container.classList.add('render-stats');
-      container.style.cssText = FPS_CONTAINER_CSS;
-
-      // Switch panels on click.
-      container.addEventListener(
-        'click',
-        (event) => {
-          event.preventDefault();
-          this.showPanel(++this.mode % container.children.length);
-        },
-        false
-      );
-
-      this.fpsPanel = this.addPanel(new Panel('FPS', '#0ff', '#002', true));
-      this.msPanel = this.addPanel(new Panel('MS', '#0f0', '#020', false));
-      this.timerPanel = this.addPanel(
-        new Panel('Render', '#ff3800', '#210', false)
-      );
-      if (self.performance && self.performance.memory) {
-        this.memPanel = this.addPanel(new Panel('MB', '#f08', '#201', true));
-      }
-      this.showPanel(0);
-      return container;
-    }
-
-    addPanel(panel) {
-      this.dom.appendChild(panel.dom);
-      return panel;
-    }
-
-    showPanel(id) {
-      for (var i = 0; i < this.dom.children.length; i++) {
-        this.dom.children[i].style.display = i === id ? 'block' : 'none';
-      }
-      this.mode = id;
-    }
-
-    begin() {
-      this.beginTime = (performance || Date).now();
-    }
-
-    getFPS() {
-      return this.fps;
-    }
-
-    end() {
-      this.frames++;
-      var time = (performance || Date).now();
-      this.msPanel.update(time - this.beginTime, 30);
-      var engStats = EngineTimer$1.export();
-      if (engStats) {
-        this.timerPanel.update(engStats.avg, 30);
-      }
-      if (time >= this.prevTime + 1000) {
-        this.fps = (this.frames * 1000) / (time - this.prevTime);
-        this.fpsPanel.update(this.fps, 100);
-        this.prevTime = time;
-        this.frames = 0;
-        if (this.memPanel) {
-          var memory = performance.memory;
-          this.memPanel.update(
-            memory.usedJSHeapSize / 1048576,
-            memory.jsHeapSizeLimit / 1048576
-          );
-        }
-      }
-      return time;
-    }
-
-    update() {
-      this.beginTime = this.end();
-    }
-  }
-
-  // Panel constants.
-  var PR = Math.round(window.devicePixelRatio || 1);
-  var WIDTH$1 = 83 * PR;
-  var HEIGHT = 48 * PR;
-  var TEXT_X = 3 * PR;
-  var TEXT_Y = 2 * PR;
-  var GRAPH_X = 3 * PR;
-  var GRAPH_Y = 15 * PR;
-  var GRAPH_WIDTH = 74 * PR;
-  var GRAPH_HEIGHT = 30 * PR;
-
-  /**
-   * An individual panel on the FPS stats component.
-   */
-  class Panel {
-    constructor(name, fg, bg, shouldRound) {
-      this.name = name;
-      this.fg = fg;
-      this.bg = bg;
-      this.min = Infinity;
-      this.max = 0;
-      this.shouldRound = shouldRound;
-      this.createDom();
-    }
-
-    createDom() {
-      var canvas = document.createElement('canvas');
-      canvas.width = WIDTH$1;
-      canvas.height = HEIGHT;
-      canvas.style.cssText = 'width:83px;height:48px';
-
-      var context = canvas.getContext('2d');
-      context.font = 'bold ' + 9 * PR + 'px Helvetica,Arial,sans-serif';
-      context.textBaseline = 'top';
-
-      context.fillStyle = this.bg;
-      context.fillRect(0, 0, WIDTH$1, HEIGHT);
-
-      context.fillStyle = this.fg;
-      context.fillText(name, TEXT_X, TEXT_Y);
-      context.fillRect(GRAPH_X, GRAPH_Y, GRAPH_WIDTH, GRAPH_HEIGHT);
-
-      context.fillStyle = this.bg;
-      context.globalAlpha = 0.9;
-      context.fillRect(GRAPH_X, GRAPH_Y, GRAPH_WIDTH, GRAPH_HEIGHT);
-      this.dom = canvas;
-      this.canvas = canvas;
-      this.context = context;
-    }
-
-    update(value, maxValue) {
-      var canvas = this.canvas;
-      var context = this.context;
-      this.min = Math.min(this.min, value);
-      this.max = Math.max(this.max, value);
-      var roundedValue = this.shouldRound
-        ? Math.round(value)
-        : value.toFixed(2);
-
-      context.fillStyle = this.bg;
-      context.globalAlpha = 1;
-      context.fillRect(0, 0, WIDTH$1, GRAPH_Y);
-      context.fillStyle = this.fg;
-      context.fillText(
-        (roundedValue + " " + (this.name) + " (" + (Math.round(this.min)) + "-" + (Math.round(
-          this.max
-        )) + ")"),
-        TEXT_X,
-        TEXT_Y
-      );
-
-      context.drawImage(
-        canvas,
-        GRAPH_X + PR,
-        GRAPH_Y,
-        GRAPH_WIDTH - PR,
-        GRAPH_HEIGHT,
-        GRAPH_X,
-        GRAPH_Y,
-        GRAPH_WIDTH - PR,
-        GRAPH_HEIGHT
-      );
-
-      context.fillRect(GRAPH_X + GRAPH_WIDTH - PR, GRAPH_Y, PR, GRAPH_HEIGHT);
-
-      context.fillStyle = this.bg;
-      context.globalAlpha = 0.9;
-      context.fillRect(
-        GRAPH_X + GRAPH_WIDTH - PR,
-        GRAPH_Y,
-        PR,
-        Math.round((1 - value / maxValue) * GRAPH_HEIGHT)
-      );
-    }
-  }
-
-  /**
-   * @author rogerscg / https://github.com/rogerscg
-   */
-
-  var DEFAULT_NAME = 'main';
-
-  /**
-   * Represents a world used to both manage rendering and physics simulations.
-   */
-  class World extends Plugin {
-    constructor() {
-      super();
-      this.scene = new THREE.Scene();
-      // Set an `isRootScene` bit for use by other parts of ERA.
-      this.scene.isRootScene = true;
-      this.scene.parentWorld = this;
-      this.physics = null;
-      this.renderers = new Map();
-      this.cameras = new Map();
-      this.camerasToRenderers = new Map();
-      this.entities = new Set();
-      this.entityCameras = new Map();
-      this.entitiesToRenderers = new Map();
-      window.addEventListener('resize', this.onWindowResize.bind(this), false);
-
-      // A utility for adjusting quality on world entities.
-      this.qualityAdjuster = null;
-    }
-
-    /**
-     * Enables quality adjustment for the world.
-     * @param {QualityAdjuster} qualityAdjuster
-     * @return {World}
-     */
-    withQualityAdjustment(qualityAdjuster) {
-      qualityAdjuster.setWorld(this);
-      this.qualityAdjuster = qualityAdjuster;
-      return this;
-    }
-
-    /** @override */
-    update() {
-      // Update all entities, if physics is not enabled. This is due to physics
-      // handling updates on its own.
-      // TODO: Separate physics updates from entity updates.
-      this.entities.forEach((entity) => {
-        if (!entity.physicsEnabled) {
-          entity.update();
-        }
-      });
-
-      // Update all renderers.
-      this.camerasToRenderers.forEach((renderer, camera) =>
-        renderer.render(this.scene, camera)
-      );
-
-      // Update quality.
-      if (this.qualityAdjuster) {
-        this.qualityAdjuster.update();
-      }
-    }
-
-    /** @override */
-    reset() {
-      this.entities.forEach((entity) => entity.destroy());
-      while (scene.children.length > 0) {
-        scene.remove(scene.children[0]);
-      }
-    }
-
-    getScene() {
-      return this.scene;
-    }
-
-    getPhysics() {
-      return this.physics;
-    }
-
-    /**
-     * Retrieves the camera with the given name.
-     * @param {string} name
-     */
-    getCamera(name) {
-      if ( name === void 0 ) name = DEFAULT_NAME;
-
-      return this.cameras.get(name);
-    }
-
-    /**
-     * Retrieves a renderer with the given name.
-     * @param {string} name
-     */
-    getRenderer(name) {
-      if ( name === void 0 ) name = DEFAULT_NAME;
-
-      return this.renderers.get(name);
-    }
-
-    /**
-     * Iterates over all cameras and resizes them.
-     */
-    onWindowResize() {
-      // Set timeout in order to allow the renderer dom element to resize.
-      setTimeout(() => {
-        this.cameras.forEach((camera) => {
-          var width = window.innerWidth;
-          var height = window.innerHeight;
-          var renderer = this.camerasToRenderers.get(camera);
-          if (renderer) {
-            var rect = renderer.domElement.getBoundingClientRect();
-            width = rect.width;
-            height = rect.height;
-          }
-          camera.userData.resize(width, height);
-        });
-      });
-    }
-
-    /**
-     * Adds a physics implementation instance to the world.
-     * @param {Physics} physics
-     * @return {World}
-     */
-    withPhysics(physics) {
-      this.physics = physics;
-      physics.setEraWorld(this);
-      return this;
-    }
-
-    /**
-     * Adds a renderer that is used to display the world as well as the name of
-     * the renderer. This name is used for finding the element in the DOM to which
-     * the renderer should be attached via the data-renderer attribute.
-     * @param {THREE.WebGLRenderer} renderer
-     * @param {string} name
-     * @return {World}
-     */
-    addRenderer(renderer, name) {
-      if ( name === void 0 ) name = DEFAULT_NAME;
-
-      if (!renderer || !name) {
-        return console.error('Need both renderer and name for world.');
-      }
-      var container = document.querySelector(("[data-renderer='" + name + "']"));
-      if (!container) {
-        return console.error(("Element with data-renderer " + name + " not found."));
-      }
-      var rect = container.getBoundingClientRect();
-      renderer.setSize(rect.width, rect.height);
-      container.appendChild(renderer.domElement);
-      window.addEventListener(
-        'resize',
-        () => {
-          var rect = container.getBoundingClientRect();
-          renderer.setSize(rect.width, rect.height);
-        },
-        false
-      );
-      renderer.name = name;
-      new RendererStats(renderer);
-      this.renderers.set(name, renderer);
-      return this;
-    }
-
-    /**
-     * Adds a camera for a specific renderer. If a renderer isn't specified, add
-     * for all renderers.
-     * @param {THREE.Camera} camera
-     * @param {THREE.WebGLRenderer} renderer
-     * @return {World}
-     */
-    addCameraForRenderer(camera, renderer) {
-      if (!camera) {
-        return this;
-      }
-      if (!renderer) {
-        this.renderers.forEach((renderer) =>
-          this.addCameraForRenderer(camera, renderer)
-        );
-        return this;
-      }
-      if (!renderer.name || !this.renderers.has(renderer.name)) {
-        console.error('Passed renderer not created in world');
-        return this;
-      }
-      this.cameras.set(renderer.name, camera);
-      this.camerasToRenderers.set(camera, renderer);
-      // Fire a resize event to adjust camera to renderer.
-      this.onWindowResize();
-      return this;
-    }
-
-    /**
-     * Sets the environment of the world.
-     * @param {Environment} environment
-     * @return {World}
-     */
-    setEnvironment(environment) {
-      this.add(environment);
-      this.renderers.forEach((renderer) =>
-        renderer.setClearColor(environment.getClearColor())
-      );
-      if (environment.getFog()) {
-        this.scene.fog = environment.getFog();
-      }
-      return this;
-    }
-
-    /**
-     * Adds an entity or other ERA object to the world.
-     * @param {Entity} entity
-     * @return {World}
-     */
-    add(entity) {
-      if (this.entities.has(entity)) {
-        console.warn('Entity already added to the world');
-        return this;
-      }
-      if (entity.physicsEnabled) {
-        entity.registerPhysicsWorld(this.physics);
-      }
-      entity.setWorld(this);
-      entity.build();
-      this.entities.add(entity);
-      this.scene.add(entity);
-      if (entity.physicsEnabled) {
-        this.physics.registerEntity(entity);
-      }
-      entity.onAdd();
-      return this;
-    }
-
-    /**
-     * Removes an entity from the ERA world.
-     * @param {Entity} entity
-     * @return {World}
-     */
-    remove(entity) {
-      if (this.physics && entity.physicsEnabled) {
-        this.physics.unregisterEntity(entity);
-      }
-      this.scene.remove(entity);
-      this.entities.delete(entity);
-      if (entity.getWorld() == this) {
-        entity.setWorld(null);
-      }
-      entity.onRemove();
-      return this;
-    }
-
-    /**
-     * Enables entity physics within the world. Used for quality adjustment.
-     * @param {Entity} entity
-     */
-    enableEntityPhysics(entity) {
-      if (this.physics && entity.physicsEnabled) {
-        entity.registerPhysicsWorld(this.physics);
-        this.physics.registerEntity(entity);
-      }
-    }
-
-    /**
-     * Disables entity physics within the world. Used for quality adjustment.
-     * @param {Entity} entity
-     */
-    disableEntityPhysics(entity) {
-      if (this.physics && entity.physicsEnabled) {
-        this.physics.unregisterEntity(entity);
-      }
-    }
-
-    /**
-     * Request to attach the camera with the given name to the provided entity.
-     * @param {Entity} entity
-     * @param {string} cameraName
-     * @return {World}
-     */
-    attachCameraToEntity(entity, cameraName) {
-      if ( cameraName === void 0 ) cameraName = DEFAULT_NAME;
-
-      if (!entity || !this.cameras.has(cameraName)) {
-        console.warn(("Camera with name " + cameraName + " does not exist"));
-        return this;
-      }
-      var camera = this.cameras.get(cameraName);
-      var prevEntity = this.entityCameras.get(camera);
-      if (prevEntity) {
-        prevEntity.detachCamera(camera);
-      }
-      entity.attachCamera(camera);
-      this.entityCameras.set(camera, entity);
-      return this;
-    }
-
-    /**
-     * Associates an entity with a renderer for controls purposes, i.e. the
-     * direction a camera is facing in a split-screen tile.
-     * @param {Entity} entity
-     * @param {string} name
-     * @return {World}
-     */
-    associateEntityWithRenderer(entity, name) {
-      if ( name === void 0 ) name = DEFAULT_NAME;
-
-      if (!entity || !name) {
-        console.error('Need to provide entity and name to associate');
-        return this;
-      }
-      if (!this.entities.has(entity) || !this.renderers.has(name)) {
-        console.error('Both entity and renderer need to be registered to world');
-        return this;
-      }
-      this.entitiesToRenderers.set(entity, name);
-      return this;
-    }
-
-    /**
-     * Finds the associated camera, aka the camera used by the main "controlling"
-     * renderer, for a given entity. Any value returned will be a result of
-     * associating a renderer and camera with a given entity in the world.
-     * @param {Entity} entity
-     * @return {THREE.Camera}
-     */
-    getAssociatedCamera(entity) {
-      var name = this.entitiesToRenderers.get(entity);
-      if (!name) {
-        name = DEFAULT_NAME;
-      }
-      return this.cameras.get(name);
-    }
-  }
-
-  /**
-   * @author rogerscg / https://github.com/rogerscg
-   */
-
-  var MAX_SUBSTEPS = 10;
-
-  // Initialize Ammo.
-  window.Ammo ? Ammo() : null;
-
-  /**
-   * API implementation for Ammo.js, a Bullet port to JavaScript.
-   * https://github.com/kripken/ammo.js
-   */
-  class AmmoPhysics extends Physics {
-    constructor() {
-      super();
-      this.posTrans = new Ammo.btTransform();
-      this.rotTrans = new Ammo.btTransform();
-    }
-
-    /** @override */
-    createWorld() {
-      var config = new Ammo.btDefaultCollisionConfiguration();
-      var dispatcher = new Ammo.btCollisionDispatcher(config);
-      var broadphase = new Ammo.btDbvtBroadphase();
-      var solver = new Ammo.btSequentialImpulseConstraintSolver();
-      var world =
-        new Ammo.btDiscreteDynamicsWorld(dispatcher, broadphase, solver, config);
-      world.setGravity(new Ammo.btVector3(0, -20, 0));
-      return world;
-    }
-
-    /** @override */
-    step(delta) {
-      delta /= 1000;
-      this.world.stepSimulation(delta, MAX_SUBSTEPS);
-    }
-
-    /** @override */
-    registerEntity(entity) {
-      if (!super.registerEntity(entity)) {
-        return;
-      }
-      this.world.addRigidBody(entity.physicsBody);
-    }
-
-    /** @override */
-    unregisterEntity(entity) {
-      if (!super.unregisterEntity(entity)) {
-        return;
-      }
-      this.world.removeRigidBody(entity.physicsBody);
-    }
-
-    /** @override */
-    registerComponent(body) {
-      console.warn('Unregister entity not defined');
-    }
-
-    /** @override */
-    unregisterComponent(body) {
-      this.world.removeRigidBody(body);
-    }
-
-    /** @override */
-    getPosition(entity) {
-      entity.physicsBody.getMotionState().getWorldTransform(this.posTrans);
-      return {
-        x: this.posTrans.getOrigin().x(),
-        y: this.posTrans.getOrigin().y(),
-        z: this.posTrans.getOrigin().z()
-      };
-    }
-
-    /** @override */
-    getRotation(entity) {
-      entity.physicsBody.getMotionState().getWorldTransform(this.rotTrans);
-      return {
-        x: this.rotTrans.getRotation().x(),
-        y: this.rotTrans.getRotation().y(),
-        z: this.rotTrans.getRotation().z(),
-        w: this.rotTrans.getRotation().w(),
-      }
-    }
-  }
-
-  /**
-   * @author rogerscg / https://github.com/rogerscg
-   */
-
-  /**
-   * Class for creating contact listeners.
-   */
-  class EraContactListener {
-    constructor() {
-      // A registry of shape and body contact callbacks.
-      this.contactCallbacks = new Map();
-    }
-
-    /** 
-     * Registers a new callback.
-     */
-    registerHandler(fixture, handler) {
-      this.contactCallbacks.set(fixture, handler);
-    }
-
-    /** @override */
-    BeginContact(contact) {
-      var event = {
-        type: 'begin',
-        contact: contact
-      };
-      this.determineCallbacks(contact, event);
-      
-    }
-
-    /** @override */
-    EndContact(contact) {
-      var event = {
-        type: 'end',
-        contact: contact
-      };
-      this.determineCallbacks(contact, event);
-    }
-
-    /** @override */
-    PreSolve(contact, oldManifold) {}
-
-    /** @override */
-    PostSolve(contact, contactImpulse) {
-      var event = {
-        type: 'postsolve',
-        contact: contact,
-        contactImpulse: contactImpulse
-      };
-      this.determineCallbacks(contact, event); 
-    }
-
-    /**
-     * Determines if any callbacks should be made.
-     */
-    determineCallbacks(contact, event) {
-      var callbackA = this.contactCallbacks.get(contact.GetFixtureA());
-      if (callbackA) {
-        callbackA(event);
-      }
-      var callbackB = this.contactCallbacks.get(contact.GetFixtureB());
-      if (callbackB) {
-        callbackB(event);
-      }
-    }
-  }
-
-  /**
-   * @author rogerscg / https://github.com/rogerscg
-   */
-
-  var VELOCITY_ITERATIONS = 8;
-  var POSITION_ITERATIONS = 3;
-
-  /**
-   * API implementation for Box2D.
-   */
-  class Box2DPhysics extends Physics {
-    /** @override */
-    createWorld() {
-      var world = new box2d.b2World(new box2d.b2Vec2(0.0, 0.0));
-      this.contactListener = new EraContactListener();
-      world.SetContactListener(this.contactListener);
-      return world;
-    }
-
-    /** @override */
-    step(delta) {
-      this.world.Step(delta, VELOCITY_ITERATIONS, POSITION_ITERATIONS);
-    }
-
-    /** @override */
-    unregisterEntity(entity) {
-      if (!entity || !entity.actions) {
-        console.error('Must pass in an entity');
-      }
-      this.registeredEntities.delete(entity.uuid);
-      this.world.DestroyBody(entity.physicsObject);
-    }
-
-    /** @override */
-    registerComponent(body) {
-      console.warn('Unregister entity not defined');
-    }
-
-    /** @override */
-    unregisterComponent(body) {
-      this.world.DestroyBody(body);
-    }
-
-    /**
-     * Registers a fixture for contact event handling.
-     */
-    registerContactHandler(fixture, handler) {
-      if (!this.contactListener) {
-        console.warn('No contact listener installed!');
-        return;
-      }
-      this.contactListener.registerHandler(fixture, handler);
-    }
-  }
-
-  /**
-   * Interface for creating a debug renderer for a specific physics engine.
-   * @interface
-   */
-  class DebugRenderer {
-    /**
-     * @param {THREE.Scene} scene
-     * @param {*} world
-     */
-    constructor(scene, world) {
-      this.scene = scene;
-      this.world = world;
-    }
-
-    /**
-     * Updates the debug renderer.
-     */
-    update() {}
-
-    /**
-     * Destroys the debug renderer by removing all bodies from the scene.
-     */
-    destroy() {
-      console.warn('Destroy not implemented for debug renderer');
-    }
-  }
-
-  /**
-   * @author schteppe / https://github.com/schteppe
-   * @author rogerscg / https://github.com/rogerscg
-   */
-
-  /**
-   * Adds Three.js primitives into the scene where all the Cannon bodies and
-   * shapes are.
-   */
-  class CannonDebugRenderer extends DebugRenderer {
-    /**
-     * @param {THREE.Scene} scene
-     * @param {CANNON.World} world
-     */
-    constructor(scene, world) {
-      super(scene, world);
-      this._meshes = [];
-
-      this._material = new THREE.MeshBasicMaterial({
-        color: 0x00ff00,
-        wireframe: true
-      });
-      this._sleepMaterial = new THREE.MeshBasicMaterial({
-        wireframe: true,
-        color: 0x0000ff
-      });
-      this._sphereGeometry = new THREE.SphereGeometry(1);
-      this._boxGeometry = new THREE.BoxGeometry(1, 1, 1);
-      this._planeGeometry = new THREE.PlaneGeometry(10, 10, 10, 10);
-      this._cylinderGeometry = new THREE.CylinderGeometry(1, 1, 10, 10);
-
-      this.tmpVec0 = new CANNON.Vec3();
-      this.tmpVec1 = new CANNON.Vec3();
-      this.tmpVec2 = new CANNON.Vec3();
-      this.tmpQuat0 = new CANNON.Vec3();
-    }
-
-    /** @override */
-    update() {
-      var bodies = this.world.bodies;
-      var meshes = this._meshes;
-      var shapeWorldPosition = this.tmpVec0;
-      var shapeWorldQuaternion = this.tmpQuat0;
-
-      var meshIndex = 0;
-
-      bodies.forEach((body) => {
-        body.shapes.forEach((shape, shapeIndex) => {
-          this._updateMesh(meshIndex, body, shape);
-          var mesh = meshes[meshIndex];
-          if (mesh) {
-            // Get world position
-            body.quaternion.vmult(
-              body.shapeOffsets[shapeIndex],
-              shapeWorldPosition
-            );
-            body.position.vadd(shapeWorldPosition, shapeWorldPosition);
-
-            // Get world quaternion
-            body.quaternion.mult(
-              body.shapeOrientations[shapeIndex],
-              shapeWorldQuaternion
-            );
-
-            // Copy to meshes
-            mesh.position.copy(shapeWorldPosition);
-            mesh.quaternion.copy(shapeWorldQuaternion);
-          }
-          meshIndex++;
-        });
-      });
-
-      for (var i = meshIndex; i < meshes.length; i++) {
-        var mesh = meshes[i];
-        if (mesh) {
-          this.scene.remove(mesh);
-        }
-      }
-
-      meshes.length = meshIndex;
-    }
-
-    /** @override */
-    destroy() {
-      this._meshes.forEach((mesh) => {
-        if (mesh.parent) {
-          mesh.parent.remove(mesh);
-        }
-      });
-    }
-
-    _updateMesh(index, body, shape) {
-      var mesh = this._meshes[index];
-      if (!this._typeMatch(mesh, shape)) {
-        if (mesh) {
-          this.scene.remove(mesh);
-        }
-        mesh = this._meshes[index] = this._createMesh(shape);
-      }
-      this._scaleMesh(mesh, shape);
-    }
-
-    _typeMatch(mesh, shape) {
-      if (!mesh) {
-        return false;
-      }
-      var geo = mesh.geometry;
-      return (
-        (geo instanceof THREE.SphereGeometry && shape instanceof CANNON.Sphere) ||
-        (geo instanceof THREE.BoxGeometry && shape instanceof CANNON.Box) ||
-        (geo instanceof THREE.PlaneGeometry && shape instanceof CANNON.Plane) ||
-        (geo.id === shape.geometryId &&
-          shape instanceof CANNON.ConvexPolyhedron) ||
-        (geo.id === shape.geometryId && shape instanceof CANNON.Trimesh) ||
-        (geo.id === shape.geometryId && shape instanceof CANNON.Heightfield)
-      );
-    }
-
-    _createMesh(shape) {
-      var mesh;
-      var material = this._material;
-
-      switch (shape.type) {
-        case CANNON.Shape.types.SPHERE:
-          mesh = new THREE.Mesh(this._sphereGeometry, material);
-          break;
-
-        case CANNON.Shape.types.BOX:
-          mesh = new THREE.Mesh(this._boxGeometry, material);
-          break;
-
-        case CANNON.Shape.types.PLANE:
-          mesh = new THREE.Mesh(this._planeGeometry, material);
-          break;
-
-        case CANNON.Shape.types.CONVEXPOLYHEDRON:
-          // Create mesh
-          var geo = new THREE.Geometry();
-
-          // Add vertices
-          for (var i = 0; i < shape.vertices.length; i++) {
-            var v = shape.vertices[i];
-            geo.vertices.push(new THREE.Vector3(v.x, v.y, v.z));
-          }
-
-          for (var i = 0; i < shape.faces.length; i++) {
-            var face = shape.faces[i];
-
-            // add triangles
-            var a = face[0];
-            for (var j = 1; j < face.length - 1; j++) {
-              var b = face[j];
-              var c = face[j + 1];
-              geo.faces.push(new THREE.Face3(a, b, c));
-            }
-          }
-          geo.computeBoundingSphere();
-          geo.computeFaceNormals();
-
-          mesh = new THREE.Mesh(geo, material);
-          shape.geometryId = geo.id;
-          break;
-
-        case CANNON.Shape.types.TRIMESH:
-          var geometry = new THREE.Geometry();
-          var v0 = this.tmpVec0;
-          var v1 = this.tmpVec1;
-          var v2 = this.tmpVec2;
-          for (var i = 0; i < shape.indices.length / 3; i++) {
-            shape.getTriangleVertices(i, v0, v1, v2);
-            geometry.vertices.push(
-              new THREE.Vector3(v0.x, v0.y, v0.z),
-              new THREE.Vector3(v1.x, v1.y, v1.z),
-              new THREE.Vector3(v2.x, v2.y, v2.z)
-            );
-            var j = geometry.vertices.length - 3;
-            geometry.faces.push(new THREE.Face3(j, j + 1, j + 2));
-          }
-          geometry.computeBoundingSphere();
-          geometry.computeFaceNormals();
-          mesh = new THREE.Mesh(geometry, material);
-          shape.geometryId = geometry.id;
-          break;
-
-        case CANNON.Shape.types.HEIGHTFIELD:
-          var geometry = new THREE.Geometry();
-
-          var v0 = this.tmpVec0;
-          var v1 = this.tmpVec1;
-          var v2 = this.tmpVec2;
-          for (var xi = 0; xi < shape.data.length - 1; xi++) {
-            for (var yi = 0; yi < shape.data[xi].length - 1; yi++) {
-              for (var k = 0; k < 2; k++) {
-                shape.getConvexTrianglePillar(xi, yi, k === 0);
-                v0.copy(shape.pillarConvex.vertices[0]);
-                v1.copy(shape.pillarConvex.vertices[1]);
-                v2.copy(shape.pillarConvex.vertices[2]);
-                v0.vadd(shape.pillarOffset, v0);
-                v1.vadd(shape.pillarOffset, v1);
-                v2.vadd(shape.pillarOffset, v2);
-                geometry.vertices.push(
-                  new THREE.Vector3(v0.x, v0.y, v0.z),
-                  new THREE.Vector3(v1.x, v1.y, v1.z),
-                  new THREE.Vector3(v2.x, v2.y, v2.z)
-                );
-                var i = geometry.vertices.length - 3;
-                geometry.faces.push(new THREE.Face3(i, i + 1, i + 2));
-              }
-            }
-          }
-          geometry.computeBoundingSphere();
-          geometry.computeFaceNormals();
-          mesh = new THREE.Mesh(geometry, material);
-          shape.geometryId = geometry.id;
-          break;
-      }
-
-      if (mesh) {
-        this.scene.add(mesh);
-      }
-
-      return mesh;
-    }
-
-    _scaleMesh(mesh, shape) {
-      switch (shape.type) {
-        case CANNON.Shape.types.SPHERE:
-          var radius = shape.radius;
-          mesh.scale.set(radius, radius, radius);
-          break;
-
-        case CANNON.Shape.types.BOX:
-          mesh.scale.copy(shape.halfExtents);
-          mesh.scale.multiplyScalar(2);
-          break;
-
-        case CANNON.Shape.types.CONVEXPOLYHEDRON:
-          mesh.scale.set(1, 1, 1);
-          break;
-
-        case CANNON.Shape.types.TRIMESH:
-          mesh.scale.copy(shape.scale);
-          break;
-
-        case CANNON.Shape.types.HEIGHTFIELD:
-          mesh.scale.set(1, 1, 1);
-          break;
-      }
-    }
-  }
-
-  /**
-   * @author rogerscg / https://github.com/rogerscg
-   */
-
-  var MAX_DELTA = 1;
-  var MAX_SUBSTEPS$1 = 10;
-
-  /**
-   * API implementation for Cannon.js, a pure JavaScript physics engine.
-   * https://github.com/schteppe/cannon.js
-   */
-  class CannonPhysics extends Physics {
-    constructor() {
-      super();
-      this.physicalMaterials = new Map();
-      this.contactMaterials = new Map();
-    }
-
-    /** @override */
-    createWorld() {
-      var world = new CANNON.World();
-      world.gravity.set(0, -9.82, 0);
-      return world;
-    }
-
-    /** @override */
-    step(delta) {
-      delta /= 1000;
-      delta = Math.min(MAX_DELTA, delta);
-      this.world.step(1 / 60, delta, MAX_SUBSTEPS$1);
-    }
-
-    /** @override */
-    registerEntity(entity) {
-      if (!super.registerEntity(entity)) {
-        return;
-      }
-      this.world.addBody(entity.physicsBody);
-    }
-
-    /** @override */
-    unregisterEntity(entity) {
-      if (!super.unregisterEntity(entity)) {
-        return;
-      }
-      this.world.remove(entity.physicsBody);
-    }
-
-    /** @override */
-    registerComponent(body) {
-      console.warn('Unregister entity not defined');
-    }
-
-    /** @override */
-    unregisterComponent(body) {
-      console.warn('Unregister component not defined');
-    }
-
-    /** @override */
-    getPosition(entity) {
-      var position = entity.physicsBody.position;
-      return {
-        x: position.x,
-        y: position.y,
-        z: position.z
-      };
-    }
-
-    /** @override */
-    getRotation(entity) {
-      var rotation = entity.physicsBody.quaternion;
-      return {
-        x: rotation.x,
-        y: rotation.y,
-        z: rotation.z,
-        w: rotation.w
-      };
-    }
-
-    /** @override */
-    enableDebugRenderer() {
-      var scene = this.getEraWorld() ? this.getEraWorld().getScene() : null;
-      var world = this.getWorld();
-      if (!scene || !world) {
-        return console.warn('Debug renderer missing scene or world.');
-      }
-      this.debugRenderer = new CannonDebugRenderer(scene, world);
-      return this.debugRenderer;
-    }
-
-    /** @override */
-    autogeneratePhysicsBody(mesh) {
-      // Root body.
-      var body = new CANNON.Body({ mass: 0 });
-      mesh.traverse((child) => {
-        var physicsType = child.userData.physics;
-        if (!physicsType) {
-          return;
-        }
-        switch (physicsType) {
-          case 'BOX':
-            this.autogenerateBox(body, child);
-            break;
-        }
-      });
-      return body;
-    }
-
-    /** @override */
-    registerContactHandler(entity) {
-      entity.physicsBody.addEventListener('collide', (e) => {
-        entity.handleCollision(e);
-      });
-    }
-
-    /**
-     * Generates a box shape and attaches it to the root body.
-     * @param {CANNON.Body} body
-     * @param {THREE.Mesh} mesh
-     */
-    autogenerateBox(body, mesh) {
-      var boundingBox = mesh.geometry.boundingBox;
-      var size = new THREE.Vector3();
-      boundingBox.getSize(size);
-      size.divideScalar(2);
-      size = size.multiplyVectors(size, mesh.scale);
-      var shape = new CANNON.Box(new CANNON.Vec3().copy(size));
-      var position = new CANNON.Vec3().copy(mesh.position);
-      var quaternion = new CANNON.Quaternion().copy(mesh.quaternion);
-      body.addShape(shape, position, quaternion);
-    }
-
-    /**
-     * Creates a new physical material for the given name and options. If the
-     * physical material already exists, return the existing one.
-     */
-    createPhysicalMaterial(name, options) {
-      if (!this.physicalMaterials.has(name)) {
-        var material = new CANNON.Material(options);
-        this.physicalMaterials.set(name, material);
-      }
-      return this.physicalMaterials.get(name);
-    }
-
-    /**
-     * Creates a new contact material between two given names. If the contact
-     * material already exists, return the existing one.
-     */
-    createContactMaterial(name1, name2, options) {
-      // TODO: Allow for "pending" contact material if one of the materials has
-      // not been created yet.
-      var key = this.createContactKey(name1, name2);
-      if (!this.contactMaterials.has(key)) {
-        var mat1 = this.createPhysicalMaterial(name1);
-        var mat2 = this.createPhysicalMaterial(name2);
-        var contactMat = new CANNON.ContactMaterial(mat1, mat2, options);
-        this.contactMaterials.set(key, contactMat);
-        this.world.addContactMaterial(contactMat);
-      }
-      return this.contactMaterials.get(key);
-    }
-
-    /**
-     * Creates a combined string to use as a key for contact materials.
-     */
-    createContactKey(name1, name2) {
-      // Alphabetize, then concatenate.
-      if (name1 < name2) {
-        return (name1 + "," + name2);
-      }
-      return (name2 + "," + name1);
-    }
-  }
 
   /**
    * Copyright 2019 Google Inc. All Rights Reserved.
@@ -9123,7 +8846,8 @@
      * @private
      */
     registerWorker_() {
-      var worker = new Worker('src/terrain/texture_worker.js', {
+      // TODO: This needs to be more flexible.
+      var worker = new Worker('/src/terrain/texture_worker.js', {
         type: 'module'
       });
       this.workers.add(worker);
@@ -9275,7 +8999,7 @@
      * Toggles debug meshes for the tile.
      */
     toggleDebug() {
-      if (Settings$1.get('debug')) {
+      if (Settings$1.get('terrain_debug')) {
         this.add(this.debugWalls);
       } else {
         this.remove(this.debugWalls);
@@ -59075,6 +58799,21 @@
     }
 
     /**
+     * Loads the terrain map from a geometry.
+     * @param {THREE.Geometry} geometry
+     * @async
+     */
+    async loadFromGeometry(geometry) {
+      geometry.mergeVertices();
+      // Compute how large each element will be within a tile.
+      this.elementSize = this.computeElementSize_(geometry);
+      this.tiles = this.breakIntoTiles_(geometry);
+      await this.loadTileTextures_();
+      this.positionTiles_();
+      this.water = new Water$1();
+    }
+
+    /**
      * Compute the size of each element within a tile, based on the original
      * geometry dimensions as well as how many tiles there will be.
      * @param {THREE.Geometry} geometry
@@ -59175,7 +58914,7 @@
         var tilesInMapRow = Math.sqrt(this.tiles.length);
         // We want the middle of the terrain map to be at the world origin, so we
         // create an offset based on half of the terrain map width.
-        var tileOffset = tilesInMapRow / 2;
+        var tileOffset = tilesInMapRow / 2 - 0.5;
         var x = (coords.x - tileOffset) * this.tileSize * this.elementSize;
         var z = -(coords.y - tileOffset) * this.tileSize * this.elementSize;
         tile.setPosition(new THREE.Vector3(x, 0, z));
@@ -59184,13 +58923,10 @@
   }
 
   exports.Action = Action;
-  exports.AmmoPhysics = AmmoPhysics;
   exports.Animation = Animation;
   exports.Audio = Audio;
   exports.Bindings = Bindings;
-  exports.Box2DPhysics = Box2DPhysics;
   exports.Camera = Camera;
-  exports.CannonPhysics = CannonPhysics;
   exports.Character = Character;
   exports.Controls = Controls;
   exports.Engine = Engine;
@@ -59207,7 +58943,7 @@
   exports.Network = Network;
   exports.NetworkRegistry = network_registry;
   exports.Object3DEventTarget = Object3DEventTarget;
-  exports.Physics = Physics;
+  exports.PhysicsPlugin = PhysicsPlugin;
   exports.Plugin = Plugin;
   exports.QualityAdjuster = QualityAdjuster;
   exports.RendererStats = RendererStats;

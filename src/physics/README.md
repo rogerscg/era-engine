@@ -1,3 +1,3 @@
 # Physics
 
-Engine-specific physics APIs that implement the core Physics interface.
+Engine-specific physics APIs that implement work alongside core Cannon.

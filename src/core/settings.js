@@ -11,7 +11,7 @@ const DEFAULT_SETTINGS = {
     value: true
   },
   physics_debug: {
-    value: false
+    value: true
   },
   terrain_debug: {
     value: false
@@ -27,7 +27,7 @@ const DEFAULT_SETTINGS = {
     max: 200
   },
   shadows: {
-    value: false
+    value: true
   },
   volume: {
     value: 50,
