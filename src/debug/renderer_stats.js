@@ -81,7 +81,7 @@ class RendererStats extends Plugin {
   }
 
   /** @override */
-  update() {
+  update(delta) {
     if (!this.enabled) {
       return;
     }

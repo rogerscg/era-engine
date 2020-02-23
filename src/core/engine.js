@@ -67,9 +67,10 @@ class Engine {
    */
   render(timeStamp) {
     this.timer.start();
+    // TODO: Make a TWEEN Plugin wrapper.
     TWEEN.update(timeStamp);
     // Update all plugins.
-    this.plugins.forEach((plugin) => plugin.update(timeStamp));
+    this.plugins.forEach((plugin) => plugin.updateInternal());
 
     // Check if the render loop should be halted.
     if (this.resetRender) {

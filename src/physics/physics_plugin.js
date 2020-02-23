@@ -30,7 +30,6 @@ class PhysicsPlugin extends Plugin {
     this.registeredEntities = new Map();
     this.world = this.createWorld();
     this.eraWorld = null;
-    this.lastTime = performance.now();
     this.debugRenderer = null;
   }
 
@@ -42,13 +41,7 @@ class PhysicsPlugin extends Plugin {
   }
 
   /** @override */
-  update() {
-    const currTime = performance.now();
-    let delta = currTime - this.lastTime;
-    this.lastTime = currTime;
-    if (delta <= 0) {
-      return;
-    }
+  update(delta) {
     this.step(delta);
     this.updateEntities(delta);
     if (this.debugRenderer) {
@@ -104,7 +97,7 @@ class PhysicsPlugin extends Plugin {
    * Iterates through all registered entities and updates them.
    */
   updateEntities(delta) {
-    this.registeredEntities.forEach((entity) => entity.update(delta));
+    this.registeredEntities.forEach((entity) => entity.updateInternal(delta));
   }
 
   /**

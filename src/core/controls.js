@@ -73,7 +73,7 @@ class Controls extends Plugin {
   }
 
   /** @override */
-  update() {
+  update(delta) {
     this.controllerTick();
   }
 

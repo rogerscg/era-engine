@@ -208,8 +208,7 @@ class Character extends Entity {
   }
 
   /** @override */
-  update() {
-    super.update();
+  update(delta) {
     this.updateRaycast();
     this.updateAnimations();
     this.updatePhysics();

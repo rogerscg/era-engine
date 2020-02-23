@@ -43,13 +43,13 @@ class World extends Plugin {
   }
 
   /** @override */
-  update() {
+  update(delta) {
     // Update all entities, if physics is not enabled. This is due to physics
     // handling updates on its own.
     // TODO: Separate physics updates from entity updates.
     this.entities.forEach((entity) => {
       if (!entity.physicsBody) {
-        entity.update();
+        entity.updateInternal(delta);
       }
     });
 

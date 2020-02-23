@@ -17,15 +17,11 @@ class Animation extends Plugin {
     super();
     this.animations = new Map();
     this.mixers = new Map();
-    this.lastUpdate = Date.now();
   }
 
   /** @override */
-  update() {
-    const currTime = Date.now();
-    const diff = currTime - this.lastUpdate;
-    this.mixers.forEach((mixer) => mixer.update(diff / 1000));
-    this.lastUpdate = currTime;
+  update(delta) {
+    this.mixers.forEach((mixer) => mixer.update(delta / 1000));
   }
 
   /**

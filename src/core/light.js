@@ -43,7 +43,7 @@ class Light extends Plugin {
   }
 
   /** @override */
-  update() {
+  update(delta) {
     this.updateHelpers();
   }
 

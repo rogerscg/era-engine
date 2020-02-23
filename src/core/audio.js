@@ -49,7 +49,7 @@ class Audio extends Plugin {
   }
 
   /** @override */
-  update() {}
+  update(delta) {}
 
   /** @override */
   handleSettingsChange() {

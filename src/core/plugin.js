@@ -4,7 +4,7 @@
 
 import Engine from './engine.js';
 import SettingsEvent from '../events/settings_event.js';
-import {createUUID} from './util.js';
+import { createUUID } from './util.js';
 
 /**
  * Base class for plugins to the engine such as audio, light, etc that can be
@@ -13,6 +13,7 @@ import {createUUID} from './util.js';
 class Plugin {
   constructor() {
     this.uuid = createUUID();
+    this.lastUpdate = performance.now();
     this.install();
     SettingsEvent.listen(this.handleSettingsChange.bind(this));
   }
@@ -33,10 +34,25 @@ class Plugin {
   }
 
   /**
-   * Updates the plugin at each engine tick.
-   * @param {number} timestamp
+   * An internal update called by the engine. Used for calculating delta and
+   * propagating. WARNING: This should not be overriden! For custom logic,
+   * override the update function.
    */
-  update(timestamp) {
+  updateInternal() {
+    const currTime = performance.now();
+    const delta = currTime - this.lastUpdate;
+    this.lastUpdate = currTime;
+    if (delta <= 0) {
+      return;
+    }
+    this.update(delta);
+  }
+
+  /**
+   * Updates the plugin at each engine tick.
+   * @param {number} delta
+   */
+  update(delta) {
     console.warn('Plugin update function not implemented');
   }
 

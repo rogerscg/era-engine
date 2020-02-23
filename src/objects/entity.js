@@ -448,34 +448,48 @@ class Entity extends EventTarget {
   }
 
   /**
-   * Called every step of the physics engine to keep the mesh and physics object
-   * synchronized.
+   * An internal update used for key calculations. This is to ensure users of
+   * this class do not need to remember to call the super method.
+   * @param {number} delta
+   * @protected
    */
-  update() {
-    this.children.forEach((child) => child.update());
+  updateInternal(delta) {
     this.lastMouseMovement.copy(this.mouseMovement);
     this.mouseMovement.set(0, 0);
     if (this.bindings) {
       this.calculateInputVector();
     }
-    if (!this.mesh || !this.physicsBody || !this.physicsWorld) {
-      return;
+    if (this.mesh && this.physicsBody && this.physicsWorld) {
+      const position = this.physicsWorld.getPosition(this);
+      const rotation = this.physicsWorld.getRotation(this);
+      if (position.x != null) {
+        this.visualRoot.position.x = position.x;
+      }
+      if (position.y != null) {
+        this.visualRoot.position.y = position.y;
+      }
+      if (position.z != null) {
+        this.visualRoot.position.z = position.z;
+      }
+      if (rotation.w != null && !this.meshRotationLocked) {
+        this.mesh.quaternion.set(
+          rotation.x,
+          rotation.y,
+          rotation.z,
+          rotation.w
+        );
+      }
     }
-    const position = this.physicsWorld.getPosition(this);
-    const rotation = this.physicsWorld.getRotation(this);
-    if (position.x != null) {
-      this.visualRoot.position.x = position.x;
-    }
-    if (position.y != null) {
-      this.visualRoot.position.y = position.y;
-    }
-    if (position.z != null) {
-      this.visualRoot.position.z = position.z;
-    }
-    if (rotation.w != null && !this.meshRotationLocked) {
-      this.mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
-    }
+    // User updates and children updates.
+    this.update(delta);
+    this.children.forEach((child) => child.updateInternal(delta));
   }
+
+  /**
+   * Called every step of the physics engine to keep the mesh and physics object
+   * synchronized. Should be implemented by the user.
+   */
+  update(delta) {}
 
   /**
    * Calculates the input vector of the entity.
