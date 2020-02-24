@@ -46,22 +46,16 @@ class DebugRenderer {
     var meshIndex = 0;
 
     bodies.forEach((body) => {
-      body.shapes.forEach((shape, shapeIndex) => {
+      body.shapes.forEach((shape) => {
         this._updateMesh(meshIndex, body, shape);
         var mesh = meshes[meshIndex];
         if (mesh) {
           // Get world position
-          body.quaternion.vmult(
-            body.shapeOffsets[shapeIndex],
-            shapeWorldPosition
-          );
+          body.quaternion.vmult(shape.offset, shapeWorldPosition);
           body.position.vadd(shapeWorldPosition, shapeWorldPosition);
 
           // Get world quaternion
-          body.quaternion.mult(
-            body.shapeOrientations[shapeIndex],
-            shapeWorldQuaternion
-          );
+          body.quaternion.mult(shape.orientation, shapeWorldQuaternion);
 
           // Copy to meshes
           mesh.position.copy(shapeWorldPosition);

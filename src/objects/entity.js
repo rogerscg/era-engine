@@ -11,7 +11,7 @@ import Physics from '../physics/physics_plugin.js';
 import Settings from '../core/settings.js';
 import SettingsEvent from '../events/settings_event.js';
 import { Bindings } from '../core/bindings.js';
-import { createUUID, getRootWorld } from '../core/util.js';
+import { createUUID } from '../core/util.js';
 
 const ENTITY_BINDINGS = {
   BACKWARD: {
@@ -59,6 +59,9 @@ class Entity extends EventTarget {
     this.built = false;
     this.parent = null;
     this.children = new Set();
+    this.positionValue = new THREE.Vector3();
+    this.rotationValue = new THREE.Quaternion();
+    this.oldShapeOffset = new THREE.Vector3();
 
     // Rendering properties.
     this.visualRoot = new THREE.Object3D();
@@ -71,6 +74,7 @@ class Entity extends EventTarget {
 
     // Physics properties.
     this.physicsBody = null;
+    this.physicsShapes = new Set();
     this.physicsEnabled = true;
     this.physicsWorld = null;
     this.autogeneratePhysics = false;
@@ -121,6 +125,91 @@ class Entity extends EventTarget {
   }
 
   /**
+   * Setter for position.
+   * @param {THREE.Vector3} value
+   */
+  set position(value) {
+    this.setPosition(value);
+  }
+
+  /**
+   * @param {THREE.Vector3|CANNON.Vec3} position
+   * @return {Entity}
+   */
+  setPosition(position) {
+    this.positionValue.copy(position);
+    if (this.physicsEnabled) {
+      // If this is the root physics body, simple move it by its position.
+      if (this.physicsBody) {
+        this.physicsBody.position.copy(position);
+        return;
+      }
+      // If the entity is a set of shapes attached to a higher-level root,
+      // change the offset of each shape.
+      if (this.physicsShapes.size) {
+        this.physicsShapes.forEach((shape) => {
+          shape.offset.vsub(this.oldShapeOffset, shape.offset);
+          shape.offset.vadd(this.positionValue, shape.offset);
+        });
+        this.oldShapeOffset.copy(this.positionValue);
+      }
+    } else {
+      this.visualRoot.position.copy(position);
+    }
+  }
+
+  /**
+   * Gets the position of the entity within the ERA world.
+   * @return {THREE.Vector3|CANNON.Vec3}
+   */
+  getPosition() {
+    if (this.physicsEnabled) {
+      if (this.physicsBody) {
+        this.positionValue.copy(this.physicsBody.position);
+        return this.positionValue;
+      }
+      if (this.physicsShapes.size) {
+        this.positionValue.copy(this.oldShapeOffset);
+        return this.positionValue;
+      }
+    }
+    this.positionValue.copy(this.visualRoot.position);
+    return this.positionValue;
+  }
+
+  /**
+   * Refreshes the position of the entity. Used for building/adding/removing
+   * entities.
+   */
+  refreshPosition() {
+    this.setPosition(this.positionValue);
+  }
+
+  /**
+   * Setter for rotation.
+   * @param {THREE.Quaternion} value
+   */
+  set rotation(value) {
+    this.setRotation(value);
+  }
+
+  /**
+   * @param {THREE.Quaternion|CANNON.Quaternion} quaternion
+   * @return {Entity}
+   */
+  setRotation(quaternion) {
+    if (!this.rotationValue) {
+      this.rotationValue = quaternion;
+    }
+    if (this.physicsEnabled && this.physicsBody) {
+      this.physicsBody.quaternion.copy(quaternion);
+      // TODO: Rotate individual shapes.
+    } else {
+      this.visualRoot.quaternion.copy(quaternion);
+    }
+  }
+
+  /**
    * Adds an entity as a child of the current entity. This affects both visual
    * and physical properties of the entities, adding the visual root of the
    * provided entity to the current entity's visual root, delegating control to
@@ -149,7 +238,12 @@ class Entity extends EventTarget {
     }
     // Add visual root
     this.visualRoot.add(entity.visualRoot);
-    // TODO: Handle physics shapes
+    // Handle physics addition. If the physics body is not yet defined,
+    const rootBody = this.getRootPhysicsBody();
+    if (rootBody) {
+      // TODO: Add shapes to physics body.
+      console.log(rootBody);
+    }
   }
 
   /**
@@ -159,6 +253,51 @@ class Entity extends EventTarget {
    */
   remove(entity) {
     // TODO: Implement.
+  }
+
+  /**
+   * Finds the root physics body for the entity by searching upwards towards the
+   * parent.
+   * @return {CANNON.Body}
+   */
+  getRootPhysicsBody() {
+    if (this.physicsBody) {
+      return this.physicsBody;
+    }
+    if (this.parent) {
+      return this.parent.getRootPhysicsBody();
+    }
+    return null;
+  }
+
+  /**
+   * Traverses the entity's ancestors to get the root scene in the ERA
+   * world.
+   * @return {THREE.Scene}
+   */
+  getRootScene() {
+    if (
+      this.visualRoot &&
+      this.visualRoot.parent &&
+      this.visualRoot.parent.isRootScene
+    ) {
+      return this.visualRoot.parent;
+    }
+    if (this.parent) {
+      return this.parent.getRootScene();
+    }
+    return null;
+  }
+
+  /**
+   * Traverses the provided object's ancestors to get the root scene, which has a
+   * property with the parent ERA world.
+   * @param {THREE.Object3D} object
+   * @return {World}
+   */
+  getRootWorld(object) {
+    const rootScene = this.getRootScene();
+    return rootScene && rootScene.parentWorld ? rootScene.parentWorld : null;
   }
 
   /**
@@ -202,30 +341,6 @@ class Entity extends EventTarget {
   }
 
   /**
-   * @param {THREE.Vector3|CANNON.Vec3} position
-   * @return {Entity}
-   */
-  setPosition(position) {
-    if (this.physicsEnabled && this.physicsBody) {
-      this.physicsBody.position.copy(position);
-    } else {
-      this.visualRoot.position.copy(position);
-    }
-  }
-
-  /**
-   * @param {THREE.Quaternion|CANNON.Quaternion} quaternion
-   * @return {Entity}
-   */
-  setRotation(quaternion) {
-    if (this.physicsEnabled && this.physicsBody) {
-      this.physicsBody.quaternion.copy(quaternion);
-    } else {
-      this.visualRoot.quaternion.copy(quaternion);
-    }
-  }
-
-  /**
    * Creates the mesh and physics object.
    */
   build() {
@@ -247,8 +362,9 @@ class Entity extends EventTarget {
       }
     }
     this.cameraArm = this.createCameraArm();
-    this.physicsBody = this.generatePhysicsBody();
+    this.generatePhysicsInternal_();
     this.built = true;
+    this.refreshPosition();
     this.children.forEach((child) => child.build());
     return this;
   }
@@ -258,7 +374,7 @@ class Entity extends EventTarget {
    * of all objects in memory.
    */
   destroy() {
-    const world = getRootWorld(this);
+    const world = this.getRootWorld(this);
     if (!world) {
       return console.warn('Destroyed entity has no root world');
     }
@@ -345,6 +461,42 @@ class Entity extends EventTarget {
   }
 
   /**
+   * Internal entity function for settings physics properties based on the
+   * entity's state within the entity hierarchy (root body, children shapes).
+   * @private
+   */
+  generatePhysicsInternal_() {
+    const body = this.generatePhysicsBody();
+    // If no body is defined, physics is not enabled.
+    if (!body) {
+      return;
+    }
+    // If this is a root, set the physics body to be the generated body.
+    if (!this.parent) {
+      this.physicsBody = body;
+      body.shapes.forEach((shape) => this.physicsShapes.add(shape));
+      return;
+    }
+    // At this point, there is a parent that should have a physics body.
+    // Otherwise, we are trying to add a physical entity to a non-physical
+    // entity, which is an error.
+    const root = this.getRootPhysicsBody();
+    if (!root) {
+      return console.error(
+        'Entity has parent, but no root physics body found',
+        this
+      );
+    }
+    // Add the shapes of the generated body to the parent.
+    body.shapes.forEach((shape, i) => {
+      // TODO: Look for child positioning relative to parent as well. Will need
+      // to be updated once positioning is changed anywhere in the hierarchy.
+      root.addShape(shape);
+      this.physicsShapes.add(shape);
+    });
+  }
+
+  /**
    * Creates the physics object for the entity. This should be defined by each
    * entity.
    * @return {CANNON.Body}
@@ -357,6 +509,22 @@ class Entity extends EventTarget {
       return Autogenerator.generatePhysicsBody(this.mesh);
     }
     return null;
+  }
+
+  /**
+   * Handles a collision internally, ensuring that all child entities are
+   * alerted of a collision.
+   * @param {?} e
+   */
+  handleCollisionInternal(e) {
+    // If either of the contact shapes pertain to this entity, fire the handler.
+    if (
+      this.physicsShapes.has(e.contact.si) ||
+      this.physicsShapes.has(e.contact.sj)
+    ) {
+      this.handleCollision(e);
+    }
+    this.children.forEach((child) => child.handleCollisionInternal(e));
   }
 
   /**
@@ -459,26 +627,13 @@ class Entity extends EventTarget {
     if (this.bindings) {
       this.calculateInputVector();
     }
-    if (this.mesh && this.physicsBody && this.physicsWorld) {
-      const position = this.physicsWorld.getPosition(this);
-      const rotation = this.physicsWorld.getRotation(this);
-      if (position.x != null) {
-        this.visualRoot.position.x = position.x;
-      }
-      if (position.y != null) {
-        this.visualRoot.position.y = position.y;
-      }
-      if (position.z != null) {
-        this.visualRoot.position.z = position.z;
-      }
-      if (rotation.w != null && !this.meshRotationLocked) {
-        this.mesh.quaternion.set(
-          rotation.x,
-          rotation.y,
-          rotation.z,
-          rotation.w
-        );
-      }
+    const position = this.getPosition();
+    const rotation = this.physicsWorld
+      ? this.physicsWorld.getRotation(this)
+      : null;
+    this.visualRoot.position.copy(position);
+    if (rotation != null && rotation.w != null && !this.meshRotationLocked) {
+      this.mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
     }
     // User updates and children updates.
     this.update(delta);

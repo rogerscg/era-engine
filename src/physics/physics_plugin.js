@@ -198,9 +198,9 @@ class PhysicsPlugin extends Plugin {
    * @param {Entity} entity
    */
   registerContactHandler(entity) {
-    entity.physicsBody.addEventListener('collide', (e) => {
-      entity.handleCollision(e);
-    });
+    entity.physicsBody.addEventListener('collide', (e) =>
+      entity.handleCollisionInternal(e)
+    );
   }
 }
 

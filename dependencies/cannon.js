@@ -426,8 +426,10 @@
             return (
               l1.x <= l2.x &&
               u1.x >= u2.x &&
-              l1.y <= l2.y && u1.y >= u2.y &&
-              l1.z <= l2.z && u1.z >= u2.z
+              l1.y <= l2.y &&
+              u1.y >= u2.y &&
+              l1.z <= l2.z &&
+              u1.z >= u2.z
             );
           };
 
@@ -1643,8 +1645,8 @@
                 continue; // Skip
               }
 
-              body.quaternion.mult(body.shapeOrientations[i], qi);
-              body.quaternion.vmult(body.shapeOffsets[i], xi);
+              body.quaternion.mult(shape.orientation, qi);
+              body.quaternion.vmult(shape.offset, xi);
               xi.vadd(body.position, xi);
 
               this.intersectShape(shape, qi, xi, body);
@@ -6441,20 +6443,6 @@
             this.shapes = [];
 
             /**
-             * Position of each Shape in the body, given in local Body space.
-             * @property shapeOffsets
-             * @type {array}
-             */
-            this.shapeOffsets = [];
-
-            /**
-             * Orientation of each Shape, given in local Body space.
-             * @property shapeOrientations
-             * @type {array}
-             */
-            this.shapeOrientations = [];
-
-            /**
              * @property inertia
              * @type {Vec3}
              */
@@ -6783,8 +6771,8 @@
             }
 
             this.shapes.push(shape);
-            this.shapeOffsets.push(offset);
-            this.shapeOrientations.push(orientation);
+            shape.offset = offset;
+            shape.orientation = orientation;
             this.updateMassProperties();
             this.updateBoundingRadius();
 
@@ -6801,14 +6789,13 @@
            */
           Body.prototype.updateBoundingRadius = function() {
             var shapes = this.shapes,
-              shapeOffsets = this.shapeOffsets,
               N = shapes.length,
               radius = 0;
 
             for (var i = 0; i !== N; i++) {
               var shape = shapes[i];
               shape.updateBoundingSphereRadius();
-              var offset = shapeOffsets[i].norm(),
+              var offset = shape.offset.norm(),
                 r = shape.boundingSphereRadius;
               if (offset + r > radius) {
                 radius = offset + r;
@@ -6827,8 +6814,6 @@
            */
           Body.prototype.computeAABB = function() {
             var shapes = this.shapes,
-              shapeOffsets = this.shapeOffsets,
-              shapeOrientations = this.shapeOrientations,
               N = shapes.length,
               offset = tmpVec,
               orientation = tmpQuat,
@@ -6840,11 +6825,11 @@
               var shape = shapes[i];
 
               // Get shape world position
-              bodyQuat.vmult(shapeOffsets[i], offset);
+              bodyQuat.vmult(shape.offset, offset);
               offset.vadd(this.position, offset);
 
               // Get shape world quaternion
-              shapeOrientations[i].mult(bodyQuat, orientation);
+              shape.orientation.mult(bodyQuat, orientation);
 
               // Get shape AABB
               shape.calculateWorldAABB(
@@ -11310,6 +11295,16 @@
             this.material = options.material ? options.material : null;
 
             /**
+             * @property {Vec3} offset
+             */
+            this.offset = options.offset || new Vec3();
+
+            /**
+             * @property {Vec3} orientation
+             */
+            this.orientation = options.orientation || new Quaternion();
+
+            /**
              * @property {Body} body
              */
             this.body = null;
@@ -13260,15 +13255,15 @@
                 (bi.type & Body.KINEMATIC && bj.type & Body.KINEMATIC);
 
               for (var i = 0; i < bi.shapes.length; i++) {
-                bi.quaternion.mult(bi.shapeOrientations[i], qi);
-                bi.quaternion.vmult(bi.shapeOffsets[i], xi);
+                bi.quaternion.mult(bi.shapes[i].orientation, qi);
+                bi.quaternion.vmult(bi.shapes[i].offset, xi);
                 xi.vadd(bi.position, xi);
                 var si = bi.shapes[i];
 
                 for (var j = 0; j < bj.shapes.length; j++) {
                   // Compute world transform of shapes
-                  bj.quaternion.mult(bj.shapeOrientations[j], qj);
-                  bj.quaternion.vmult(bj.shapeOffsets[j], xj);
+                  bj.quaternion.mult(bj.shapes[j].orientation, qj);
+                  bj.quaternion.vmult(bj.shapes[j].offset, xj);
                   xj.vadd(bj.position, xj);
                   var sj = bj.shapes[j];
 

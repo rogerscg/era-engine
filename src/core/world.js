@@ -236,7 +236,7 @@ class World extends Plugin {
     if (this.physics && entity.physicsEnabled) {
       this.physics.unregisterEntity(entity);
     }
-    this.scene.remove(entity);
+    this.scene.remove(entity.visualRoot);
     this.entities.delete(entity);
     if (entity.getWorld() == this) {
       entity.setWorld(null);
