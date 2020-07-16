@@ -210,6 +210,25 @@ class Entity extends EventTarget {
   }
 
   /**
+   * Gets the rotation of the entity within the ERA world.
+   * @return {THREE.Quaternion|CANNON.Quaternion}
+   */
+  getRotation() {
+    if (this.physicsEnabled) {
+      if (this.physicsBody) {
+        this.rotationValue.copy(this.physicsBody.quaternion);
+        return this.rotationValue;
+      }
+      if (this.physicsShapes.size) {
+        this.rotationValue.copy(this.oldShapeOffset);
+        return this.rotationValue;
+      }
+    }
+    this.rotationValue.copy(this.visualRoot.quaternion);
+    return this.rotationValue;
+  }
+
+  /**
    * Adds an entity as a child of the current entity. This affects both visual
    * and physical properties of the entities, adding the visual root of the
    * provided entity to the current entity's visual root, delegating control to
