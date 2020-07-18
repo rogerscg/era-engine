@@ -1,4 +1,5 @@
 import { createUUID } from '../core/util.js';
+import * as THREE from 'three';
 
 /**
  * An event target mimicks the behavior of the native browser object EventTarget

@@ -12,32 +12,33 @@ import SettingsEvent from '../events/settings_event.js';
 import { Bindings } from '../core/bindings.js';
 import { Object3DEventTarget } from '../events/event_target.js';
 import { createUUID, getRootWorld } from '../core/util.js';
+import * as THREE from 'three';
 
 const ENTITY_BINDINGS = {
   BACKWARD: {
     keys: {
       keyboard: 83,
-      controller: '+axes1'
-    }
+      controller: '+axes1',
+    },
   },
   FORWARD: {
     keys: {
       keyboard: 87,
-      controller: '-axes1'
-    }
+      controller: '-axes1',
+    },
   },
   LEFT: {
     keys: {
       keyboard: 65,
-      controller: '-axes0'
-    }
+      controller: '-axes0',
+    },
   },
   RIGHT: {
     keys: {
       keyboard: 68,
-      controller: '+axes0'
-    }
-  }
+      controller: '+axes0',
+    },
+  },
 };
 
 const CONTROLS_ID = 'Entity';
@@ -315,7 +316,7 @@ class Entity extends Object3DEventTarget {
       [body.angularVelocity.toFixed(precision)],
       body.interpolatedPosition.map((x) => x.toFixed(precision)),
       body.velocity.map((x) => x.toFixed(precision)),
-      [body.angle.toFixed(precision)]
+      [body.angle.toFixed(precision)],
     ];
   }
 
@@ -457,8 +458,8 @@ class Entity extends Object3DEventTarget {
     const [angVelo, pos, velo, rot] = physics;
     this.physicsBody.angularVelocity = angVelo;
     this.physicsBody.angle = rot;
-    p2.vec2.copy(this.physicsBody.position, pos);
-    p2.vec2.copy(this.physicsBody.velocity, velo);
+    this.physicsBody.position.copy(pos);
+    this.physicsBody.velocity.copy(velo);
   }
 
   /**

@@ -1,3 +1,6 @@
+import * as CANNON from 'cannon-es';
+import * as THREE from 'three';
+
 /**
  * Creates a physics body based on extra data provided from the model, such as
  * userData. This only works for a select number of objects, so please use

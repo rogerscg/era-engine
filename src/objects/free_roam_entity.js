@@ -1,36 +1,38 @@
 import Controls from '../core/controls.js';
 import Entity from '../objects/entity.js';
 import { Bindings } from '../core/bindings.js';
+import * as CANNON from 'cannon-es';
+import * as THREE from 'three';
 
 const FREE_ROAM_BINDINGS = {
   UP: {
     keys: {
       keyboard: 32,
-      controller: 'button7'
-    }
+      controller: 'button7',
+    },
   },
   DOWN: {
     keys: {
       keyboard: 67,
-      controller: 'button6'
-    }
+      controller: 'button6',
+    },
   },
   LOOK_X: {
     keys: {
-      controller: 'axes2'
-    }
+      controller: 'axes2',
+    },
   },
   LOOK_Y: {
     keys: {
-      controller: 'axes3'
-    }
+      controller: 'axes3',
+    },
   },
   SPRINT: {
     keys: {
       keyboard: 16,
-      controller: 'button10'
-    }
-  }
+      controller: 'button10',
+    },
+  },
 };
 
 const CONTROLS_ID = 'FreeRoam';

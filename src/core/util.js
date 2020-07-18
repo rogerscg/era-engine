@@ -2,6 +2,7 @@
  * @author rogerscg / https://github.com/rogerscg
  * @author erveon / https://github.com/erveon
  */
+import * as THREE from 'three';
 
 /**
  * Generates a RFC4122 version 4 compliant UUID.
@@ -229,7 +230,7 @@ function getRootWorld(object) {
 function defaultEraRenderer() {
   const renderer = new THREE.WebGLRenderer({
     antialias: true,
-    alpha: true
+    alpha: true,
   });
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -255,5 +256,5 @@ export {
   shuffleArray,
   toDegrees,
   toRadians,
-  vectorToAngle
+  vectorToAngle,
 };

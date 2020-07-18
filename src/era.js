@@ -46,9 +46,3 @@ export { default as Skybox } from './objects/skybox.js';
 // Physics
 export { default as MaterialManager } from './physics/material_manager.js';
 export { default as PhysicsPlugin } from './physics/physics_plugin.js';
-
-// Terrain
-export { default as TerrainMap } from './terrain/terrain_map.js';
-export { default as TerrainTile } from './terrain/terrain_tile.js';
-export { default as Water } from './terrain/water.js';
-export { default as WorkerPool } from './terrain/worker_pool.js';

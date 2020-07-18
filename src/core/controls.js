@@ -2,6 +2,8 @@
  * @author rogerscg / https://github.com/rogerscg
  * @author erveon / https://github.com/erveon
  */
+import Engine from './engine.js';
+import OrbitControls from 'three-orbitcontrols';
 import Plugin from './plugin.js';
 import Settings from './settings.js';
 import SettingsEvent from '../events/settings_event.js';
@@ -260,12 +262,9 @@ class Controls extends Plugin {
    * Universally disables all controller input.
    */
   disable() {
-    if (!window.engine) {
-      return;
-    }
     this.controlsEnabled = false;
-    if (engine.getMainPlayer()) {
-      engine.getMainPlayer().clearInput();
+    if (Engine.get().getMainPlayer()) {
+      Engine.get().getMainPlayer().clearInput();
     }
   }
 
@@ -493,7 +492,7 @@ class Controls extends Plugin {
    * @param {THREE.Renderer} renderer
    */
   useOrbitControls(camera, renderer) {
-    return new THREE.OrbitControls(camera, renderer.domElement);
+    return new OrbitControls(camera, renderer.domElement);
   }
 
   /**

@@ -2,7 +2,13 @@
  * @author rogerscg / https://github.com/rogerscg
  */
 import Animation from './animation.js';
-import { extractMeshes, loadJsonFromFile } from './util.js';
+import { FBXLoader } from '../../dependencies/three/FBXLoader.js';
+import { GLTFLoader } from '../../dependencies/three/GLTFLoader.js';
+import { MTLLoader } from '../../dependencies/three/MTLLoader.js';
+import { OBJLoader } from '../../dependencies/three/OBJLoader.js';
+import { SkeletonUtils } from '../../dependencies/three/SkeletonUtils.js';
+import { loadJsonFromFile } from './util.js';
+import * as THREE from 'three';
 
 let instance = null;
 
@@ -125,7 +131,7 @@ class Models {
    */
   async loadGltfModel(path) {
     return new Promise((resolve) => {
-      const loader = new THREE.GLTFLoader();
+      const loader = new GLTFLoader();
       loader.load(
         path,
         (gltf) => {
@@ -160,7 +166,7 @@ class Models {
    */
   loadObjGeometry(path, materials) {
     return new Promise((resolve) => {
-      const objLoader = new THREE.OBJLoader();
+      const objLoader = new OBJLoader();
       if (materials) {
         objLoader.setMaterials(materials);
       }
@@ -174,7 +180,7 @@ class Models {
    * @async
    */
   loadObjMaterials(path) {
-    const mtlLoader = new THREE.MTLLoader();
+    const mtlLoader = new MTLLoader();
     // Modify .obj path to look for .mtl.
     path = path.slice(0, path.lastIndexOf('.')) + '.mtl';
     return new Promise((resolve, reject) => {
@@ -196,7 +202,7 @@ class Models {
    * @async
    */
   async loadFbxModel(path) {
-    const loader = new THREE.FBXLoader();
+    const loader = new FBXLoader();
     return new Promise((resolve) => {
       loader.load(
         path,
@@ -219,7 +225,7 @@ class Models {
       return null;
     }
     const original = this.storage.get(name);
-    const clone = THREE.SkeletonUtils.clone(original);
+    const clone = SkeletonUtils.clone(original);
     return clone;
   }
 

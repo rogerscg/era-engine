@@ -2,7 +2,8 @@
  * @author rogerscg / https://github.com/rogerscg
  */
 
-import { Audio } from "../../src/era.js";
+import TWEEN from '../../dependencies/tween.js';
+import { ERA } from '../../build/era.module.js';
 
 /**
  * Engines of the X-Wing.
@@ -18,7 +19,7 @@ class Engines {
    * Starts the engines.
    */
   start() {
-    this.engineSound = Audio.get().playSoundOnLoop('xwing_engine', 0.4);
+    this.engineSound = ERA.Audio.get().playSoundOnLoop('xwing_engine', 0.4);
   }
 
   /**

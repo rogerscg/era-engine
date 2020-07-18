@@ -2,38 +2,39 @@
  * @author rogerscg / https://github.com/rogerscg
  */
 import SettingsEvent from '../events/settings_event.js';
+import { loadJsonFromFile } from './util.js';
 
 // The default settings for the ERA engine. These can be overwriten with custom
 // settings. See /data/settings.json as an example to define your own settings.
 // TODO: Allow for an enum of options for a setting.
 const DEFAULT_SETTINGS = {
   debug: {
-    value: true
+    value: true,
   },
   physics_debug: {
-    value: true
+    value: true,
   },
   terrain_debug: {
-    value: false
+    value: false,
   },
   movement_deadzone: {
     value: 0.15,
     min: 0.0,
-    max: 1.0
+    max: 1.0,
   },
   mouse_sensitivity: {
     value: 50,
     min: 0,
-    max: 200
+    max: 200,
   },
   shadows: {
-    value: true
+    value: true,
   },
   volume: {
     value: 50,
     min: 0,
-    max: 100
-  }
+    max: 100,
+  },
 };
 
 const SETTINGS_KEY = 'era_settings';
@@ -264,7 +265,7 @@ class Setting {
   export() {
     return {
       value: this.value,
-      modified: this.wasModified
+      modified: this.wasModified,
     };
   }
 }

@@ -19,11 +19,19 @@
   },
   "homepage": "https://github.com/rogerscg/era-engine#readme",
   "devDependencies": {
-    "@rollup/plugin-buble": "^0.21.0",
+    "@babel/core": "^7.10.5",
+    "@babel/preset-env": "^7.10.4",
+    "babel-preset-es2015-rollup": "^3.0.0",
     "express": "^4.17.1",
-    "rollup": "^1.25.1"
+    "rollup": "^1.25.1",
+    "rollup-plugin-babel": "^4.4.0"
   },
   "dependencies": {
-    "comlink": "^4.2.0"
+    "@babel/plugin-transform-runtime": "^7.10.5",
+    "@babel/runtime": "^7.10.5",
+    "cannon-es": "^0.15.0",
+    "socket.io-client": "^2.3.0",
+    "three": "file:three",
+    "three-orbitcontrols": "^2.110.3"
   }
 }

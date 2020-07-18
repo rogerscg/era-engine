@@ -1,6 +1,7 @@
 import Controls from './controls.js';
 import Settings from './settings.js';
 import SettingsEvent from '../events/settings_event.js';
+import * as THREE from 'three';
 
 // Range for the quality adjustment.
 // TODO: Make this dynamic, with multiple levels.

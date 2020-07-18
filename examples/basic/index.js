@@ -3,43 +3,36 @@
  */
 
 import XWing from './xwing.js';
-import {
-  Audio,
-  Camera,
-  Controls,
-  Engine,
-  Environment,
-  Models,
-  Settings,
-  World,
-  defaultEraRenderer
-} from '../../src/era.js';
+import { ERA } from '../../build/era.module.js';
 
 async function start() {
   // Load settings.
-  await Settings.load();
+  await ERA.Settings.load();
 
   // Load models.
-  await Models.get().loadAllFromFile('models/models.json');
+  await ERA.Models.get().loadAllFromFile('models/models.json');
 
   // Load sounds.
-  await Audio.get().loadAllFromFile('sounds/sounds.json');
+  await ERA.Audio.get().loadAllFromFile('sounds/sounds.json');
 
   // Create engine.
-  const engine = Engine.get();
+  const engine = ERA.Engine.get();
 
   // Create world.
-  const world = new World();
+  const world = new ERA.World();
 
   // Build renderer.
-  const renderer = defaultEraRenderer();
+  const renderer = ERA.defaultEraRenderer();
   world.addRenderer(renderer);
-  world.addCameraForRenderer(Camera.get().buildPerspectiveCamera(), renderer);
+  world.addCameraForRenderer(
+    ERA.Camera.get().buildPerspectiveCamera(),
+    renderer
+  );
 
   engine.start();
 
   // Create environment.
-  const environment = await new Environment().loadFromFile(
+  const environment = await new ERA.Environment().loadFromFile(
     'environments/space.json'
   );
   world.setEnvironment(environment);
@@ -47,8 +40,8 @@ async function start() {
   // Create X-Wing.
   const xwing = new XWing();
   world.add(xwing).attachCameraToEntity(xwing);
-  Controls.get().registerEntity(xwing);
-  Controls.get().useOrbitControls(world.getCamera(), world.getRenderer());
+  ERA.Controls.get().registerEntity(xwing);
+  ERA.Controls.get().useOrbitControls(world.getCamera(), world.getRenderer());
 }
 
 document.addEventListener('DOMContentLoaded', start);

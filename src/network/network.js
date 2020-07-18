@@ -2,6 +2,7 @@
  * @author rogerscg / https://github.com/rogerscg
  */
 import ErrorEvent from '../events/error_event.js';
+import io from 'socket.io-client';
 
 /**
  * Core functionality for network procedures in the engine. Can be extended
@@ -64,7 +65,7 @@ class Network {
     return response;
   }
 
-  /** 
+  /**
    * Creates and sends an HTTP GET request, awaiting for the response.
    * @param {string} path Endpoint path on the server, i.e. /path/to/endpoint.
    * @returns {Object}
@@ -116,7 +117,7 @@ class Network {
       }
       this.connectionResolver = resolve;
       const params = {
-        reconnection: false
+        reconnection: false,
       };
       if (!query) {
         query = new Map();
@@ -170,8 +171,10 @@ class Network {
       responseEndpoint = endpoint;
     }
     // Don't install a listener for something twice.
-    if (this.pendingResponses.has(endpoint) ||
-        this.pendingResponses.has(responseEndpoint)) {
+    if (
+      this.pendingResponses.has(endpoint) ||
+      this.pendingResponses.has(responseEndpoint)
+    ) {
       throw new Error('Listener already installed.');
     }
     this.pendingResponses.add(endpoint);
@@ -216,7 +219,7 @@ class Network {
     const req = new XMLHttpRequest();
     req.open(method, url, true);
     req.setRequestHeader('Content-type', 'application/json');
-    if(this.token) {
+    if (this.token) {
       req.setRequestHeader('Authorization', this.token);
     }
     return req;

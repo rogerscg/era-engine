@@ -1,28 +1,20 @@
 <html>
+  <head>
+    <title>ERA Engine</title>
+    <link rel="icon" href="/public/images/favicon.png" type="image/x-icon" />
+    <style>
+      #container {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        top: 0;
+      }
+    </style>
+  </head>
 
-<head>
-  <title>ERA Engine</title>
-  <link rel="icon" href="/public/images/favicon.png" type="image/x-icon" />
-  <style>
-    #container {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      top: 0;
-    }
-  </style>
-</head>
-
-<body>
-  <div id="container"></div>
-</body>
-<script src="dependencies/box2d.js"></script>
-<script src="dependencies/jquery.min.js"></script>
-<script src="dependencies/socket.io.js"></script>
-<script src="dependencies/three.js"></script>
-<script src="dependencies/tween.js"></script>
-<script src="dependencies/GLTFLoader.js"></script>
-<script src="dependencies/PropertyBinding.js"></script>
-<script type="module" src="src/era.js"></script>
+  <body>
+    <div id="container"></div>
+  </body>
+  <script type="module" src="src/era.js"></script>
 </html>

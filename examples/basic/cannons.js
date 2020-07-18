@@ -3,7 +3,7 @@
  */
 
 import Laser from './laser.js';
-import { Audio, getRootWorld } from '../../src/era.js';
+import { ERA, THREE } from '../../build/era.module.js';
 
 const COOLDOWN_TIME = 150;
 const WORLD_POS_VEC = new THREE.Vector3();
@@ -53,12 +53,12 @@ class Cannons extends THREE.Object3D {
       return;
     }
     // Play sound.
-    Audio.get().playSound('xwing_fire', 0.5);
+    ERA.Audio.get().playSound('xwing_fire', 0.5);
     // Create laser at a certain point.
     this.emitters.forEach((emitter) => {
       const laser = new Laser().build();
       laser.position.copy(emitter.getWorldPosition(WORLD_POS_VEC));
-      getRootWorld(this).add(laser);
+      ERA.getRootWorld(this).add(laser);
     });
     this.lastFire = Date.now();
   }
