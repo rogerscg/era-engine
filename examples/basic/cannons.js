@@ -3,7 +3,7 @@
  */
 
 import Laser from './laser.js';
-import { ERA, THREE } from '../../build/era.module.js';
+import { ERA } from '../../build/era.js';
 
 const COOLDOWN_TIME = 150;
 const WORLD_POS_VEC = new THREE.Vector3();

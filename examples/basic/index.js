@@ -3,7 +3,7 @@
  */
 
 import XWing from './xwing.js';
-import { ERA } from '../../build/era.module.js';
+import { ERA } from '../../build/era.js';
 
 async function start() {
   // Load settings.

@@ -15,6 +15,7 @@ import OrbitControls from 'three-orbitcontrols';
 import { Sphere as Sphere$1, Box, Plane, ConvexPolyhedron, Trimesh, Heightfield, Shape, Vec3, Material as Material$1, ContactMaterial, World as World$1, Body, Quaternion as Quaternion$1, Ray, Cylinder } from 'cannon-es';
 import io from 'socket.io-client';
 import _slicedToArray from '@babel/runtime/helpers/slicedToArray';
+import TWEEN from '@tweenjs/tween.js';
 
 /**
  * @author rogerscg / https://github.com/rogerscg
@@ -18999,4 +19000,70 @@ var FreeRoamEntity = /*#__PURE__*/function (_Entity) {
 
 Controls.get().registerBindings(FreeRoamEntity);
 
-export { Action, Animation, Audio, Bindings, Camera, Character, Controls, Engine, EngineResetEvent, Entity, Environment, EraEvent, EventTarget, Events, FreeRoamEntity, GameMode, Light, MaterialManager, Models, Network, network_registry as NetworkRegistry, Object3DEventTarget, PhysicsPlugin, Plugin, QualityAdjuster, RendererStats, Settings$1 as Settings, SettingsEvent, SettingsPanel$1 as SettingsPanel, Skybox, World, createUUID, defaultEraRenderer, disableShadows, dispose, extractMeshes, extractMeshesByName, getHexColorRatio, getRootScene, getRootWorld, lerp, loadJsonFromFile, loadTexture, shuffleArray, toDegrees, toRadians, vectorToAngle };
+function _createSuper$j(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$j(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
+
+function _isNativeReflectConstruct$j() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
+var instance$9 = null;
+/**
+ * Plugin for TWEEN.
+ * https://github.com/tweenjs/tween.js
+ */
+
+var TweenPlugin = /*#__PURE__*/function (_Plugin) {
+  _inherits(TweenPlugin, _Plugin);
+
+  var _super = _createSuper$j(TweenPlugin);
+
+  function TweenPlugin() {
+    _classCallCheck(this, TweenPlugin);
+
+    return _super.apply(this, arguments);
+  }
+
+  _createClass(TweenPlugin, [{
+    key: "reset",
+
+    /** @override */
+    value: function reset() {// Nothing to reset.
+    }
+    /** @override */
+
+  }, {
+    key: "update",
+    value: function update() {
+      TWEEN.update();
+    }
+    /**
+     * Creates a Tween for the given args.
+     * @param {?} args
+     * @return {TWEEN.Tween}
+     */
+
+  }, {
+    key: "createTween",
+    value: function createTween() {
+      for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
+        args[_key] = arguments[_key];
+      }
+
+      return new TWEEN.Tween(args);
+    }
+  }], [{
+    key: "get",
+
+    /**
+     * Enforces singleton instance.
+     */
+    value: function get() {
+      if (!instance$9) {
+        instance$9 = new TweenPlugin();
+      }
+
+      return instance$9;
+    }
+  }]);
+
+  return TweenPlugin;
+}(Plugin);
+
+export { Action, Animation, Audio, Bindings, Camera, Character, Controls, Engine, EngineResetEvent, Entity, Environment, EraEvent, EventTarget, Events, FreeRoamEntity, GameMode, Light, MaterialManager, Models, Network, network_registry as NetworkRegistry, Object3DEventTarget, PhysicsPlugin, Plugin, QualityAdjuster, RendererStats, Settings$1 as Settings, SettingsEvent, SettingsPanel$1 as SettingsPanel, Skybox, TweenPlugin, World, createUUID, defaultEraRenderer, disableShadows, dispose, extractMeshes, extractMeshesByName, getHexColorRatio, getRootScene, getRootWorld, lerp, loadJsonFromFile, loadTexture, shuffleArray, toDegrees, toRadians, vectorToAngle };

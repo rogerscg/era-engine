@@ -46,3 +46,6 @@ export { default as Skybox } from './objects/skybox.js';
 // Physics
 export { default as MaterialManager } from './physics/material_manager.js';
 export { default as PhysicsPlugin } from './physics/physics_plugin.js';
+
+// Plugins
+export { default as TweenPlugin } from './plugins/tween_plugin.js';
