@@ -1,7 +1,7 @@
 /**
  * @author rogerscg / https://github.com/rogerscg
  */
-import { ERA } from '../../build/era.js';
+import * as ERA from '../../build/era.js';
 
 /**
  * Engines of the X-Wing.

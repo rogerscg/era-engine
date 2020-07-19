@@ -11,7 +11,7 @@ import _get from '@babel/runtime/helpers/get';
 import _wrapNativeSuper from '@babel/runtime/helpers/wrapNativeSuper';
 import dat from 'dat.gui';
 import _assertThisInitialized from '@babel/runtime/helpers/assertThisInitialized';
-import OrbitControls from 'three/examples/jsm/controls/OrbitControls.js';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader.js';

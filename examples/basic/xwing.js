@@ -4,7 +4,8 @@
 
 import Cannons from './cannons.js';
 import Engines from './engines.js';
-import { ERA } from '../../build/era.js';
+import * as ERA from '../../build/era.js';
+import * as THREE from 'three';
 
 const XWING_BINDINGS = {
   SPRINT: {

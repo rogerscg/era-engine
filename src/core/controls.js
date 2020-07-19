@@ -3,11 +3,11 @@
  * @author erveon / https://github.com/erveon
  */
 import Engine from './engine.js';
-import OrbitControls from 'three/examples/jsm/controls/OrbitControls.js';
 import Plugin from './plugin.js';
 import Settings from './settings.js';
 import SettingsEvent from '../events/settings_event.js';
 import { Action, Bindings } from './bindings.js';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 const CONTROLS_KEY = 'era_bindings';
 
