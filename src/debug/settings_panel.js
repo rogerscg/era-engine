@@ -1,6 +1,6 @@
 import Settings from '../core/settings.js';
 import SettingsEvent from '../events/settings_event.js';
-import * as dat from '../../dependencies/dat.gui.module.js';
+import dat from 'dat.gui';
 
 /**
  * A dat.gui module for ERA settings. This is, of course, heavily tied to the
@@ -53,10 +53,12 @@ class SettingsPanel {
       let controller = this.datControllers.get(name);
       if (!controller) {
         this.dummySettings[name] = setting.getValue();
-        controller = this.gui.add(this.dummySettings,
-                                  name,
-                                  setting.getMin(),
-                                  setting.getMax());                          
+        controller = this.gui.add(
+          this.dummySettings,
+          name,
+          setting.getMin(),
+          setting.getMax()
+        );
         controller.onChange((value) => this.updateValue(name, value));
         controller.onFinishChange((value) => this.updateValue(name, value));
         this.datControllers.set(name, controller);

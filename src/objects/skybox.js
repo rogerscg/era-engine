@@ -1,7 +1,7 @@
 /**
  * @author rogerscg / https://github.com/rogerscg
  */
-import { TGALoader } from '../../dependencies/three/TGALoader.js';
+import { TGALoader } from 'three/examples/jsm/loaders/TGALoader.js';
 import * as THREE from 'three';
 
 const WIDTH = 500;

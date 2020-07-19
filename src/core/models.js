@@ -2,11 +2,11 @@
  * @author rogerscg / https://github.com/rogerscg
  */
 import Animation from './animation.js';
-import { FBXLoader } from '../../dependencies/three/FBXLoader.js';
-import { GLTFLoader } from '../../dependencies/three/GLTFLoader.js';
-import { MTLLoader } from '../../dependencies/three/MTLLoader.js';
-import { OBJLoader } from '../../dependencies/three/OBJLoader.js';
-import { SkeletonUtils } from '../../dependencies/three/SkeletonUtils.js';
+import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader.js';
+import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
+import { SkeletonUtils } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { loadJsonFromFile } from './util.js';
 import * as THREE from 'three';
 
