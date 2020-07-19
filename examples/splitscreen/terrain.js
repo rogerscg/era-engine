@@ -1,4 +1,6 @@
-import { Entity, MaterialManager } from '../../src/era.js';
+import { Entity, MaterialManager } from '../../build/era.js';
+import * as CANNON from 'cannon-es';
+import * as THREE from 'three';
 
 const MATERIAL = new THREE.MeshLambertMaterial({ color: 0x567d46 });
 
@@ -37,7 +39,7 @@ class Terrain extends Entity {
   generatePhysicsBody() {
     const body = new CANNON.Body();
     const heightfieldShape = new CANNON.Heightfield(this.data, {
-      elementSize: WIDTH / DATA_ROWS
+      elementSize: WIDTH / DATA_ROWS,
     });
     body.quaternion.setFromEuler(-Math.PI / 2, 0, 0, 'XYZ');
     body.addShape(heightfieldShape);

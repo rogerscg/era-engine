@@ -1,4 +1,6 @@
-import { Entity, MaterialManager } from '../../src/era.js';
+import { Entity, MaterialManager } from '../../build/era.js';
+import * as CANNON from 'cannon-es';
+import * as THREE from 'three';
 
 const MATERIAL = new THREE.MeshLambertMaterial({ color: 0x555555 });
 
@@ -31,7 +33,7 @@ class Stairs extends Entity {
   /** @override */
   generatePhysicsBody() {
     const body = new CANNON.Body({
-      mass: 0
+      mass: 0,
     });
     for (let i = 0; i < this.steps; i++) {
       const step = new CANNON.Box(

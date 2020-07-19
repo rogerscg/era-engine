@@ -18,7 +18,6 @@ import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader.js';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import { SkeletonUtils } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { Sphere, Box, Plane, ConvexPolyhedron, Trimesh, Heightfield, Shape, Vec3, Material, ContactMaterial, World as World$1, Body, Quaternion, Ray, Cylinder } from 'cannon-es';
-import io from 'socket.io-client';
 import _slicedToArray from '@babel/runtime/helpers/slicedToArray';
 import { TGALoader } from 'three/examples/jsm/loaders/TGALoader.js';
 import TWEEN from '@tweenjs/tween.js';
@@ -5713,6 +5712,7 @@ function _createForOfIteratorHelper$1(o, allowArrayLike) { var it; if (typeof Sy
 function _unsupportedIterableToArray$1(o, minLen) { if (!o) return; if (typeof o === "string") return _arrayLikeToArray$1(o, minLen); var n = Object.prototype.toString.call(o).slice(8, -1); if (n === "Object" && o.constructor) n = o.constructor.name; if (n === "Map" || n === "Set") return Array.from(o); if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return _arrayLikeToArray$1(o, minLen); }
 
 function _arrayLikeToArray$1(arr, len) { if (len == null || len > arr.length) len = arr.length; for (var i = 0, arr2 = new Array(len); i < len; i++) { arr2[i] = arr[i]; } return arr2; }
+
 /**
  * Core functionality for network procedures in the engine. Can be extended
  * in the case of different servers.

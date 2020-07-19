@@ -8,8 +8,8 @@ import {
   GameMode,
   Models,
   World,
-  defaultEraRenderer
-} from '../../src/era.js';
+  defaultEraRenderer,
+} from '../../build/era.js';
 
 const LEVELS = ['level_1', 'level_2', 'level_3'];
 
