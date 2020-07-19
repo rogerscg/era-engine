@@ -1,4 +1,6 @@
-import { Entity } from '../../src/era.js';
+import { Entity } from '../../build/era.js';
+import * as CANNON from 'cannon-es';
+import * as THREE from 'three';
 
 const RADIUS = 2;
 const GEOMETRY = new THREE.SphereGeometry(RADIUS, 32, 32);

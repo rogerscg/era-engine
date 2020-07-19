@@ -1,4 +1,6 @@
-import { Entity, MaterialManager } from '../../src/era.js';
+import { Entity, MaterialManager } from '../../build/era.js';
+import * as CANNON from 'cannon-es';
+import * as THREE from 'three';
 
 const SIDE = 3;
 const GEOMETRY = new THREE.BoxGeometry(SIDE, SIDE, SIDE);
@@ -20,7 +22,7 @@ class Ramp extends Entity {
     const body = new CANNON.Body({
       mass: 0,
       shape: new CANNON.Box(new CANNON.Vec3(SIDE / 2, SIDE / 2, SIDE / 2)),
-      quaternion: quaternion
+      quaternion: quaternion,
     });
     body.material = MaterialManager.get().createPhysicalMaterial('ground');
     return body;

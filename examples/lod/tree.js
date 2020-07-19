@@ -1,4 +1,4 @@
-import { Entity } from '../../src/era.js';
+import { Entity } from '../../build/era.js';
 
 /**
  * A single tree entity.

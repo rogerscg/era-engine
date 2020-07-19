@@ -1,4 +1,4 @@
-import { Character as EraCharacter } from '../../src/era.js';
+import { Character as EraCharacter } from '../../build/era.js';
 
 const MAX_CAMERA_Z = Math.PI / 4;
 const MIN_CAMERA_Z = -Math.PI / 24;

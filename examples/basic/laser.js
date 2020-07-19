@@ -2,7 +2,8 @@
  * @author rogerscg / https://github.com/rogerscg
  */
 
-import { ERA, THREE } from '../../build/era.module.js';
+import * as ERA from '../../build/era.js';
+import * as THREE from 'three';
 
 const GEOMETRY = new THREE.CubeGeometry(0.2, 0.2, 6);
 const MATERIAL = new THREE.MeshLambertMaterial({ color: 0xff2222 });

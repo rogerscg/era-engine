@@ -1,4 +1,6 @@
-import { Entity } from '../../src/era.js';
+import { Entity } from '../../build/era.js';
+import * as CANNON from 'cannon-es';
+import * as THREE from 'three';
 
 const SIDE = 50;
 const GEOMETRY = new THREE.BoxGeometry(SIDE, SIDE, SIDE);
@@ -31,7 +33,7 @@ class Stage extends Entity {
     const body = new CANNON.Body({
       mass: 0,
       shape: new CANNON.Box(new CANNON.Vec3(SIDE / 2, SIDE / 2, SIDE / 2)),
-      position: new CANNON.Vec3(0, -SIDE / 2, 0)
+      position: new CANNON.Vec3(0, -SIDE / 2, 0),
     });
     return body;
   }

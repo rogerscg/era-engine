@@ -11,8 +11,8 @@ import {
   Environment,
   Models,
   World,
-  defaultEraRenderer
-} from '../../src/era.js';
+  defaultEraRenderer,
+} from '../../build/era.js';
 
 const NUM_PLAYERS = 2;
 

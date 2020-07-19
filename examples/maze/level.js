@@ -1,5 +1,5 @@
 import Objective from './objective.js';
-import { Entity, MaterialManager, Models } from '../../src/era.js';
+import { Entity, MaterialManager, Models } from '../../build/era.js';
 
 /**
  * A maze level.
@@ -21,7 +21,7 @@ class Level extends Entity {
     body.material = MaterialManager.get().createPhysicalMaterial('level');
     MaterialManager.get().createContactMaterial('character', 'level', {
       friction: 0,
-      contactEquationStiffness: 1e8
+      contactEquationStiffness: 1e8,
     });
     return body;
   }

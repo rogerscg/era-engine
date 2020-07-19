@@ -1,4 +1,6 @@
-import { Bindings, Controls, Entity } from '../../src/era.js';
+import { Bindings, Controls, Entity } from '../../build/era.js';
+import * as CANNON from 'cannon-es';
+import * as THREE from 'three';
 
 const FORCE_STRENGTH = 15;
 const RADIUS = 2;
@@ -11,31 +13,31 @@ const BALL_BINDINGS = {
   BACKWARD: {
     keys: {
       keyboard: [83, 71, 75, 40],
-      controller: '+axes1'
+      controller: '+axes1',
     },
-    split_screen: true
+    split_screen: true,
   },
   FORWARD: {
     keys: {
       keyboard: [87, 84, 73, 38],
-      controller: '-axes1'
+      controller: '-axes1',
     },
-    split_screen: true
+    split_screen: true,
   },
   LEFT: {
     keys: {
       keyboard: [65, 70, 74, 37],
-      controller: '-axes0'
+      controller: '-axes0',
     },
-    split_screen: true
+    split_screen: true,
   },
   RIGHT: {
     keys: {
       keyboard: [68, 72, 76, 39],
-      controller: '+axes0'
+      controller: '+axes0',
     },
-    split_screen: true
-  }
+    split_screen: true,
+  },
 };
 
 class Ball extends Entity {
@@ -71,7 +73,7 @@ class Ball extends Entity {
   generatePhysicsBody() {
     return new CANNON.Body({
       mass: 10,
-      shape: new CANNON.Sphere(RADIUS)
+      shape: new CANNON.Sphere(RADIUS),
     });
   }
 

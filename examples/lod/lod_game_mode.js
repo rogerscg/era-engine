@@ -9,8 +9,8 @@ import {
   QualityAdjuster,
   TerrainMap,
   World,
-  defaultEraRenderer
-} from '../../src/era.js';
+  defaultEraRenderer,
+} from '../../build/era.js';
 
 const WIDTH = 20;
 

@@ -10,8 +10,9 @@ import {
   Engine,
   Environment,
   World,
-  defaultEraRenderer
-} from '../../src/era.js';
+  defaultEraRenderer,
+} from '../../build/era.js';
+import * as CANNON from 'cannon-es';
 
 async function start() {
   // Create engine.

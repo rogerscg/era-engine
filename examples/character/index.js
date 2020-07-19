@@ -16,8 +16,8 @@ import {
   Models,
   QualityAdjuster,
   World,
-  defaultEraRenderer
-} from '../../src/era.js';
+  defaultEraRenderer,
+} from '../../build/era.js';
 
 async function start() {
   // Load models.
