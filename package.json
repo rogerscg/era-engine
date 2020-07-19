@@ -32,7 +32,7 @@
     "@tweenjs/tween.js": "^18.6.0",
     "cannon-es": "^0.15.0",
     "socket.io-client": "^2.3.0",
-    "three": "file:three",
+    "three": "^0.118.3",
     "three-orbitcontrols": "^2.110.3"
   }
 }
