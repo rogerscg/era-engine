@@ -2,6 +2,8 @@
  * @author schteppe / https://github.com/schteppe
  * @author rogerscg / https://github.com/rogerscg
  */
+import * as CANNON from 'cannon-es';
+import * as THREE from 'three';
 
 /**
  * Adds Three.js primitives into the scene where all the Cannon bodies and
@@ -19,11 +21,11 @@ class DebugRenderer {
 
     this._material = new THREE.MeshBasicMaterial({
       color: 0x00ff00,
-      wireframe: true
+      wireframe: true,
     });
     this._sleepMaterial = new THREE.MeshBasicMaterial({
       wireframe: true,
-      color: 0x0000ff
+      color: 0x0000ff,
     });
     this._sphereGeometry = new THREE.SphereGeometry(1);
     this._boxGeometry = new THREE.BoxGeometry(1, 1, 1);

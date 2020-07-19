@@ -222,7 +222,7 @@ class FpsStats extends Stats {
     this.timerPanel = this.addPanel(
       new Panel('Render', '#ff3800', '#210', false)
     );
-    if (self.performance && self.performance.memory) {
+    if (window.performance && window.performance.memory) {
       this.memPanel = this.addPanel(new Panel('MB', '#f08', '#201', true));
     }
     this.showPanel(0);
@@ -317,7 +317,7 @@ class Panel {
     context.fillRect(0, 0, WIDTH, HEIGHT);
 
     context.fillStyle = this.fg;
-    context.fillText(name, TEXT_X, TEXT_Y);
+    context.fillText(this.name, TEXT_X, TEXT_Y);
     context.fillRect(GRAPH_X, GRAPH_Y, GRAPH_WIDTH, GRAPH_HEIGHT);
 
     context.fillStyle = this.bg;

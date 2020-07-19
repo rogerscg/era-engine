@@ -5,6 +5,7 @@ import Plugin from './plugin.js';
 import QualityAdjuster from './quality_adjuster.js';
 import RendererStats from '../debug/renderer_stats.js';
 import PhysicsPlugin from '../physics/physics_plugin.js';
+import * as THREE from 'three';
 
 const DEFAULT_NAME = 'main';
 
@@ -67,8 +68,8 @@ class World extends Plugin {
   /** @override */
   reset() {
     this.entities.forEach((entity) => entity.destroy());
-    while (scene.children.length > 0) {
-      scene.remove(scene.children[0]);
+    while (this.scene.children.length > 0) {
+      this.scene.remove(this.scene.children[0]);
     }
   }
 

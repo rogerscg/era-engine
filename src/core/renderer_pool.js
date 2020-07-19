@@ -1,8 +1,7 @@
 /**
  * @author rogerscg / https://github.com/rogerscg
  */
-
-import EngineResetEvent from '../events/engine_reset_event.js';
+import * as THREE from 'three';
 
 /**
  * A pool of singleton, lazy-loaded WebGL renderers for specific uses.
@@ -27,7 +26,7 @@ class RendererPool {
     const height = window.innerHeight;
     const renderer = new THREE.WebGLRenderer({
       antialias: true,
-      alpha: true
+      alpha: true,
     });
     renderer.setClearColor(0x111111);
     renderer.shadowMap.enabled = true;

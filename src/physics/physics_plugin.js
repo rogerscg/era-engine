@@ -5,6 +5,7 @@ import DebugRenderer from './debug_renderer.js';
 import MaterialManager from './material_manager.js';
 import Plugin from '../core/plugin.js';
 import Settings from '../core/settings.js';
+import * as CANNON from 'cannon-es';
 
 const MAX_DELTA = 1;
 const MAX_SUBSTEPS = 10;
@@ -20,7 +21,7 @@ class PhysicsPlugin extends Plugin {
    */
   static get() {
     if (!instance) {
-      instance = new Physics();
+      instance = new PhysicsPlugin();
     }
     return instance;
   }

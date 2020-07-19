@@ -2,6 +2,7 @@ import Entity from '../objects/entity.js';
 import Light from '../core/light.js';
 import Skybox from '../objects/skybox.js';
 import { loadJsonFromFile } from '../core/util.js';
+import * as THREE from 'three';
 
 /**
  * Provides a way of dynamically creating light, skyboxes, ambient sounds, etc

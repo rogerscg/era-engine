@@ -67,7 +67,6 @@ class Engine {
    */
   render(timeStamp) {
     this.timer.start();
-    TWEEN.update(timeStamp);
     // Update all plugins.
     this.plugins.forEach((plugin) => plugin.update(timeStamp));
 

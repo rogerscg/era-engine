@@ -1,6 +1,8 @@
 /**
  * @author rogerscg / https://github.com/rogerscg
  */
+import { TGALoader } from '../../dependencies/three/TGALoader.js';
+import * as THREE from 'three';
 
 const WIDTH = 500;
 
@@ -59,7 +61,7 @@ class Skybox extends THREE.Object3D {
   async createCubeMaterials(directory, filename, extension) {
     // Load all textures first.
     const loader =
-      extension == '.tga' ? new THREE.TGALoader() : new THREE.TextureLoader();
+      extension == '.tga' ? new TGALoader() : new THREE.TextureLoader();
     const texturePromises = new Array();
     for (let i = 0; i < SUFFIXES.length; ++i) {
       const suffix = SUFFIXES[i];
@@ -73,7 +75,7 @@ class Skybox extends THREE.Object3D {
       const mat = new THREE.MeshBasicMaterial({
         map: textures[i],
         side: THREE.DoubleSide,
-        fog: false
+        fog: false,
       });
       cubeMaterials.push(mat);
     }

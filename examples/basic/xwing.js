@@ -4,26 +4,26 @@
 
 import Cannons from './cannons.js';
 import Engines from './engines.js';
-import {Bindings, Controls, Entity} from '../../src/era.js';
+import { ERA } from '../../build/era.js';
 
 const XWING_BINDINGS = {
   SPRINT: {
     keys: {
       keyboard: 16,
       controller: '-axes3',
-    }
+    },
   },
   FIRE: {
     keys: {
       keyboard: 32,
       controller: 'button5',
-    }
+    },
   },
   ATTACK: {
     keys: {
       keyboard: 88,
       controller: 'button0',
-    }
+    },
   },
 };
 
@@ -34,12 +34,11 @@ const CONTROLS_ID = 'X-Wing';
 /**
  * Entity representing an X-Wing fighter.
  */
-class XWing extends Entity {
-
+class XWing extends ERA.Entity {
   static GetBindings() {
-    return new Bindings(CONTROLS_ID)
-             .load(XWING_BINDINGS)
-             .merge(Entity.GetBindings());
+    return new ERA.Bindings(CONTROLS_ID)
+      .load(XWING_BINDINGS)
+      .merge(ERA.Entity.GetBindings());
   }
 
   constructor() {
@@ -56,12 +55,12 @@ class XWing extends Entity {
   build() {
     super.build();
     // Build cannons based on offsets.
-    this.cannons = new Cannons(.53, .15, -.1).build();
+    this.cannons = new Cannons(0.53, 0.15, -0.1).build();
     this.mesh.add(this.cannons);
     // Start engine.
     this.engines = new Engines();
     this.engines.start();
-    
+
     return this;
   }
 
@@ -92,7 +91,7 @@ class XWing extends Entity {
       this.open();
     }
     if (this.engines) {
-      if (this.getActionValue(this.bindings.SPRINT) > .5) {
+      if (this.getActionValue(this.bindings.SPRINT) > 0.5) {
         this.engines.boost(true);
       } else {
         this.engines.boost(false);
@@ -105,9 +104,9 @@ class XWing extends Entity {
    */
   updateRoll() {
     if (this.getActionValue(this.bindings.LEFT)) {
-      this.rotate(-.2 * this.getActionValue(this.bindings.LEFT));
+      this.rotate(-0.2 * this.getActionValue(this.bindings.LEFT));
     } else if (this.getActionValue(this.bindings.RIGHT)) {
-      this.rotate(.2 * this.getActionValue(this.bindings.RIGHT));
+      this.rotate(0.2 * this.getActionValue(this.bindings.RIGHT));
     } else {
       this.rotate(0);
     }
@@ -125,8 +124,9 @@ class XWing extends Entity {
     if (this.rotateAnim) {
       this.rotateAnim.stop();
     }
-    this.rotateAnim = new TWEEN.Tween(this.mesh.rotation)
-      .to({z: angle}, 250)
+    this.rotateAnim = ERA.TweenPlugin.get()
+      .createTween(this.mesh.rotation)
+      .to({ z: angle }, 250)
       .start();
   }
 
@@ -149,5 +149,5 @@ class XWing extends Entity {
   }
 }
 
-Controls.get().registerBindings(XWing);
+ERA.Controls.get().registerBindings(XWing);
 export default XWing;

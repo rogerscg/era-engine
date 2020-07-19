@@ -1,11 +1,11 @@
 # ERA Engine
+
 A simple wrapper around Three.js and peripherals such as physics engines, TWEEN,
 etc. to aid the creation of games or other visuals. Used by [Slapshot](https://store.steampowered.com/app/707680/Slapshot/) and [Earth Revival Act (ERA)](https://earthrevivalact.herokuapp.com/).
 
-[**Documentation**](https://github.com/rogerscg/era-engine/wiki)  
+[**Documentation**](https://github.com/rogerscg/era-engine/wiki)
 
 [**Examples**](https://rogerscg.github.io/era-engine/)
-
 
 ## Contributing
 
@@ -14,7 +14,6 @@ In order to be useful for the general case, others will need to request or
 implement features on their own.
 
 [**GitHub Project with future features/issues**](https://github.com/users/rogerscg/projects/2?fullscreen=true)
-
 
 ## Developing
 

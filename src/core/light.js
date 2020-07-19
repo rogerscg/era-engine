@@ -4,6 +4,7 @@
 import Plugin from './plugin.js';
 import Settings from './settings.js';
 import { getRootScene } from './util.js';
+import * as THREE from 'three';
 
 let instance = null;
 /**

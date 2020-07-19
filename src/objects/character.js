@@ -4,36 +4,38 @@ import MaterialManager from '../physics/material_manager.js';
 import Settings from '../core/settings.js';
 import { Bindings } from '../core/bindings.js';
 import { lerp, vectorToAngle } from '../core/util.js';
+import * as CANNON from 'cannon-es';
+import * as THREE from 'three';
 
 const CHARACTER_BINDINGS = {
   SPRINT: {
     keys: {
       keyboard: 16,
-      controller: 'button10'
-    }
+      controller: 'button10',
+    },
   },
   JUMP: {
     keys: {
       keyboard: 32,
-      controller: 'button0'
-    }
+      controller: 'button0',
+    },
   },
   LOOK_X: {
     keys: {
-      controller: 'axes2'
-    }
+      controller: 'axes2',
+    },
   },
   LOOK_Y: {
     keys: {
-      controller: 'axes3'
-    }
-  }
+      controller: 'axes3',
+    },
+  },
 };
 
 const RAYCAST_GEO = new THREE.BoxGeometry(0.2, 0.2, 0.2);
 const RAYCAST_MATERIAL = new THREE.MeshLambertMaterial({ color: 0xff0000 });
 const RAYCAST_BLUE_MATERIAL = new THREE.MeshLambertMaterial({
-  color: 0x0000ff
+  color: 0x0000ff,
 });
 
 const CONTROLS_ID = 'Character';
@@ -176,12 +178,12 @@ class Character extends Entity {
     capsule.material = MaterialManager.get().createPhysicalMaterial(
       'character',
       {
-        friction: 0
+        friction: 0,
       }
     );
     MaterialManager.get().createContactMaterial('character', 'ground', {
       friction: 0,
-      contactEquationStiffness: 1e8
+      contactEquationStiffness: 1e8,
     });
 
     // Raycast debug.

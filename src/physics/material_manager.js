@@ -1,3 +1,5 @@
+import * as CANNON from 'cannon-es';
+
 let instance = null;
 /**
  * Handles creation and installation of physical materials within the physics
