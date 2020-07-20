@@ -135,7 +135,7 @@ class PhysicsPlugin extends Plugin {
     }
     this.registeredEntities.delete(entity.uuid);
     entity.unregisterPhysicsWorld(this);
-    this.world.remove(entity.physicsBody);
+    this.world.removeBody(entity.physicsBody);
     return true;
   }
 

@@ -2,6 +2,7 @@
  * @author rogerscg / https://github.com/rogerscg
  */
 import * as ERA from '../../build/era.js';
+import TWEEN from '@tweenjs/tween.js';
 
 /**
  * Engines of the X-Wing.
@@ -39,8 +40,7 @@ class Engines {
       this.soundAnim.stop();
     }
     const rate = this.boosting ? 1.3 : 1;
-    this.soundAnim = ERA.TweenPlugin.get()
-      .createTween(this.engineSound.source.playbackRate)
+    this.soundAnim = new TWEEN.Tween(this.engineSound.source.playbackRate)
       .to({ value: rate }, 2000)
       .start();
   }

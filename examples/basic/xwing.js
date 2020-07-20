@@ -4,6 +4,7 @@
 
 import Cannons from './cannons.js';
 import Engines from './engines.js';
+import TWEEN from '@tweenjs/tween.js';
 import * as ERA from '../../build/era.js';
 import * as THREE from 'three';
 
@@ -125,8 +126,7 @@ class XWing extends ERA.Entity {
     if (this.rotateAnim) {
       this.rotateAnim.stop();
     }
-    this.rotateAnim = ERA.TweenPlugin.get()
-      .createTween(this.mesh.rotation)
+    this.rotateAnim = new TWEEN.Tween(this.mesh.rotation)
       .to({ z: angle }, 250)
       .start();
   }

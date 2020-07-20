@@ -921,366 +921,6 @@
 
 	var toConsumableArray = _toConsumableArray;
 
-	/**
-	 * @author rogerscg / https://github.com/rogerscg
-	 */
-	var SPLIT_SCREEN_REG = RegExp('[a-zA-Z]+-[0-9]*');
-	/**
-	 * A bindings object, used for better control of custom bindings.
-	 */
-
-	var Bindings = /*#__PURE__*/function () {
-	  function Bindings(id) {
-	    classCallCheck(this, Bindings);
-
-	    this.id = id;
-	    this.actions = new Map();
-	    this.keysToActions = new Map();
-	    this.staticProperties = new Set();
-	  }
-
-	  createClass(Bindings, [{
-	    key: "getId",
-	    value: function getId() {
-	      return this.id;
-	    }
-	  }, {
-	    key: "getActions",
-	    value: function getActions() {
-	      return this.actions;
-	    }
-	    /**
-	     * Returns all actions associated with a given key.
-	     * @param {?} key
-	     * @param {number} playerNumber
-	     * @returns {Array<Action>}
-	     */
-
-	  }, {
-	    key: "getActionsForKey",
-	    value: function getActionsForKey(key, playerNumber) {
-	      // If the input is for a given player number, mutate the key to include it.
-	      var actions = new Array(); // Try for player-number-specific actions first.
-
-	      if (playerNumber != null) {
-	        var playerNumKey = "".concat(key, "-").concat(playerNumber);
-	        var playerNumActions = this.keysToActions.get(playerNumKey);
-
-	        if (playerNumActions) {
-	          actions = actions.concat(playerNumActions);
-	        }
-	      }
-
-	      var regularActions = this.keysToActions.get(key);
-
-	      if (regularActions) {
-	        actions = actions.concat(regularActions);
-	      }
-
-	      return actions;
-	    }
-	    /**
-	     * Adds an action to the bindings.
-	     * @param {Action} action
-	     */
-
-	  }, {
-	    key: "addAction",
-	    value: function addAction(action) {
-	      this.actions.set(action.getName(), action);
-	      this.loadKeysToActions();
-	      this.loadStaticProperties();
-	      return this;
-	    }
-	    /**
-	     * Removes an action from the bindings.
-	     * @param {Action} action
-	     */
-
-	  }, {
-	    key: "removeAction",
-	    value: function removeAction(action) {
-	      this.actions["delete"](action.getName());
-	      this.loadKeysToActions();
-	      this.loadStaticProperties();
-	      return this;
-	    }
-	    /**
-	     * Gets the action for a given name.
-	     * @param {string} actionName
-	     */
-
-	  }, {
-	    key: "getAction",
-	    value: function getAction(actionName) {
-	      return this.actions.get(actionName);
-	    }
-	    /**
-	     * Loads an object into the bindings, considering custom bindings.
-	     * @param {Object} bindingsObj
-	     */
-
-	  }, {
-	    key: "load",
-	    value: function load(bindingsObj) {
-	      for (var actionName in bindingsObj) {
-	        var actionObj = bindingsObj[actionName];
-	        var action = new Action(actionName).load(actionObj);
-	        this.actions.set(actionName, action);
-	      }
-
-	      this.loadKeysToActions();
-	      this.loadStaticProperties();
-	      return this;
-	    }
-	    /**
-	     * Loads all keys into a map to their respective actions for fast lookups in
-	     * controls updates.
-	     */
-
-	  }, {
-	    key: "loadKeysToActions",
-	    value: function loadKeysToActions() {
-	      var _this = this;
-
-	      // Clear beforehand in case we're reloading.
-	      this.keysToActions.clear();
-	      this.actions.forEach(function (action) {
-	        var keys = action.getKeys(); // TODO: For local co-op/split screen, set player-specific bindings.
-
-	        keys.forEach(function (key, inputType) {
-	          // Get if this key is for a specific player, denoted by a "-[0-9]".
-	          if (SPLIT_SCREEN_REG.test(inputType)) {
-	            // This is a split-screen binding, add the player number to the key.
-	            var playerNumber = inputType.split('-').pop();
-	            key = "".concat(key, "-").concat(playerNumber);
-	          }
-
-	          if (!_this.keysToActions.has(key)) {
-	            _this.keysToActions.set(key, new Array());
-	          }
-
-	          _this.keysToActions.get(key).push(action);
-	        });
-	      });
-	    }
-	    /**
-	     * Takes all action names and sets their names as "static" fields of the
-	     * bindings instance. This is to ease development for the user, so they can
-	     * call `entity.getActionValue(bindings.SPRINT)` as opposed to passing in a
-	     * string literal `entity.getActionValue('SPRINT')`.
-	     */
-
-	  }, {
-	    key: "loadStaticProperties",
-	    value: function loadStaticProperties() {
-	      var _this2 = this;
-
-	      // Clear old static properties, based on a set created from earlier.
-	      this.staticProperties.forEach(function (propName) {
-	        delete _this2[propName];
-	      });
-	      this.staticProperties.clear(); // Set new static properties based on actions.
-
-	      this.actions.forEach(function (ignore, actionName) {
-	        _this2[actionName] = actionName;
-
-	        _this2.staticProperties.add(actionName);
-	      });
-	    }
-	    /**
-	     * Merges the given bindings into the existing bindings.
-	     * @param {Bindings} other
-	     */
-
-	  }, {
-	    key: "merge",
-	    value: function merge(other) {
-	      var _this3 = this;
-
-	      other.getActions().forEach(function (action) {
-	        if (!_this3.actions.has(action.getName())) {
-	          _this3.actions.set(action.getName(), action);
-	        } else {
-	          _this3.actions.get(action.getName()).merge(action);
-	        }
-	      });
-	      this.loadKeysToActions();
-	      this.loadStaticProperties();
-	      return this;
-	    }
-	    /**
-	     * Converts the bindings instance to an object.
-	     * @returns {Object}
-	     */
-
-	  }, {
-	    key: "toObject",
-	    value: function toObject() {
-	      var exportObj = {};
-	      this.actions.forEach(function (action) {
-	        exportObj[action.getName()] = action.toObject();
-	      });
-	      return exportObj;
-	    }
-	    /**
-	     * Returns if there are no actions associated with the bindings.
-	     * @returns {boolean}
-	     */
-
-	  }, {
-	    key: "isEmpty",
-	    value: function isEmpty() {
-	      // Get all non-empty actions.
-	      var nonEmptyActions = toConsumableArray(this.actions.values()).filter(function (action) {
-	        return !action.isEmpty();
-	      });
-
-	      return nonEmptyActions.length == 0;
-	    }
-	  }]);
-
-	  return Bindings;
-	}();
-	/**
-	 * Represents an action an entity can take as well as the inputs that are used
-	 * to trigger this action.
-	 */
-
-
-	var Action = /*#__PURE__*/function () {
-	  function Action(name) {
-	    classCallCheck(this, Action);
-
-	    this.name = name;
-	    this.id = null;
-	    this.keys = new Map();
-	  }
-
-	  createClass(Action, [{
-	    key: "getName",
-	    value: function getName() {
-	      return this.name;
-	    }
-	  }, {
-	    key: "getKeys",
-	    value: function getKeys() {
-	      return this.keys;
-	    }
-	    /**
-	     * Adds a key that can trigger the action.
-	     * @param {string} inputType
-	     * @param {?} key
-	     */
-
-	  }, {
-	    key: "addKey",
-	    value: function addKey(inputType, key) {
-	      this.keys.set(inputType, key);
-	      return this;
-	    }
-	    /**
-	     * Clears the key for the given input type.
-	     * @param {string} inputType
-	     */
-
-	  }, {
-	    key: "clearInputType",
-	    value: function clearInputType(inputType) {
-	      this.keys["delete"](inputType);
-	    }
-	    /**
-	     * Loads the action from an arbitrary object.
-	     */
-
-	  }, {
-	    key: "load",
-	    value: function load(actionObj) {
-	      for (var inputType in actionObj.keys) {
-	        var inputs = actionObj.keys[inputType]; // Check if there are multiple inputs for the given input type.
-
-	        if (Array.isArray(inputs)) {
-	          this.loadMultipleKeys(inputType, inputs, actionObj.split_screen);
-	        } else {
-	          this.keys.set(inputType, actionObj.keys[inputType]);
-	        }
-	      }
-
-	      return this;
-	    }
-	    /**
-	     * Loads multiple inputs for the given input type.
-	     * @param {string} inputType
-	     * @param {Array} inputs
-	     * @param {boolean} isSplitScreen
-	     */
-
-	  }, {
-	    key: "loadMultipleKeys",
-	    value: function loadMultipleKeys(inputType, inputs) {
-	      var _this4 = this;
-
-	      var isSplitScreen = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : false;
-
-	      if (isSplitScreen) {
-	        inputs.forEach(function (input, player) {
-	          var inputKey = "".concat(inputType, "-").concat(player);
-
-	          _this4.keys.set(inputKey, input);
-	        });
-	      } else {
-	        // TODO: Allow for multiple inputs.
-	        console.warn('Loading multiple inputs for same player not implemented');
-	      }
-	    }
-	    /**
-	     * Merges an existing action with this action.
-	     * @param {Action} other
-	     */
-
-	  }, {
-	    key: "merge",
-	    value: function merge(other) {
-	      var _this5 = this;
-
-	      other.getKeys().forEach(function (key, inputType) {
-	        if (!_this5.keys.has(inputType)) {
-	          _this5.keys.set(inputType, key);
-	        }
-	      });
-	      return this;
-	    }
-	    /**
-	     * Converts the action instance to an object.
-	     * @returns {Object}
-	     */
-
-	  }, {
-	    key: "toObject",
-	    value: function toObject() {
-	      var exportObj = {};
-	      exportObj.keys = {}; // TODO: For local co-op/split screen, export player-specific bindings.
-
-	      this.keys.forEach(function (key, inputType) {
-	        return exportObj.keys[inputType] = key;
-	      });
-	      return exportObj;
-	    }
-	    /**
-	     * Detects if the action is empty.
-	     * @returns {boolean}
-	     */
-
-	  }, {
-	    key: "isEmpty",
-	    value: function isEmpty() {
-	      return this.keys.size == 0;
-	    }
-	  }]);
-
-	  return Action;
-	}();
-
 	// Polyfills
 	if(Number.EPSILON===undefined){Number.EPSILON=Math.pow(2,-52);}if(Number.isInteger===undefined){// Missing in IE
 	// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/isInteger
@@ -4606,284 +4246,6 @@
 	ImageUtils.crossOrigin=undefined;ImageUtils.loadTexture=function(url,mapping,onLoad,onError){console.warn('THREE.ImageUtils.loadTexture has been deprecated. Use THREE.TextureLoader() instead.');const loader=new TextureLoader();loader.setCrossOrigin(this.crossOrigin);const texture=loader.load(url,onLoad,undefined,onError);if(mapping)texture.mapping=mapping;return texture;};ImageUtils.loadTextureCube=function(urls,mapping,onLoad,onError){console.warn('THREE.ImageUtils.loadTextureCube has been deprecated. Use THREE.CubeTextureLoader() instead.');const loader=new CubeTextureLoader();loader.setCrossOrigin(this.crossOrigin);const texture=loader.load(urls,onLoad,undefined,onError);if(mapping)texture.mapping=mapping;return texture;};ImageUtils.loadCompressedTexture=function(){console.error('THREE.ImageUtils.loadCompressedTexture has been removed. Use THREE.DDSLoader instead.');};ImageUtils.loadCompressedTextureCube=function(){console.error('THREE.ImageUtils.loadCompressedTextureCube has been removed. Use THREE.DDSLoader instead.');};//
 	if(typeof __THREE_DEVTOOLS__!=='undefined'){/* eslint-disable no-undef */__THREE_DEVTOOLS__.dispatchEvent(new CustomEvent('register',{detail:{revision:REVISION}}));/* eslint-enable no-undef */}
 
-	/**
-	 * Generates a RFC4122 version 4 compliant UUID.
-	 */
-
-	function createUUID() {
-	  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-	    var r = Math.random() * 16 | 0,
-	        v = c == 'x' ? r : r & 0x3 | 0x8;
-	    return v.toString(16);
-	  });
-	}
-	/**
-	 * Computes the angle in radians with respect to the positive x-axis
-	 * @param {Number} x
-	 * @param {Number} y
-	 */
-
-
-	function vectorToAngle(x, y) {
-	  var angle = Math.atan2(y, x);
-	  if (angle < 0) angle += 2 * Math.PI;
-	  return angle;
-	}
-	/**
-	 * Interpolates between two numbers.
-	 * @param {number} a
-	 * @param {number} b
-	 * @param {number} factor
-	 * @return {number}
-	 */
-
-
-	function lerp(a, b, factor) {
-	  return a + (b - a) * factor;
-	}
-	/**
-	 * Loads a JSON from the given file path.
-	 * @param {string} path
-	 * @return {Promise<Object>} Parsed JSON object.
-	 * @async
-	 */
-
-
-	function loadJsonFromFile(_x) {
-	  return _loadJsonFromFile.apply(this, arguments);
-	}
-	/**
-	 * Loads a texture from a file.
-	 * TODO: Move this to a Texture ERA lib for better disposal.
-	 * @param {string} url
-	 * @return {THREE.Texture}
-	 * @async
-	 */
-
-
-	function _loadJsonFromFile() {
-	  _loadJsonFromFile = asyncToGenerator( /*#__PURE__*/regenerator.mark(function _callee(path) {
-	    return regenerator.wrap(function _callee$(_context) {
-	      while (1) {
-	        switch (_context.prev = _context.next) {
-	          case 0:
-	            return _context.abrupt("return", new Promise(function (resolve, reject) {
-	              var loader = new FileLoader();
-	              loader.load(path, function (data) {
-	                resolve(JSON.parse(data));
-	              }, function () {}, function (err) {
-	                reject(err);
-	              });
-	            }));
-
-	          case 1:
-	          case "end":
-	            return _context.stop();
-	        }
-	      }
-	    }, _callee);
-	  }));
-	  return _loadJsonFromFile.apply(this, arguments);
-	}
-
-	function getRootScene(object) {
-	  var rootScene = null;
-	  object.traverseAncestors(function (ancestor) {
-	    if (ancestor.isRootScene) {
-	      rootScene = ancestor;
-	    }
-	  });
-	  return rootScene;
-	}
-	/**
-	 * Traverses the provided object's ancestors to get the root scene, which has a
-	 * property with the parent ERA world.
-	 * @param {THREE.Object3D} object
-	 * @return {World}
-	 */
-
-
-	function getRootWorld(object) {
-	  var rootScene = getRootScene(object);
-	  return rootScene && rootScene.parentWorld ? rootScene.parentWorld : null;
-	}
-
-	/**
-	 * Core implementation for managing events and listeners. This
-	 * exists out of necessity for a simple event and message system
-	 * for both the client and the server.
-	 */
-
-	var eventsInstance = null;
-
-	var Events = /*#__PURE__*/function () {
-	  createClass(Events, null, [{
-	    key: "get",
-
-	    /**
-	     * Enforces singleton instance.
-	     */
-	    value: function get() {
-	      if (!eventsInstance) {
-	        eventsInstance = new Events();
-	      }
-
-	      return eventsInstance;
-	    }
-	  }]);
-
-	  function Events() {
-	    classCallCheck(this, Events);
-
-	    // All registered listeners. Key is the event label, value is another
-	    // map with the listener UUID as the key, the callback function as the
-	    // value.
-	    this.registeredListeners = new Map(); // Tracks which labels a listener is listening to. Used for ease of
-	    // removal. Key is the listener UUID, value is the event label.
-
-	    this.registeredUUIDs = new Map();
-	  }
-	  /**
-	   * Fires all event listener callbacks registered for the label
-	   * with the event data.
-	   */
-
-
-	  createClass(Events, [{
-	    key: "fireEvent",
-	    value: function fireEvent(label, data) {
-	      var callbacks = this.registeredListeners.get(label);
-
-	      if (!callbacks) {
-	        return false;
-	      }
-
-	      callbacks.forEach(function (callback) {
-	        return callback(data);
-	      });
-	    }
-	    /**
-	     * Adds an event listener for a certain label. When the event is fired,
-	     * the callback is called with data from the event. Returns the UUID
-	     * of the listener.
-	     */
-
-	  }, {
-	    key: "addListener",
-	    value: function addListener(label, callback) {
-	      if (!label || !callback && typeof callback !== 'function') {
-	        return false;
-	      } // If the label has not yet been registered, do so by creating a new map
-	      // of listener UUIDs and callbacks.
-
-
-	      var listeners = this.registeredListeners.get(label);
-
-	      if (!listeners) {
-	        listeners = new Map();
-	        this.registeredListeners.set(label, listeners);
-	      }
-
-	      var listenerUUID = createUUID();
-	      listeners.set(listenerUUID, callback);
-	      this.registeredUUIDs.set(listenerUUID, label);
-	      return listenerUUID;
-	    }
-	    /**
-	     * Removes an event listener from registered listeners by its UUID.
-	     * Returns true if the listener is successfully deleted.
-	     */
-
-	  }, {
-	    key: "removeListener",
-	    value: function removeListener(uuid) {
-	      var label = this.registeredUUIDs.get(uuid);
-
-	      if (!label) {
-	        return false;
-	      }
-
-	      var listeners = this.registeredListeners.get(label);
-
-	      if (!listeners) {
-	        return false;
-	      }
-
-	      return listeners["delete"](uuid);
-	    }
-	  }]);
-
-	  return Events;
-	}();
-
-	/**
-	 * Superclass for all custom events within the engine. Utilizes the
-	 * engine-specific event handling system used for both client and
-	 * server.
-	 */
-
-	var EraEvent = /*#__PURE__*/function () {
-	  function EraEvent(label, data) {
-	    classCallCheck(this, EraEvent);
-
-	    this.label = label;
-	    this.data = data;
-	  }
-	  /**
-	   * Fires the event to the events core.
-	   */
-
-
-	  createClass(EraEvent, [{
-	    key: "fire",
-	    value: function fire() {
-	      Events.get().fireEvent(this.label, this.data);
-	    }
-	    /**
-	     * Creates an event listener for the given type.
-	     */
-
-	  }], [{
-	    key: "listen",
-	    value: function listen(label, callback) {
-	      Events.get().addListener(label, callback);
-	    }
-	  }]);
-
-	  return EraEvent;
-	}();
-
-	function _createSuper(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct(); return function _createSuperInternal() { var Super = getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return possibleConstructorReturn(this, result); }; }
-
-	function _isNativeReflectConstruct() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
-	var LABEL = 'reset';
-	/**
-	 * Engine reset event.
-	 */
-
-	var EngineResetEvent = /*#__PURE__*/function (_EraEvent) {
-	  inherits(EngineResetEvent, _EraEvent);
-
-	  var _super = _createSuper(EngineResetEvent);
-
-	  function EngineResetEvent() {
-	    classCallCheck(this, EngineResetEvent);
-
-	    return _super.call(this, LABEL, {});
-	  }
-	  /** @override */
-
-
-	  createClass(EngineResetEvent, null, [{
-	    key: "listen",
-	    value: function listen(callback) {
-	      EraEvent.listen(LABEL, callback);
-	    }
-	  }]);
-
-	  return EngineResetEvent;
-	}(EraEvent);
-
 	function _superPropBase(object, property) {
 	  while (!Object.prototype.hasOwnProperty.call(object, property)) {
 	    object = getPrototypeOf(object);
@@ -4925,7 +4287,7 @@
 
 	var isNativeFunction = _isNativeFunction;
 
-	function _isNativeReflectConstruct$1() {
+	function _isNativeReflectConstruct() {
 	  if (typeof Reflect === "undefined" || !Reflect.construct) return false;
 	  if (Reflect.construct.sham) return false;
 	  if (typeof Proxy === "function") return true;
@@ -4938,7 +4300,7 @@
 	  }
 	}
 
-	var isNativeReflectConstruct = _isNativeReflectConstruct$1;
+	var isNativeReflectConstruct = _isNativeReflectConstruct;
 
 	var construct = createCommonjsModule(function (module) {
 	  function _construct(Parent, args, Class) {
@@ -4998,560 +4360,6 @@
 
 	  module.exports = _wrapNativeSuper;
 	});
-
-	function _createSuper$1(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$2(); return function _createSuperInternal() { var Super = getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return possibleConstructorReturn(this, result); }; }
-
-	function _isNativeReflectConstruct$2() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
-	/**
-	 * Settings changed event. Fired when settings are applied.
-	 */
-
-	var SettingsEvent = /*#__PURE__*/function (_EraEvent) {
-	  inherits(SettingsEvent, _EraEvent);
-
-	  var _super = _createSuper$1(SettingsEvent);
-
-	  /**
-	   * Takes in the new settings object.
-	   */
-	  function SettingsEvent() {
-	    classCallCheck(this, SettingsEvent);
-
-	    var label = 'settings';
-	    var data = {};
-	    return _super.call(this, label, data);
-	  }
-	  /** @override */
-
-
-	  createClass(SettingsEvent, null, [{
-	    key: "listen",
-	    value: function listen(callback) {
-	      EraEvent.listen('settings', callback);
-	    }
-	  }]);
-
-	  return SettingsEvent;
-	}(EraEvent);
-
-	function _createSuper$2(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$3(); return function _createSuperInternal() { var Super = getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return possibleConstructorReturn(this, result); }; }
-
-	function _isNativeReflectConstruct$3() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
-	// settings. See /data/settings.json as an example to define your own settings.
-	// TODO: Allow for an enum of options for a setting.
-
-	var DEFAULT_SETTINGS = {
-	  debug: {
-	    value: true
-	  },
-	  physics_debug: {
-	    value: true
-	  },
-	  terrain_debug: {
-	    value: false
-	  },
-	  movement_deadzone: {
-	    value: 0.15,
-	    min: 0.0,
-	    max: 1.0
-	  },
-	  mouse_sensitivity: {
-	    value: 50,
-	    min: 0,
-	    max: 200
-	  },
-	  shadows: {
-	    value: true
-	  },
-	  volume: {
-	    value: 50,
-	    min: 0,
-	    max: 100
-	  }
-	};
-	var SETTINGS_KEY = 'era_settings';
-	/**
-	 * Controls the client settings in a singleton model in local storage.
-	 */
-
-	var Settings = /*#__PURE__*/function (_Map) {
-	  inherits(Settings, _Map);
-
-	  var _super = _createSuper$2(Settings);
-
-	  function Settings() {
-	    var _this;
-
-	    classCallCheck(this, Settings);
-
-	    _this = _super.call(this);
-	    _this.loaded = false;
-	    return _this;
-	  }
-	  /**
-	   * Gets the value of a key in the settings object.
-	   */
-
-
-	  createClass(Settings, [{
-	    key: "get",
-	    value: function get$1(key) {
-	      var setting = get(getPrototypeOf(Settings.prototype), "get", this).call(this, key);
-
-	      if (!setting) {
-	        return null;
-	      }
-
-	      return setting.getValue();
-	    }
-	    /**
-	     * Sets a specific setting to the given value.
-	     * @param {string} key
-	     * @param {?} value
-	     */
-
-	  }, {
-	    key: "set",
-	    value: function set(key, value) {
-	      var setting = get(getPrototypeOf(Settings.prototype), "get", this).call(this, key);
-
-	      if (!setting) {
-	        return;
-	      }
-
-	      setting.setValue(value);
-	      this.apply();
-	    }
-	    /**
-	     * Loads the settings from engine defaults, provided defaults, and user-set
-	     * values from local storage.
-	     * @param {string} settingsPath
-	     * @async
-	     */
-
-	  }, {
-	    key: "load",
-	    value: function () {
-	      var _load = asyncToGenerator( /*#__PURE__*/regenerator.mark(function _callee(settingsPath) {
-	        return regenerator.wrap(function _callee$(_context) {
-	          while (1) {
-	            switch (_context.prev = _context.next) {
-	              case 0:
-	                if (!this.loaded) {
-	                  _context.next = 2;
-	                  break;
-	                }
-
-	                return _context.abrupt("return");
-
-	              case 2:
-	                this.loadEngineDefaults();
-
-	                if (!settingsPath) {
-	                  _context.next = 6;
-	                  break;
-	                }
-
-	                _context.next = 6;
-	                return this.loadFromFile(settingsPath);
-
-	              case 6:
-	                this.loadExistingSettings();
-	                this.apply();
-	                this.loaded = true;
-	                return _context.abrupt("return", this);
-
-	              case 10:
-	              case "end":
-	                return _context.stop();
-	            }
-	          }
-	        }, _callee, this);
-	      }));
-
-	      function load(_x) {
-	        return _load.apply(this, arguments);
-	      }
-
-	      return load;
-	    }()
-	    /**
-	     * Loads the default values for the engine. This is necessary for core plugins
-	     * that are dependent on settings.
-	     */
-
-	  }, {
-	    key: "loadEngineDefaults",
-	    value: function loadEngineDefaults() {
-	      if (this.loaded) {
-	        return;
-	      }
-
-	      for (var key in DEFAULT_SETTINGS) {
-	        var setting = new Setting(key, DEFAULT_SETTINGS[key]);
-
-	        get(getPrototypeOf(Settings.prototype), "set", this).call(this, setting.getName(), setting);
-	      }
-
-	      new SettingsEvent().fire();
-	    }
-	    /**
-	     * Loads a default settings file at the give path. This is user-provided.
-	     * This will also overwrite the default engine settings with the
-	     * user-provided settings.
-	     * @param {string} settingsPath
-	     * @async
-	     */
-
-	  }, {
-	    key: "loadFromFile",
-	    value: function () {
-	      var _loadFromFile = asyncToGenerator( /*#__PURE__*/regenerator.mark(function _callee2(settingsPath) {
-	        var allSettingsData, key, setting;
-	        return regenerator.wrap(function _callee2$(_context2) {
-	          while (1) {
-	            switch (_context2.prev = _context2.next) {
-	              case 0:
-	                if (settingsPath) {
-	                  _context2.next = 2;
-	                  break;
-	                }
-
-	                return _context2.abrupt("return");
-
-	              case 2:
-	                _context2.prev = 2;
-	                _context2.next = 5;
-	                return loadJsonFromFile(settingsPath);
-
-	              case 5:
-	                allSettingsData = _context2.sent;
-	                _context2.next = 11;
-	                break;
-
-	              case 8:
-	                _context2.prev = 8;
-	                _context2.t0 = _context2["catch"](2);
-	                throw new Error(_context2.t0);
-
-	              case 11:
-	                for (key in allSettingsData) {
-	                  setting = new Setting(key, allSettingsData[key]);
-
-	                  get(getPrototypeOf(Settings.prototype), "set", this).call(this, setting.getName(), setting);
-	                }
-
-	              case 12:
-	              case "end":
-	                return _context2.stop();
-	            }
-	          }
-	        }, _callee2, this, [[2, 8]]);
-	      }));
-
-	      function loadFromFile(_x2) {
-	        return _loadFromFile.apply(this, arguments);
-	      }
-
-	      return loadFromFile;
-	    }()
-	    /**
-	     * Loads existing settings from local storage. Merges the settings previously
-	     * saved into the existing defaults.
-	     */
-
-	  }, {
-	    key: "loadExistingSettings",
-	    value: function loadExistingSettings() {
-	      // Load from local storage.
-	      var savedSettings;
-
-	      try {
-	        savedSettings = localStorage.getItem(SETTINGS_KEY);
-
-	        if (!savedSettings) {
-	          return;
-	        }
-
-	        savedSettings = JSON.parse(savedSettings);
-	      } catch (e) {
-	        return;
-	      } // Iterate over saved settings and merge into defaults.
-
-
-	      for (var key in savedSettings) {
-	        var setting = new Setting(key, savedSettings[key]);
-
-	        var defaultSetting = get(getPrototypeOf(Settings.prototype), "get", this).call(this, setting.getName());
-
-	        if (!defaultSetting) {
-	          continue;
-	        } // Merge saved setting into default.
-
-
-	        defaultSetting.merge(setting);
-	      }
-	    }
-	    /**
-	     * Fires the applySettings event to the event core, then saves to local
-	     * storage.
-	     */
-
-	  }, {
-	    key: "apply",
-	    value: function apply() {
-	      localStorage.setItem(SETTINGS_KEY, this["export"]());
-	      new SettingsEvent().fire();
-	    }
-	    /**
-	     * Exports all settings into a string for use in local storage.
-	     * @returns {string}
-	     */
-
-	  }, {
-	    key: "export",
-	    value: function _export() {
-	      var expObj = {};
-	      this.forEach(function (setting, name) {
-	        expObj[name] = setting["export"]();
-	      });
-	      return JSON.stringify(expObj);
-	    }
-	  }]);
-
-	  return Settings;
-	}( /*#__PURE__*/wrapNativeSuper(Map));
-
-	var Settings$1 = new Settings();
-	/**
-	 * An individual setting for tracking defaults, types, and other properties
-	 * of the field.
-	 */
-
-	var Setting = /*#__PURE__*/function () {
-	  /**
-	   * Loads a setting from an object.
-	   * @param {Object} settingsData
-	   */
-	  function Setting(name, settingsData) {
-	    classCallCheck(this, Setting);
-
-	    this.name = name;
-	    this.value = settingsData.value;
-	    this.min = settingsData.min;
-	    this.max = settingsData.max;
-	    this.wasModified = !!settingsData.modified;
-	  } // TODO: Add getPrettyName() for cleaner settings panel.
-
-
-	  createClass(Setting, [{
-	    key: "getName",
-	    value: function getName() {
-	      return this.name;
-	    }
-	  }, {
-	    key: "getValue",
-	    value: function getValue() {
-	      return this.value;
-	    }
-	  }, {
-	    key: "getMin",
-	    value: function getMin() {
-	      return this.min;
-	    }
-	  }, {
-	    key: "getMax",
-	    value: function getMax() {
-	      return this.max;
-	    }
-	    /**
-	     * Sets the value of the individual setting, flipping the "modified" bit to
-	     * true.
-	     * @param {?} newValue
-	     */
-
-	  }, {
-	    key: "setValue",
-	    value: function setValue(newValue) {
-	      this.value = newValue;
-	      this.wasModified = true;
-	    }
-	    /**
-	     * Returns if the setting was modified at any point from the default.
-	     * @returns {boolean}
-	     */
-
-	  }, {
-	    key: "wasModifiedFromDefault",
-	    value: function wasModifiedFromDefault() {
-	      return this.wasModified;
-	    }
-	    /**
-	     * Merges another setting into this setting. This will only occur if the
-	     * other setting has been mutated from the default. This check is useful in
-	     * the event developers want to change a default setting, as otherwise, the
-	     * new default setting would not be applied to returning users.
-	     * @param {Setting} other
-	     * @returns {Setting}
-	     */
-
-	  }, {
-	    key: "merge",
-	    value: function merge(other) {
-	      // Sanity check for comparability.
-	      if (!other || other.getName() != this.getName()) {
-	        return;
-	      } // If the other setting was not modified from default, ignore.
-
-
-	      if (!other.wasModifiedFromDefault()) {
-	        return;
-	      }
-
-	      this.value = other.getValue();
-	      this.wasModified = true; // TODO: Check for min/max, type, or other options for validation.
-	    }
-	    /**
-	     * Exports the individual setting to an object.
-	     * @returns {Object}
-	     */
-
-	  }, {
-	    key: "export",
-	    value: function _export() {
-	      return {
-	        value: this.value,
-	        modified: this.wasModified
-	      };
-	    }
-	  }]);
-
-	  return Setting;
-	}();
-
-	var MEASUREMENT_MIN = 10;
-	var MAX_LENGTH = 100;
-	/**
-	 * A timer for monitoring render loop execution time. Installed on the engine
-	 * core, then read by renderer stats. Only enabled when debug is enabled.
-	 */
-
-	var EngineTimer = /*#__PURE__*/function () {
-	  function EngineTimer() {
-	    classCallCheck(this, EngineTimer);
-
-	    this.measurements = new Array();
-	    this.min = Infinity;
-	    this.max = 0;
-	    this.currIndex = 0;
-	    this.enabled = !Settings$1.loaded || Settings$1.get('debug');
-	    SettingsEvent.listen(this.handleSettings.bind(this));
-	  }
-	  /**
-	   * Starts a measurement.
-	   */
-
-
-	  createClass(EngineTimer, [{
-	    key: "start",
-	    value: function start() {
-	      if (!this.enabled) {
-	        return;
-	      }
-
-	      this.startTime = performance.now();
-	    }
-	    /**
-	     * Completes a measurement, recording it if enabled.
-	     */
-
-	  }, {
-	    key: "end",
-	    value: function end() {
-	      if (!this.enabled || !this.startTime) {
-	        return;
-	      }
-
-	      var time = performance.now() - this.startTime;
-	      this.measurements[this.currIndex] = time;
-	      this.currIndex++;
-
-	      if (this.currIndex >= MAX_LENGTH) {
-	        this.currIndex = 0;
-	      }
-
-	      if (time > this.max) {
-	        this.max = time;
-	      }
-
-	      if (time < this.min) {
-	        this.min = time;
-	      }
-	    }
-	    /**
-	     * Resets the timer cache.
-	     */
-
-	  }, {
-	    key: "reset",
-	    value: function reset() {
-	      this.max = 0;
-	      this.min = Infinity;
-	      this.currIndex = 0; // Clear the array.
-
-	      this.measurements.length = 0;
-	    }
-	    /**
-	     * Exports the meaurements average for reading in the stats panel. Clears the
-	     * measurements array for memory usage.
-	     * @returns {Object}
-	     */
-
-	  }, {
-	    key: "export",
-	    value: function _export() {
-	      if (!this.enabled) {
-	        return null;
-	      }
-
-	      if (this.measurements.length < MEASUREMENT_MIN) {
-	        return null;
-	      }
-
-	      var total = this.measurements.reduce(function (agg, x) {
-	        return agg + x;
-	      }, 0);
-	      var avg = total / this.measurements.length;
-	      var exportObj = {
-	        max: this.max,
-	        min: this.min,
-	        avg: avg
-	      };
-	      this.reset();
-	      return exportObj;
-	    }
-	    /**
-	     * Handles a settings change.
-	     */
-
-	  }, {
-	    key: "handleSettings",
-	    value: function handleSettings() {
-	      var currEnabled = this.enabled;
-
-	      if (currEnabled == Settings$1.get('debug')) {
-	        return;
-	      }
-
-	      this.enabled = Settings$1.get('debug');
-	      this.reset();
-	    }
-	  }]);
-
-	  return EngineTimer;
-	}();
-
-	var EngineTimer$1 = new EngineTimer();
 
 	/**
 	 * dat-gui JavaScript Controller Library
@@ -8448,433 +7256,6 @@
 	};
 
 	/**
-	 * A dat.gui module for ERA settings. This is, of course, heavily tied to the
-	 * settings object loading and changing over time. It should also modify
-	 * and save settings within ERA.
-	 * TODO: Developer mode to enable/disable settings panel.
-	 */
-
-	var SettingsPanel = /*#__PURE__*/function () {
-	  function SettingsPanel() {
-	    classCallCheck(this, SettingsPanel);
-
-	    this.enabled = true;
-	    this.gui = null;
-	    this.datControllers = new Map();
-	    this.dummySettings = {};
-	    this.load();
-	    SettingsEvent.listen(this.load.bind(this));
-	  }
-	  /**
-	   * Loads new data into the panel.
-	   */
-
-
-	  createClass(SettingsPanel, [{
-	    key: "load",
-	    value: function load() {
-	      if (!this.enabled) {
-	        return;
-	      }
-
-	      if (!this.gui) {
-	        this.gui = new index.GUI();
-	      } // Update the loaded GUI with all settings.
-
-
-	      this.update();
-	    }
-	    /**
-	     * Destroys the GUI and unloaded the state of the panel.
-	     */
-
-	  }, {
-	    key: "destroy",
-	    value: function destroy() {
-	      if (this.gui) {
-	        this.gui.destroy();
-	        this.gui = null;
-	      }
-
-	      this.datControllers.clear();
-	      this.dummySettings = {};
-	    }
-	    /**
-	     * Updates the settings panel with all settings available in the ERA settings
-	     * object.
-	     */
-
-	  }, {
-	    key: "update",
-	    value: function update() {
-	      var _this = this;
-
-	      Settings$1.forEach(function (setting, name) {
-	        var controller = _this.datControllers.get(name);
-
-	        if (!controller) {
-	          _this.dummySettings[name] = setting.getValue();
-	          controller = _this.gui.add(_this.dummySettings, name, setting.getMin(), setting.getMax());
-	          controller.onChange(function (value) {
-	            return _this.updateValue(name, value);
-	          });
-	          controller.onFinishChange(function (value) {
-	            return _this.updateValue(name, value);
-	          });
-
-	          _this.datControllers.set(name, controller);
-	        }
-
-	        _this.dummySettings[name] = setting.getValue();
-	        controller.updateDisplay();
-	      });
-	    }
-	    /**
-	     * Updates an individual value for a setting.
-	     * @param {string} name
-	     * @param {?} value
-	     */
-
-	  }, {
-	    key: "updateValue",
-	    value: function updateValue(name, value) {
-	      Settings$1.set(name, value);
-	    }
-	  }]);
-
-	  return SettingsPanel;
-	}();
-
-	var SettingsPanel$1 = new SettingsPanel();
-
-	var instance = null;
-	/**
-	 * Engine core for the game.
-	 */
-
-	var Engine = /*#__PURE__*/function () {
-	  createClass(Engine, null, [{
-	    key: "get",
-
-	    /**
-	     * Enforces singleton engine instance.
-	     */
-	    value: function get() {
-	      if (!instance) {
-	        instance = new Engine();
-	      }
-
-	      return instance;
-	    }
-	  }]);
-
-	  function Engine() {
-	    classCallCheck(this, Engine);
-
-	    this.started = false;
-	    this.rendering = false;
-	    this.plugins = new Set(); // Debug.
-
-	    this.timer = EngineTimer$1;
-	    this.settingsPanel = SettingsPanel$1; // The current game mode running.
-
-	    this.currentGameMode = null; // Load engine defaults.
-
-	    Settings$1.loadEngineDefaults();
-	  }
-	  /**
-	   * Starts the engine. This is separate from the constructor as it
-	   * is asynchronous.
-	   */
-
-
-	  createClass(Engine, [{
-	    key: "start",
-	    value: function () {
-	      var _start = asyncToGenerator( /*#__PURE__*/regenerator.mark(function _callee() {
-	        var _this = this;
-
-	        return regenerator.wrap(function _callee$(_context) {
-	          while (1) {
-	            switch (_context.prev = _context.next) {
-	              case 0:
-	                if (!this.started) {
-	                  _context.next = 2;
-	                  break;
-	                }
-
-	                return _context.abrupt("return");
-
-	              case 2:
-	                this.started = true;
-	                this.rendering = true;
-	                requestAnimationFrame(function () {
-	                  return _this.render();
-	                });
-
-	              case 5:
-	              case "end":
-	                return _context.stop();
-	            }
-	          }
-	        }, _callee, this);
-	      }));
-
-	      function start() {
-	        return _start.apply(this, arguments);
-	      }
-
-	      return start;
-	    }()
-	    /**
-	     * Resets the game engine to its initial state.
-	     */
-
-	  }, {
-	    key: "reset",
-	    value: function reset() {
-	      // Reset all plugins.
-	      this.plugins.forEach(function (plugin) {
-	        return plugin.reset();
-	      });
-	      new EngineResetEvent().fire(); // Clear the renderer.
-
-	      this.resetRender = true;
-	      this.started = false;
-	    }
-	    /**
-	     * The root for all tick updates in the game.
-	     */
-
-	  }, {
-	    key: "render",
-	    value: function render(timeStamp) {
-	      var _this2 = this;
-
-	      this.timer.start(); // Update all plugins.
-
-	      this.plugins.forEach(function (plugin) {
-	        return plugin.update(timeStamp);
-	      }); // Check if the render loop should be halted.
-
-	      if (this.resetRender) {
-	        this.resetRender = false;
-	        this.rendering = false;
-	        return;
-	      }
-
-	      this.timer.end(); // Continue the loop.
-
-	      requestAnimationFrame(function (time) {
-	        return _this2.render(time);
-	      });
-	    }
-	    /**
-	     * Installs a plugin to receive updates on each engine loop as well as
-	     * resets.
-	     * @param {Plugin} plugin
-	     */
-
-	  }, {
-	    key: "installPlugin",
-	    value: function installPlugin(plugin) {
-	      this.plugins.add(plugin);
-	    }
-	    /**
-	     * Loads and starts a game mode.
-	     * @param {GameMode} gameMode
-	     * @async
-	     */
-
-	  }, {
-	    key: "startGameMode",
-	    value: function () {
-	      var _startGameMode = asyncToGenerator( /*#__PURE__*/regenerator.mark(function _callee2(gameMode) {
-	        return regenerator.wrap(function _callee2$(_context2) {
-	          while (1) {
-	            switch (_context2.prev = _context2.next) {
-	              case 0:
-	                _context2.next = 2;
-	                return gameMode.load();
-
-	              case 2:
-	                _context2.next = 4;
-	                return gameMode.start();
-
-	              case 4:
-	                this.start();
-
-	              case 5:
-	              case "end":
-	                return _context2.stop();
-	            }
-	          }
-	        }, _callee2, this);
-	      }));
-
-	      function startGameMode(_x) {
-	        return _startGameMode.apply(this, arguments);
-	      }
-
-	      return startGameMode;
-	    }()
-	  }]);
-
-	  return Engine;
-	}();
-
-	/**
-	 * Base class for plugins to the engine such as audio, light, etc that can be
-	 * updated on each engine tick and reset gracefully.
-	 */
-
-	var Plugin = /*#__PURE__*/function () {
-	  function Plugin() {
-	    classCallCheck(this, Plugin);
-
-	    this.uuid = createUUID();
-	    this.install();
-	    SettingsEvent.listen(this.handleSettingsChange.bind(this));
-	  }
-	  /**
-	   * Installs the plugin into the engine. This method should be final.
-	   */
-
-
-	  createClass(Plugin, [{
-	    key: "install",
-	    value: function install() {
-	      Engine.get().installPlugin(this);
-	      return this;
-	    }
-	    /**
-	     * Resets the plugin.
-	     */
-
-	  }, {
-	    key: "reset",
-	    value: function reset() {
-	      console.warn('Plugin reset function not implemented');
-	    }
-	    /**
-	     * Updates the plugin at each engine tick.
-	     * @param {number} timestamp
-	     */
-
-	  }, {
-	    key: "update",
-	    value: function update(timestamp) {
-	      console.warn('Plugin update function not implemented');
-	    }
-	    /**
-	     * Handles a settings change event.
-	     */
-
-	  }, {
-	    key: "handleSettingsChange",
-	    value: function handleSettingsChange() {}
-	  }]);
-
-	  return Plugin;
-	}();
-
-	function _createSuper$3(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$4(); return function _createSuperInternal() { var Super = getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return possibleConstructorReturn(this, result); }; }
-
-	function _isNativeReflectConstruct$4() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
-	var instance$1 = null;
-	/**
-	 * The animation library stores animation data for loaded models.
-	 */
-
-	var Animation = /*#__PURE__*/function (_Plugin) {
-	  inherits(Animation, _Plugin);
-
-	  var _super = _createSuper$3(Animation);
-
-	  createClass(Animation, null, [{
-	    key: "get",
-	    value: function get() {
-	      if (!instance$1) {
-	        instance$1 = new Animation();
-	      }
-
-	      return instance$1;
-	    }
-	  }]);
-
-	  function Animation() {
-	    var _this;
-
-	    classCallCheck(this, Animation);
-
-	    _this = _super.call(this);
-	    _this.animations = new Map();
-	    _this.mixers = new Map();
-	    _this.lastUpdate = Date.now();
-	    return _this;
-	  }
-	  /** @override */
-
-
-	  createClass(Animation, [{
-	    key: "update",
-	    value: function update() {
-	      var currTime = Date.now();
-	      var diff = currTime - this.lastUpdate;
-	      this.mixers.forEach(function (mixer) {
-	        return mixer.update(diff / 1000);
-	      });
-	      this.lastUpdate = currTime;
-	    }
-	    /**
-	     * Stores animations for a given model name.
-	     * @param {string} name
-	     * @param {Array<THREE.AnimationClip>} animations
-	     */
-
-	  }, {
-	    key: "setAnimations",
-	    value: function setAnimations(name, animations) {
-	      if (!name || !animations) {
-	        return;
-	      }
-
-	      this.animations.set(name, animations);
-	    }
-	    /**
-	     * Creates an animation mixer for a given name and mesh.
-	     * @param {string} name
-	     * @param {THREE.Mesh} mesh
-	     * @returns {THREE.AnimationMixer}
-	     */
-
-	  }, {
-	    key: "createAnimationMixer",
-	    value: function createAnimationMixer(name, mesh) {
-	      if (!name || !mesh || !this.animations.has(name)) {
-	        return null;
-	      }
-
-	      var mixer = new AnimationMixer(mesh);
-	      this.mixers.set(mesh.uuid, mixer);
-	      return mixer;
-	    }
-	    /**
-	     * Returns all animation clips for a given name.
-	     * @param {string} name
-	     */
-
-	  }, {
-	    key: "getClips",
-	    value: function getClips(name) {
-	      return this.animations.get(name);
-	    }
-	  }]);
-
-	  return Animation;
-	}(Plugin);
-
-	/**
 	 * @author qiao / https://github.com/qiao
 	 * @author mrdoob / http://mrdoob.com
 	 * @author alteredq / http://alteredqualia.com/
@@ -9659,763 +8040,6 @@
 
 	MapControls.prototype = Object.create(EventDispatcher.prototype);
 	MapControls.prototype.constructor = MapControls;
-
-	function _createSuper$4(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$5(); return function _createSuperInternal() { var Super = getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return possibleConstructorReturn(this, result); }; }
-
-	function _isNativeReflectConstruct$5() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
-	var CONTROLS_KEY = 'era_bindings';
-	var instance$2 = null;
-	/**
-	 * The controls core for the game. Input handlers are created here. Once the
-	 * input is received, the response is delegated to the entity in control.
-	 */
-
-	var Controls = /*#__PURE__*/function (_Plugin) {
-	  inherits(Controls, _Plugin);
-
-	  var _super = _createSuper$4(Controls);
-
-	  createClass(Controls, null, [{
-	    key: "get",
-
-	    /**
-	     * Enforces singleton controls instance.
-	     */
-	    value: function get() {
-	      if (!instance$2) {
-	        instance$2 = new Controls();
-	      }
-
-	      return instance$2;
-	    }
-	  }]);
-
-	  function Controls() {
-	    var _this;
-
-	    classCallCheck(this, Controls);
-
-	    _this = _super.call(this);
-	    _this.previousInput = {};
-	    _this.registeredEntities = new Map();
-	    _this.controlsEnabled = true;
-	    _this.hasController = false;
-	    _this.controllerListeners = []; // Registered bindings for a given entity.
-
-	    _this.registeredBindings = new Map(); // Map of controls IDs to entity classes.
-
-	    _this.controlIds = new Map();
-	    document.addEventListener('keydown', function (e) {
-	      return _this.setActions(e.keyCode, 1);
-	    });
-	    document.addEventListener('keyup', function (e) {
-	      return _this.setActions(e.keyCode, 0);
-	    });
-	    document.addEventListener('mousedown', function (e) {
-	      return _this.setActions(e.button, 1);
-	    });
-	    document.addEventListener('mouseup', function (e) {
-	      return _this.setActions(e.button, 0);
-	    });
-	    document.addEventListener('mousemove', _this.onMouseMove.bind(assertThisInitialized(_this)));
-	    document.addEventListener('click', _this.onMouseClick.bind(assertThisInitialized(_this)));
-	    window.addEventListener('gamepadconnected', _this.startPollingController.bind(assertThisInitialized(_this)));
-	    window.addEventListener('gamepaddisconnected', _this.stopPollingController.bind(assertThisInitialized(_this)));
-
-	    _this.loadSettings();
-
-	    _this.registerCustomBindings();
-
-	    _this.pointerLockEnabled = false;
-	    SettingsEvent.listen(_this.loadSettings.bind(assertThisInitialized(_this)));
-	    return _this;
-	  }
-	  /** @override */
-
-
-	  createClass(Controls, [{
-	    key: "reset",
-	    value: function reset() {
-	      this.registeredEntities = new Map();
-	      this.exitPointerLock();
-	    }
-	    /** @override */
-
-	  }, {
-	    key: "update",
-	    value: function update() {
-	      this.controllerTick();
-	    }
-	    /**
-	     * Loads custom controls bindings from local storage.
-	     * @returns {Map<string, Bindings}
-	     */
-
-	  }, {
-	    key: "loadCustomBindingsFromStorage",
-	    value: function loadCustomBindingsFromStorage() {
-	      // Load bindings from localStorage.
-	      if (!localStorage.getItem(CONTROLS_KEY)) {
-	        return new Map();
-	      }
-
-	      var customObj;
-
-	      try {
-	        customObj = JSON.parse(localStorage.getItem(CONTROLS_KEY));
-	      } catch (e) {
-	        console.error(e);
-	        return new Map();
-	      }
-
-	      var bindingsMap = new Map(); // Iterate over all controls IDs.
-
-	      for (var _i = 0, _Object$keys = Object.keys(customObj); _i < _Object$keys.length; _i++) {
-	        var controlsId = _Object$keys[_i];
-	        // Create bindings from the given object.
-	        var bindings = new Bindings(controlsId).load(customObj[controlsId]);
-	        bindingsMap.set(controlsId, bindings);
-	      }
-
-	      return bindingsMap;
-	    }
-	    /**
-	     * Registers custom bindings defined by the user.
-	     */
-
-	  }, {
-	    key: "registerCustomBindings",
-	    value: function registerCustomBindings() {
-	      var _this2 = this;
-
-	      var customBindings = this.loadCustomBindingsFromStorage();
-
-	      if (!customBindings) {
-	        return;
-	      }
-
-	      customBindings.forEach(function (bindings) {
-	        _this2.registerCustomBindingsForId(bindings);
-	      });
-	    }
-	    /**
-	     * Sets a custom binding for a given controls ID, action, and input type.
-	     * @param {string} controlsId
-	     * @param {string} action
-	     * @param {string} inputType
-	     * @param {?} key
-	     */
-
-	  }, {
-	    key: "setCustomBinding",
-	    value: function setCustomBinding(controlsId, action, inputType, key) {
-	      // Load custom bindings from storage.
-	      var allCustomBindings = this.loadCustomBindingsFromStorage(); // Attach custom bindings for this ID if they don't exist.
-
-	      var idBindings = allCustomBindings.get(controlsId);
-
-	      if (!idBindings) {
-	        idBindings = new Bindings(controlsId);
-	        allCustomBindings.set(controlsId, idBindings);
-	      } // Check if the action exists for the given ID.
-
-
-	      var idAction = idBindings.getActions().get(action);
-
-	      if (!idAction) {
-	        idAction = new Action(action);
-	        idBindings.addAction(idAction);
-	      }
-
-	      idAction.addKey(inputType, key); // Export.
-
-	      this.writeBindingsToStorage(allCustomBindings); // Reload bindings.
-
-	      this.registerCustomBindings();
-	    }
-	    /**
-	     * Clears all custom bindings. Use this with caution, as there is not way to
-	     * restore them.
-	     * @param
-	     */
-
-	  }, {
-	    key: "clearAllCustomBindings",
-	    value: function clearAllCustomBindings() {
-	      // Export an empty map.
-	      this.writeBindingsToStorage(new Map()); // Reload bindings.
-
-	      this.reloadDefaultBindings();
-	      this.registerCustomBindings();
-	    }
-	    /**
-	     * Clears all custom bindings for a given entity.
-	     * @param {string} controlsId
-	     */
-
-	  }, {
-	    key: "clearCustomBindingsForEntity",
-	    value: function clearCustomBindingsForEntity(controlsId) {
-	      // Load custom bindings from storage.
-	      var allCustomBindings = this.loadCustomBindingsFromStorage(); // Clear entity.
-
-	      allCustomBindings["delete"](controlsId); // Export.
-
-	      this.writeBindingsToStorage(allCustomBindings); // Reload bindings.
-
-	      this.reloadDefaultBindings();
-	      this.registerCustomBindings();
-	    }
-	    /**
-	     * Clears all custom bindings for a given entity. If no input type is given,
-	     * all input types will be cleared.
-	     * @param {string} controlsId
-	     * @param {string} actionName
-	     * @param {string} inputType
-	     */
-
-	  }, {
-	    key: "clearCustomBindingsForAction",
-	    value: function clearCustomBindingsForAction(controlsId, actionName, inputType) {
-	      // Load custom bindings from storage.
-	      var allCustomBindings = this.loadCustomBindingsFromStorage();
-	      var entityBindings = allCustomBindings.get(controlsId);
-	      var action = entityBindings.getAction(actionName);
-
-	      if (!action) {
-	        return;
-	      } // Modify the action for the given input type.
-
-
-	      if (inputType) {
-	        action.clearInputType(inputType);
-	      } // Check if the action is empty or if no input type is provided. If so,
-	      // remove.
-
-
-	      if (action.isEmpty() || inputType === undefined) {
-	        entityBindings.removeAction(action);
-	      } // Check if entity bindings are empty. If so, remove from storage.
-
-
-	      if (entityBindings.isEmpty()) {
-	        allCustomBindings["delete"](controlsId);
-	      } // Export.
-
-
-	      this.writeBindingsToStorage(allCustomBindings); // Reload bindings.
-
-	      this.reloadDefaultBindings();
-	      this.registerCustomBindings();
-	    }
-	    /**
-	     * Reloads all default bindings for registered bindings.
-	     */
-
-	  }, {
-	    key: "reloadDefaultBindings",
-	    value: function reloadDefaultBindings() {
-	      var _this3 = this;
-
-	      this.controlIds.forEach(function (staticEntity, id) {
-	        var defaultBindings = staticEntity.GetBindings();
-
-	        _this3.registeredBindings.set(id, defaultBindings);
-	      });
-	    }
-	    /**
-	     * Writes a map of bindings to local storage.
-	     * @param {Map<string, Bindings} bindingsMap
-	     */
-
-	  }, {
-	    key: "writeBindingsToStorage",
-	    value: function writeBindingsToStorage(bindingsMap) {
-	      var exportObj = {};
-	      bindingsMap.forEach(function (bindings) {
-	        exportObj[bindings.getId()] = bindings.toObject();
-	      });
-	      localStorage.setItem(CONTROLS_KEY, JSON.stringify(exportObj));
-	    }
-	    /**
-	     * Get all valid keys for the binding
-	     * @param {Object} binding
-	     */
-
-	  }, {
-	    key: "getKeys",
-	    value: function getKeys(bindingName) {
-	      return Object.values(this.bindings[bindingName].keys);
-	    }
-	    /**
-	     * Get the key specifically for device
-	     * @param {Object} binding
-	     */
-
-	  }, {
-	    key: "getBinding",
-	    value: function getBinding(bindingName, device) {
-	      return this.bindings[bindingName].keys[device];
-	    }
-	    /**
-	     * Universally enables all controller input.
-	     */
-
-	  }, {
-	    key: "enable",
-	    value: function enable() {
-	      this.controlsEnabled = true;
-	    }
-	    /**
-	     * Universally disables all controller input.
-	     */
-
-	  }, {
-	    key: "disable",
-	    value: function disable() {
-	      this.controlsEnabled = false;
-
-	      if (Engine.get().getMainPlayer()) {
-	        Engine.get().getMainPlayer().clearInput();
-	      }
-	    }
-	    /**
-	     * When a controller is detected, poll it
-	     */
-
-	  }, {
-	    key: "startPollingController",
-	    value: function startPollingController() {
-	      if (!this.hasController) {
-	        this.hasController = true;
-	        this.controllerTick();
-	      }
-	    }
-	    /**
-	     * When a controller is disconnect, stop polling
-	     */
-
-	  }, {
-	    key: "stopPollingController",
-	    value: function stopPollingController() {
-	      this.hasController = false;
-	    }
-	    /**
-	     * Check status, send to server
-	     * Loop through all axes and buttons, send those with a value to the server
-	     * If none have a value, don't send anything.
-	     */
-
-	  }, {
-	    key: "controllerTick",
-	    value: function controllerTick() {
-	      if (this.hasController) {
-	        // Iterate over all gamepads.
-	        for (var i = 0; i < navigator.getGamepads().length; i++) {
-	          var controller = navigator.getGamepads()[i];
-
-	          if (!controller) {
-	            continue;
-	          }
-
-	          var rawControllerInput = this.getRawControllerInput(controller); // Fires an event with key and value
-	          // Key -> button1, axes2,..
-	          // Value -> Range from 0 to 1
-
-	          for (var _i2 = 0, _Object$keys2 = Object.keys(rawControllerInput); _i2 < _Object$keys2.length; _i2++) {
-	            var key = _Object$keys2[_i2];
-	            this.setActions(key, rawControllerInput[key], 'controller', i);
-	          }
-	        }
-	      }
-	    }
-	    /**
-	     * Name of the controller.
-	     * Usually contains an identifying part such as 'Xbox'
-	     */
-
-	  }, {
-	    key: "getControllerName",
-	    value: function getControllerName() {
-	      if (this.hasController) {
-	        return navigator.getGamepads()[0].id;
-	      }
-
-	      return '';
-	    }
-	    /**
-	     * Checks raw input (no keybind overrides)
-	     * @param {Gamepad} controller
-	     * @returns {Object}
-	     */
-
-	  }, {
-	    key: "getRawControllerInput",
-	    value: function getRawControllerInput(controller) {
-	      var input = {};
-
-	      if (this.hasController) {
-	        for (var i = 0; i < controller.axes.length; i++) {
-	          var val = controller.axes[i];
-	          val = Math.abs(val) < this.movementDeadzone ? 0 : val;
-	          input["axes".concat(i)] = val;
-	        }
-
-	        for (var _i3 = 0; _i3 < controller.buttons.length; _i3++) {
-	          var _val = controller.buttons[_i3].value;
-	          _val = Math.abs(_val) > this.movementDeadzone ? _val : 0;
-	          input["button".concat(_i3)] = _val;
-	        }
-
-	        if (!this.previousInput[controller.index]) {
-	          this.previousInput[controller.index] = {};
-	        }
-
-	        for (var _i4 = 0, _Object$keys3 = Object.keys(input); _i4 < _Object$keys3.length; _i4++) {
-	          var key = _Object$keys3[_i4];
-	          // Only send 0 if the one before that wasn't 0
-	          var previouslyHadValue = this.previousInput[controller.index][key] && this.previousInput[controller.index][key] !== 0;
-
-	          if (input[key] === 0 && !previouslyHadValue) {
-	            delete input[key];
-	          }
-	        }
-	      }
-
-	      this.previousInput[controller.index] = input;
-	      return input;
-	    }
-	    /**
-	     * Handles the mouse click event. Separate from mouse down and up.
-	     */
-
-	  }, {
-	    key: "onMouseClick",
-	    value: function onMouseClick(e) {
-	      // TODO: Use correct element.
-	      if (this.pointerLockEnabled) {
-	        this.requestPointerLock();
-	      }
-	    }
-	    /**
-	     * Requests pointer lock on the renderer canvas.
-	     */
-
-	  }, {
-	    key: "requestPointerLock",
-	    value: function requestPointerLock() {
-	      // TODO: Use correct element.
-	      document.body.requestPointerLock();
-	    }
-	    /**
-	     * Exits pointer lock.
-	     */
-
-	  }, {
-	    key: "exitPointerLock",
-	    value: function exitPointerLock() {
-	      document.exitPointerLock();
-	    }
-	    /**
-	     * Set the actions values controlled by the specified key.
-	     * @param {String | Number} key
-	     * @param {Number} value
-	     * @param {String=} inputDevice defaults to keyboard
-	     * @param {Number=} gamepadNumber used to ensure the gamepad is associated
-	     *                    with the player.
-	     */
-
-	  }, {
-	    key: "setActions",
-	    value: function setActions(key, value) {
-	      var _this4 = this;
-
-	      var inputDevice = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 'keyboard';
-	      var gamepadNumber = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : null;
-
-	      if (!this.controlsEnabled) {
-	        return;
-	      }
-
-	      var isController = inputDevice === 'controller'; // Check if we should also set the direction-specific axes actions.
-
-	      if (isController && key.indexOf('axes') >= 0 && !key.startsWith('+') && !key.startsWith('-')) {
-	        var absValue = Math.abs(value);
-
-	        if (value > 0) {
-	          this.setActions('+' + key, absValue, inputDevice, gamepadNumber);
-	          this.setActions('-' + key, 0, inputDevice, gamepadNumber);
-	        } else if (value < 0) {
-	          this.setActions('-' + key, absValue, inputDevice, gamepadNumber);
-	          this.setActions('+' + key, 0, inputDevice, gamepadNumber);
-	        } else {
-	          this.setActions('+' + key, absValue, inputDevice, gamepadNumber);
-	          this.setActions('-' + key, absValue, inputDevice, gamepadNumber);
-	        }
-	      } // Broadcast actions to all entities.
-
-
-	      this.registeredEntities.forEach(function (entity) {
-	        var playerNumber = entity.getPlayerNumber(); // Check gamepad association.
-
-	        if (isController && entity.getPlayerNumber() != null && gamepadNumber != entity.getPlayerNumber()) {
-	          return;
-	        }
-
-	        if (isController) {
-	          // No longer need to check for player number.
-	          playerNumber = null;
-	        } // Get the bindings for the entity.
-
-
-	        var bindings = _this4.registeredBindings.get(entity.getControlsId());
-
-	        if (!bindings) {
-	          console.warn('Bindings not defined for registered entity', entity);
-	          return;
-	        }
-
-	        var actions = bindings.getActionsForKey(key, playerNumber);
-
-	        if (!actions) {
-	          return;
-	        }
-
-	        actions.forEach(function (action) {
-	          return entity.setAction(action, value);
-	        });
-	        entity.inputDevice = inputDevice;
-	      });
-	    }
-	    /**
-	     * Handles and delegates mouse movement events.
-	     */
-
-	  }, {
-	    key: "onMouseMove",
-	    value: function onMouseMove(e) {
-	      if (!this.controlsEnabled) {
-	        return;
-	      }
-
-	      var ratio = this.mouseSensitivity / 50;
-	      this.registeredEntities.forEach(function (entity) {
-	        entity.setMouseMovement(e.movementX * ratio, e.movementY * ratio);
-	      });
-	    }
-	    /**
-	     * Registers an entity to receive controller input.
-	     */
-
-	  }, {
-	    key: "registerEntity",
-	    value: function registerEntity(entity) {
-	      if (!entity || !entity.actions) {
-	        console.error('Must pass in an entity');
-	      }
-
-	      this.registeredEntities.set(entity.uuid, entity);
-	    }
-	    /**
-	     * Unregisters an entity from receiving controller input.
-	     */
-
-	  }, {
-	    key: "unregisterEntity",
-	    value: function unregisterEntity(entity) {
-	      if (!entity || !entity.actions) {
-	        console.error('Must pass in an entity');
-	      }
-
-	      this.registeredEntities["delete"](entity.uuid);
-	      entity.clearInput();
-	    }
-	    /**
-	     * Loads settings.
-	     */
-
-	  }, {
-	    key: "loadSettings",
-	    value: function loadSettings() {
-	      this.movementDeadzone = Settings$1.get('movement_deadzone');
-	      this.mouseSensitivity = Settings$1.get('mouse_sensitivity');
-	    }
-	    /**
-	     * Creates orbit controls on the camera, if they exist.
-	     * @param {THREE.Camera} camera
-	     * @param {THREE.Renderer} renderer
-	     */
-
-	  }, {
-	    key: "useOrbitControls",
-	    value: function useOrbitControls(camera, renderer) {
-	      return new OrbitControls(camera, renderer.domElement);
-	    }
-	    /**
-	     * Creates pointer lock controls on the renderer.
-	     */
-
-	  }, {
-	    key: "usePointerLockControls",
-	    value: function usePointerLockControls() {
-	      this.pointerLockEnabled = true;
-	      this.requestPointerLock();
-	    }
-	    /**
-	     * Registers a bindings set to the controls for a given entity. The provided
-	     * entity should be the static class, not an instance.
-	     * @param {Entity} entity
-	     * @returns {Bindings}
-	     */
-
-	  }, {
-	    key: "registerBindings",
-	    value: function registerBindings(entity) {
-	      var bindings = entity.GetBindings(); // Register the entity controls for later use when reloading defaults.
-
-	      this.controlIds.set(bindings.getId(), entity); // Check if custom bindings have already been set.
-
-	      var customBindings = this.registeredBindings.get(bindings.getId());
-
-	      if (customBindings) {
-	        return customBindings.merge(bindings);
-	      }
-
-	      this.registeredBindings.set(bindings.getId(), bindings);
-	      return bindings;
-	    }
-	    /**
-	     * Registers bindings for a provided ID. This should only be used internally.
-	     * @param {string} controlsId
-	     * @param {Bindings} bindings
-	     */
-
-	  }, {
-	    key: "registerCustomBindingsForId",
-	    value: function registerCustomBindingsForId(bindings) {
-	      var defaultBindings = this.registeredBindings.get(bindings.getId());
-
-	      if (defaultBindings) {
-	        bindings.merge(defaultBindings);
-	      }
-
-	      this.registeredBindings.set(bindings.getId(), bindings);
-	    }
-	    /**
-	     * Retrieves the bindings for a given ID.
-	     * @param {string} controlsId
-	     * @returns {Bindings}
-	     */
-
-	  }, {
-	    key: "getBindings",
-	    value: function getBindings(controlsId) {
-	      var bindings = this.registeredBindings.get(controlsId);
-
-	      if (!bindings) {
-	        return;
-	      }
-
-	      return bindings;
-	    }
-	  }]);
-
-	  return Controls;
-	}(Plugin);
-
-	function _createSuper$5(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$6(); return function _createSuperInternal() { var Super = getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return possibleConstructorReturn(this, result); }; }
-
-	function _isNativeReflectConstruct$6() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
-	/**
-	 * An EventTarget that extends THREE.Object3D for use by Entities.
-	 * TODO: Try and reduce duplicate code between these two due to lack of
-	 *       multiple inheritance in JS.
-	 * @implements {EventTargetInterface}
-	 */
-
-
-	var Object3DEventTarget = /*#__PURE__*/function (_THREE$Object3D) {
-	  inherits(Object3DEventTarget, _THREE$Object3D);
-
-	  var _super = _createSuper$5(Object3DEventTarget);
-
-	  function Object3DEventTarget() {
-	    var _this;
-
-	    classCallCheck(this, Object3DEventTarget);
-
-	    _this = _super.call(this);
-	    _this.listeners = new Map();
-	    _this.uuidToLabels = new Map();
-	    return _this;
-	  }
-	  /** @override */
-
-
-	  createClass(Object3DEventTarget, [{
-	    key: "addEventListener",
-	    value: function addEventListener(label, handler) {
-	      if (!this.listeners.has(label)) {
-	        this.listeners.set(label, new Map());
-	      }
-
-	      var uuid = createUUID();
-	      this.listeners.get(label).set(uuid, handler);
-	      this.uuidToLabels.set(uuid, label);
-	      return uuid;
-	    }
-	    /** @override */
-
-	  }, {
-	    key: "addOneShotEventListener",
-	    value: function addOneShotEventListener(label, handler) {
-	      var _this2 = this;
-
-	      var listener = this.addEventListener(label, function (data) {
-	        _this2.removeEventListener(listener);
-
-	        handler(data);
-	      });
-	    }
-	    /** @override */
-
-	  }, {
-	    key: "removeEventListener",
-	    value: function removeEventListener(uuid) {
-	      var label = this.uuidToLabels.get(uuid);
-
-	      if (!label) {
-	        return false;
-	      }
-
-	      this.uuidToLabels["delete"](uuid);
-	      var labelListeners = this.listeners.get(label);
-
-	      if (!labelListeners) {
-	        return false;
-	      }
-
-	      return labelListeners["delete"](uuid);
-	    }
-	    /** @override */
-
-	  }, {
-	    key: "dispatchEvent",
-	    value: function dispatchEvent(label, data) {
-	      var labelListeners = this.listeners.get(label);
-
-	      if (!labelListeners) {
-	        return;
-	      }
-
-	      labelListeners.forEach(function (handler) {
-	        return handler(data);
-	      });
-	    }
-	  }]);
-
-	  return Object3DEventTarget;
-	}(Object3D);
 
 	/** @license zlib.js 2012 - imaya [ https://github.com/imaya/zlib.js ] The MIT License */
 	var mod = {},
@@ -17895,482 +15519,6 @@
 	    parallelTraverse(a.children[i], b.children[i], callback);
 	  }
 	}
-
-	var instance$3 = null;
-	/**
-	 * Core implementation for loading 3D models for use in-game.
-	 */
-
-	var Models = /*#__PURE__*/function () {
-	  createClass(Models, null, [{
-	    key: "get",
-
-	    /**
-	     * Enforces a singleton instance of Models.
-	     * @returns {Models}
-	     */
-	    value: function get() {
-	      if (!instance$3) {
-	        instance$3 = new Models();
-	      }
-
-	      return instance$3;
-	    }
-	  }]);
-
-	  function Models() {
-	    classCallCheck(this, Models);
-
-	    // Stores all models. Key is the model name, value is the
-	    // model mesh.
-	    this.storage = new Map();
-	  }
-	  /**
-	   * Loads all models described from the provided file path. The file should
-	   * be a JSON file. Follow the example at /src/data/models.json.
-	   * @param {string} filePath
-	   * @async
-	   */
-
-
-	  createClass(Models, [{
-	    key: "loadAllFromFile",
-	    value: function () {
-	      var _loadAllFromFile = asyncToGenerator( /*#__PURE__*/regenerator.mark(function _callee(filePath) {
-	        var allModelData, directory, promises, name, options;
-	        return regenerator.wrap(function _callee$(_context) {
-	          while (1) {
-	            switch (_context.prev = _context.next) {
-	              case 0:
-	                if (filePath) {
-	                  _context.next = 2;
-	                  break;
-	                }
-
-	                return _context.abrupt("return");
-
-	              case 2:
-	                _context.prev = 2;
-	                _context.next = 5;
-	                return loadJsonFromFile(filePath);
-
-	              case 5:
-	                allModelData = _context.sent;
-	                _context.next = 11;
-	                break;
-
-	              case 8:
-	                _context.prev = 8;
-	                _context.t0 = _context["catch"](2);
-	                throw new Error(_context.t0);
-
-	              case 11:
-	                // Extract the directory from the file path, use for loading models.
-	                directory = filePath.substr(0, filePath.lastIndexOf('/') + 1);
-	                promises = new Array();
-
-	                for (name in allModelData) {
-	                  options = allModelData[name];
-	                  promises.push(this.loadModel(directory, name, options));
-	                }
-
-	                return _context.abrupt("return", Promise.all(promises));
-
-	              case 15:
-	              case "end":
-	                return _context.stop();
-	            }
-	          }
-	        }, _callee, this, [[2, 8]]);
-	      }));
-
-	      function loadAllFromFile(_x) {
-	        return _loadAllFromFile.apply(this, arguments);
-	      }
-
-	      return loadAllFromFile;
-	    }()
-	    /**
-	     * Load the model from file and places it into model storage. Uses the glTF
-	     * file format and loader.
-	     * @param {string} path
-	     * @param {Object} options
-	     * @async
-	     */
-
-	  }, {
-	    key: "loadModel",
-	    value: function () {
-	      var _loadModel = asyncToGenerator( /*#__PURE__*/regenerator.mark(function _callee2(directory, name) {
-	        var options,
-	            extension,
-	            path,
-	            root,
-	            gltf,
-	            lod,
-	            _args2 = arguments;
-	        return regenerator.wrap(function _callee2$(_context2) {
-	          while (1) {
-	            switch (_context2.prev = _context2.next) {
-	              case 0:
-	                options = _args2.length > 2 && _args2[2] !== undefined ? _args2[2] : {};
-	                // Defaults to GLTF.
-	                extension = options.extension ? options.extension : 'gltf';
-	                path = "".concat(directory).concat(name, ".").concat(extension);
-	                _context2.t0 = extension;
-	                _context2.next = _context2.t0 === 'gltf' ? 6 : _context2.t0 === 'obj' ? 12 : _context2.t0 === 'fbx' ? 16 : 21;
-	                break;
-
-	              case 6:
-	                _context2.next = 8;
-	                return this.loadGltfModel(path);
-
-	              case 8:
-	                gltf = _context2.sent;
-	                root = gltf.scene;
-	                Animation.get().setAnimations(name, gltf.animations);
-	                return _context2.abrupt("break", 21);
-
-	              case 12:
-	                _context2.next = 14;
-	                return this.loadObjModel(path);
-
-	              case 14:
-	                root = _context2.sent;
-	                return _context2.abrupt("break", 21);
-
-	              case 16:
-	                _context2.next = 18;
-	                return this.loadFbxModel(path);
-
-	              case 18:
-	                root = _context2.sent;
-	                Animation.get().setAnimations(name, root.animations);
-	                return _context2.abrupt("break", 21);
-
-	              case 21:
-	                // Scale the model based on options.
-	                if (options.scale) {
-	                  root.scale.setScalar(options.scale);
-	                }
-
-	                if (!options.lod) {
-	                  _context2.next = 26;
-	                  break;
-	                }
-
-	                lod = this.loadLod_(root, options.lod);
-	                this.storage.set(name, lod);
-	                return _context2.abrupt("return", lod);
-
-	              case 26:
-	                // Set the model in storage.
-	                this.storage.set(name, root);
-	                return _context2.abrupt("return", root);
-
-	              case 28:
-	              case "end":
-	                return _context2.stop();
-	            }
-	          }
-	        }, _callee2, this);
-	      }));
-
-	      function loadModel(_x2, _x3) {
-	        return _loadModel.apply(this, arguments);
-	      }
-
-	      return loadModel;
-	    }()
-	    /**
-	     * Loads a model from the given file path.
-	     * @param {string} path
-	     * @async
-	     */
-
-	  }, {
-	    key: "loadModelWithoutStorage",
-	    value: function () {
-	      var _loadModelWithoutStorage = asyncToGenerator( /*#__PURE__*/regenerator.mark(function _callee3(path) {
-	        var extension, root, gltf;
-	        return regenerator.wrap(function _callee3$(_context3) {
-	          while (1) {
-	            switch (_context3.prev = _context3.next) {
-	              case 0:
-	                // Defaults to GLTF.
-	                extension = path.substr(path.lastIndexOf('.') + 1);
-	                _context3.t0 = extension;
-	                _context3.next = _context3.t0 === 'gltf' ? 4 : _context3.t0 === 'obj' ? 9 : _context3.t0 === 'fbx' ? 13 : 17;
-	                break;
-
-	              case 4:
-	                _context3.next = 6;
-	                return this.loadGltfModel(path);
-
-	              case 6:
-	                gltf = _context3.sent;
-	                root = gltf.scene;
-	                return _context3.abrupt("break", 17);
-
-	              case 9:
-	                _context3.next = 11;
-	                return this.loadObjModel(path);
-
-	              case 11:
-	                root = _context3.sent;
-	                return _context3.abrupt("break", 17);
-
-	              case 13:
-	                _context3.next = 15;
-	                return this.loadFbxModel(path);
-
-	              case 15:
-	                root = _context3.sent;
-	                return _context3.abrupt("break", 17);
-
-	              case 17:
-	                return _context3.abrupt("return", root);
-
-	              case 18:
-	              case "end":
-	                return _context3.stop();
-	            }
-	          }
-	        }, _callee3, this);
-	      }));
-
-	      function loadModelWithoutStorage(_x4) {
-	        return _loadModelWithoutStorage.apply(this, arguments);
-	      }
-
-	      return loadModelWithoutStorage;
-	    }()
-	    /**
-	     * Loads a GLTF model.
-	     * @param {string} path
-	     * @async
-	     */
-
-	  }, {
-	    key: "loadGltfModel",
-	    value: function () {
-	      var _loadGltfModel = asyncToGenerator( /*#__PURE__*/regenerator.mark(function _callee4(path) {
-	        return regenerator.wrap(function _callee4$(_context4) {
-	          while (1) {
-	            switch (_context4.prev = _context4.next) {
-	              case 0:
-	                return _context4.abrupt("return", new Promise(function (resolve) {
-	                  var loader = new GLTFLoader();
-	                  loader.load(path, function (gltf) {
-	                    resolve(gltf);
-	                  }, function () {}, function (err) {
-	                    throw new Error(err);
-	                  });
-	                }));
-
-	              case 1:
-	              case "end":
-	                return _context4.stop();
-	            }
-	          }
-	        }, _callee4);
-	      }));
-
-	      function loadGltfModel(_x5) {
-	        return _loadGltfModel.apply(this, arguments);
-	      }
-
-	      return loadGltfModel;
-	    }()
-	    /**
-	     * Loads a Obj model.
-	     * @param {string} path
-	     * @async
-	     */
-
-	  }, {
-	    key: "loadObjModel",
-	    value: function () {
-	      var _loadObjModel = asyncToGenerator( /*#__PURE__*/regenerator.mark(function _callee5(path) {
-	        var materials, root;
-	        return regenerator.wrap(function _callee5$(_context5) {
-	          while (1) {
-	            switch (_context5.prev = _context5.next) {
-	              case 0:
-	                materials = null;
-	                _context5.prev = 1;
-	                _context5.next = 4;
-	                return this.loadObjMaterials(path);
-
-	              case 4:
-	                materials = _context5.sent;
-	                _context5.next = 9;
-	                break;
-
-	              case 7:
-	                _context5.prev = 7;
-	                _context5.t0 = _context5["catch"](1);
-
-	              case 9:
-	                _context5.next = 11;
-	                return this.loadObjGeometry(path, materials);
-
-	              case 11:
-	                root = _context5.sent;
-	                return _context5.abrupt("return", root);
-
-	              case 13:
-	              case "end":
-	                return _context5.stop();
-	            }
-	          }
-	        }, _callee5, this, [[1, 7]]);
-	      }));
-
-	      function loadObjModel(_x6) {
-	        return _loadObjModel.apply(this, arguments);
-	      }
-
-	      return loadObjModel;
-	    }()
-	    /**
-	     *
-	     * @param {string} path
-	     * @param {?} materials
-	     */
-
-	  }, {
-	    key: "loadObjGeometry",
-	    value: function loadObjGeometry(path, materials) {
-	      return new Promise(function (resolve) {
-	        var objLoader = new OBJLoader();
-
-	        if (materials) {
-	          objLoader.setMaterials(materials);
-	        }
-
-	        objLoader.load(path, resolve);
-	      });
-	    }
-	    /**
-	     * Loads an obj files respective materials.
-	     * @param {string} path
-	     * @async
-	     */
-
-	  }, {
-	    key: "loadObjMaterials",
-	    value: function loadObjMaterials(path) {
-	      var mtlLoader = new MTLLoader(); // Modify .obj path to look for .mtl.
-
-	      path = path.slice(0, path.lastIndexOf('.')) + '.mtl';
-	      return new Promise(function (resolve, reject) {
-	        mtlLoader.load(path, function (materials) {
-	          materials.preload();
-	          resolve(materials);
-	        }, function () {}, function () {
-	          return reject();
-	        });
-	      });
-	    }
-	    /**
-	     * Loads a FBX model.
-	     * @param {string} path
-	     * @async
-	     */
-
-	  }, {
-	    key: "loadFbxModel",
-	    value: function () {
-	      var _loadFbxModel = asyncToGenerator( /*#__PURE__*/regenerator.mark(function _callee6(path) {
-	        var loader;
-	        return regenerator.wrap(function _callee6$(_context6) {
-	          while (1) {
-	            switch (_context6.prev = _context6.next) {
-	              case 0:
-	                loader = new FBXLoader();
-	                return _context6.abrupt("return", new Promise(function (resolve) {
-	                  loader.load(path, function (object) {
-	                    resolve(object);
-	                  }, function () {}, function (err) {
-	                    return console.error(err);
-	                  });
-	                }));
-
-	              case 2:
-	              case "end":
-	                return _context6.stop();
-	            }
-	          }
-	        }, _callee6);
-	      }));
-
-	      function loadFbxModel(_x7) {
-	        return _loadFbxModel.apply(this, arguments);
-	      }
-
-	      return loadFbxModel;
-	    }()
-	    /**
-	     * Creates a clone of a model from storage.
-	     * @param {string} name
-	     * @return {THREE.Object3D}
-	     */
-
-	  }, {
-	    key: "createModel",
-	    value: function createModel(name) {
-	      if (!this.storage.has(name)) {
-	        return null;
-	      }
-
-	      var original = this.storage.get(name);
-	      var clone = SkeletonUtils.clone(original);
-	      return clone;
-	    }
-	    /**
-	     * Loads a Level of Detail wrapper object for the given model. This works
-	     * under the assumption that the user has provided groups of meshes, each with
-	     * a suffix "_LOD{n}".
-	     * @param {THREE.Object3D} root
-	     * @param {Array<number>} levels
-	     * @return {THREE.LOD}
-	     * @private
-	     */
-
-	  }, {
-	    key: "loadLod_",
-	    value: function loadLod_(root, levels) {
-	      // Ensure the root contains a list of children.
-	      if (!root || !root.children || root.children.length != levels.length) {
-	        console.error('Root children and levels do not match:', root.children, levels);
-	      }
-
-	      var lod = new LOD();
-	      levels.forEach(function (levelThreshold, index) {
-	        var lodObject = null;
-	        root.children.forEach(function (child) {
-	          if (new RegExp(".*LOD".concat(index)).test(child.name)) {
-	            lodObject = child;
-	          }
-	        });
-
-	        if (!lodObject) {
-	          return console.error('No LOD mesh for level', index);
-	        }
-
-	        lod.addLevel(lodObject, levelThreshold);
-	      });
-	      return lod;
-	    }
-	  }]);
-
-	  return Models;
-	}();
-
-	// TODO: Make this dynamic, with multiple levels.
-
-	var QUALITY_RANGE = new Vector3().setScalar(2);
 
 	/**
 	 * Records what objects are colliding with each other
@@ -28031,661 +25179,6 @@
 	})();
 
 	/**
-	 * Adds Three.js primitives into the scene where all the Cannon bodies and
-	 * shapes are.
-	 */
-
-	var DebugRenderer = /*#__PURE__*/function () {
-	  /**
-	   * @param {THREE.Scene} scene
-	   * @param {CANNON.World} world
-	   */
-	  function DebugRenderer(scene, world) {
-	    classCallCheck(this, DebugRenderer);
-
-	    this.scene = scene;
-	    this.world = world;
-	    this._meshes = [];
-	    this._material = new MeshBasicMaterial({
-	      color: 0x00ff00,
-	      wireframe: true
-	    });
-	    this._sleepMaterial = new MeshBasicMaterial({
-	      wireframe: true,
-	      color: 0x0000ff
-	    });
-	    this._sphereGeometry = new SphereGeometry(1);
-	    this._boxGeometry = new BoxGeometry(1, 1, 1);
-	    this._planeGeometry = new PlaneGeometry(10, 10, 10, 10);
-	    this._cylinderGeometry = new CylinderGeometry(1, 1, 10, 10);
-	    this.tmpVec0 = new Vec3();
-	    this.tmpVec1 = new Vec3();
-	    this.tmpVec2 = new Vec3();
-	    this.tmpQuat0 = new Vec3();
-	  }
-	  /** @override */
-
-
-	  createClass(DebugRenderer, [{
-	    key: "update",
-	    value: function update() {
-	      var _this = this;
-
-	      var bodies = this.world.bodies;
-	      var meshes = this._meshes;
-	      var shapeWorldPosition = this.tmpVec0;
-	      var shapeWorldQuaternion = this.tmpQuat0;
-	      var meshIndex = 0;
-	      bodies.forEach(function (body) {
-	        body.shapes.forEach(function (shape, shapeIndex) {
-	          _this._updateMesh(meshIndex, body, shape);
-
-	          var mesh = meshes[meshIndex];
-
-	          if (mesh) {
-	            // Get world position
-	            body.quaternion.vmult(body.shapeOffsets[shapeIndex], shapeWorldPosition);
-	            body.position.vadd(shapeWorldPosition, shapeWorldPosition); // Get world quaternion
-
-	            body.quaternion.mult(body.shapeOrientations[shapeIndex], shapeWorldQuaternion); // Copy to meshes
-
-	            mesh.position.copy(shapeWorldPosition);
-	            mesh.quaternion.copy(shapeWorldQuaternion);
-	          }
-
-	          meshIndex++;
-	        });
-	      });
-
-	      for (var i = meshIndex; i < meshes.length; i++) {
-	        var mesh = meshes[i];
-
-	        if (mesh) {
-	          this.scene.remove(mesh);
-	        }
-	      }
-
-	      meshes.length = meshIndex;
-	    }
-	    /** @override */
-
-	  }, {
-	    key: "destroy",
-	    value: function destroy() {
-	      this._meshes.forEach(function (mesh) {
-	        if (mesh.parent) {
-	          mesh.parent.remove(mesh);
-	        }
-	      });
-	    }
-	  }, {
-	    key: "_updateMesh",
-	    value: function _updateMesh(index, body, shape) {
-	      var mesh = this._meshes[index];
-
-	      if (!this._typeMatch(mesh, shape)) {
-	        if (mesh) {
-	          this.scene.remove(mesh);
-	        }
-
-	        mesh = this._meshes[index] = this._createMesh(shape);
-	      }
-
-	      this._scaleMesh(mesh, shape);
-	    }
-	  }, {
-	    key: "_typeMatch",
-	    value: function _typeMatch(mesh, shape) {
-	      if (!mesh) {
-	        return false;
-	      }
-
-	      var geo = mesh.geometry;
-	      return geo instanceof SphereGeometry && shape instanceof Sphere$1 || geo instanceof BoxGeometry && shape instanceof Box || geo instanceof PlaneGeometry && shape instanceof Plane$1 || geo.id === shape.geometryId && shape instanceof ConvexPolyhedron || geo.id === shape.geometryId && shape instanceof Trimesh || geo.id === shape.geometryId && shape instanceof Heightfield;
-	    }
-	  }, {
-	    key: "_createMesh",
-	    value: function _createMesh(shape) {
-	      var mesh;
-	      var material = this._material;
-
-	      switch (shape.type) {
-	        case Shape$1.types.SPHERE:
-	          mesh = new Mesh(this._sphereGeometry, material);
-	          break;
-
-	        case Shape$1.types.BOX:
-	          mesh = new Mesh(this._boxGeometry, material);
-	          break;
-
-	        case Shape$1.types.PLANE:
-	          mesh = new Mesh(this._planeGeometry, material);
-	          break;
-
-	        case Shape$1.types.CONVEXPOLYHEDRON:
-	          // Create mesh
-	          var geo = new Geometry(); // Add vertices
-
-	          for (var i = 0; i < shape.vertices.length; i++) {
-	            var v = shape.vertices[i];
-	            geo.vertices.push(new Vector3(v.x, v.y, v.z));
-	          }
-
-	          for (var i = 0; i < shape.faces.length; i++) {
-	            var face = shape.faces[i]; // add triangles
-
-	            var a = face[0];
-
-	            for (var j = 1; j < face.length - 1; j++) {
-	              var b = face[j];
-	              var c = face[j + 1];
-	              geo.faces.push(new Face3(a, b, c));
-	            }
-	          }
-
-	          geo.computeBoundingSphere();
-	          geo.computeFaceNormals();
-	          mesh = new Mesh(geo, material);
-	          shape.geometryId = geo.id;
-	          break;
-
-	        case Shape$1.types.TRIMESH:
-	          var geometry = new Geometry();
-	          var v0 = this.tmpVec0;
-	          var v1 = this.tmpVec1;
-	          var v2 = this.tmpVec2;
-
-	          for (var i = 0; i < shape.indices.length / 3; i++) {
-	            shape.getTriangleVertices(i, v0, v1, v2);
-	            geometry.vertices.push(new Vector3(v0.x, v0.y, v0.z), new Vector3(v1.x, v1.y, v1.z), new Vector3(v2.x, v2.y, v2.z));
-	            var j = geometry.vertices.length - 3;
-	            geometry.faces.push(new Face3(j, j + 1, j + 2));
-	          }
-
-	          geometry.computeBoundingSphere();
-	          geometry.computeFaceNormals();
-	          mesh = new Mesh(geometry, material);
-	          shape.geometryId = geometry.id;
-	          break;
-
-	        case Shape$1.types.HEIGHTFIELD:
-	          var geometry = new Geometry();
-	          var v0 = this.tmpVec0;
-	          var v1 = this.tmpVec1;
-	          var v2 = this.tmpVec2;
-
-	          for (var xi = 0; xi < shape.data.length - 1; xi++) {
-	            for (var yi = 0; yi < shape.data[xi].length - 1; yi++) {
-	              for (var k = 0; k < 2; k++) {
-	                shape.getConvexTrianglePillar(xi, yi, k === 0);
-	                v0.copy(shape.pillarConvex.vertices[0]);
-	                v1.copy(shape.pillarConvex.vertices[1]);
-	                v2.copy(shape.pillarConvex.vertices[2]);
-	                v0.vadd(shape.pillarOffset, v0);
-	                v1.vadd(shape.pillarOffset, v1);
-	                v2.vadd(shape.pillarOffset, v2);
-	                geometry.vertices.push(new Vector3(v0.x, v0.y, v0.z), new Vector3(v1.x, v1.y, v1.z), new Vector3(v2.x, v2.y, v2.z));
-	                var i = geometry.vertices.length - 3;
-	                geometry.faces.push(new Face3(i, i + 1, i + 2));
-	              }
-	            }
-	          }
-
-	          geometry.computeBoundingSphere();
-	          geometry.computeFaceNormals();
-	          mesh = new Mesh(geometry, material);
-	          shape.geometryId = geometry.id;
-	          break;
-	      }
-
-	      if (mesh) {
-	        this.scene.add(mesh);
-	      }
-
-	      return mesh;
-	    }
-	  }, {
-	    key: "_scaleMesh",
-	    value: function _scaleMesh(mesh, shape) {
-	      switch (shape.type) {
-	        case Shape$1.types.SPHERE:
-	          var radius = shape.radius;
-	          mesh.scale.set(radius, radius, radius);
-	          break;
-
-	        case Shape$1.types.BOX:
-	          mesh.scale.copy(shape.halfExtents);
-	          mesh.scale.multiplyScalar(2);
-	          break;
-
-	        case Shape$1.types.CONVEXPOLYHEDRON:
-	          mesh.scale.set(1, 1, 1);
-	          break;
-
-	        case Shape$1.types.TRIMESH:
-	          mesh.scale.copy(shape.scale);
-	          break;
-
-	        case Shape$1.types.HEIGHTFIELD:
-	          mesh.scale.set(1, 1, 1);
-	          break;
-	      }
-	    }
-	  }]);
-
-	  return DebugRenderer;
-	}();
-
-	var instance$4 = null;
-	/**
-	 * Handles creation and installation of physical materials within the physics
-	 * engine.
-	 */
-
-	var MaterialManager = /*#__PURE__*/function () {
-	  createClass(MaterialManager, null, [{
-	    key: "get",
-	    value: function get() {
-	      if (!instance$4) {
-	        instance$4 = new MaterialManager();
-	      }
-
-	      return instance$4;
-	    }
-	  }]);
-
-	  function MaterialManager() {
-	    classCallCheck(this, MaterialManager);
-
-	    this.physicalMaterials = new Map();
-	    this.contactMaterials = new Map();
-	    this.worlds = new Set();
-	  }
-	  /**
-	   * Registers a physics world to receive updates to materials created by
-	   * objects within it.
-	   * @param {CANNON.World} world
-	   */
-
-
-	  createClass(MaterialManager, [{
-	    key: "registerWorld",
-	    value: function registerWorld(world) {
-	      this.worlds.add(world);
-	      this.contactMaterials.forEach(function (material) {
-	        return world.addContactMaterial(material);
-	      });
-	    }
-	    /**
-	     * Unregisters a physics world from updates to materials.
-	     * @param {CANNON.World} world
-	     */
-
-	  }, {
-	    key: "unregisterWorld",
-	    value: function unregisterWorld(world) {
-	      this.worlds["delete"](world);
-	    }
-	    /**
-	     * Creates a new physical material for the given name and options. If the
-	     * physical material already exists, return the existing one.
-	     */
-
-	  }, {
-	    key: "createPhysicalMaterial",
-	    value: function createPhysicalMaterial(name, options) {
-	      if (!this.physicalMaterials.has(name)) {
-	        var material = new Material$1(options);
-	        this.physicalMaterials.set(name, material);
-	      }
-
-	      return this.physicalMaterials.get(name);
-	    }
-	    /**
-	     * Creates a new contact material between two given names. If the contact
-	     * material already exists, return the existing one.
-	     */
-
-	  }, {
-	    key: "createContactMaterial",
-	    value: function createContactMaterial(name1, name2, options) {
-	      // TODO: Allow for "pending" contact material if one of the materials has
-	      // not been created yet.
-	      var key = this.createContactKey(name1, name2);
-
-	      if (!this.contactMaterials.has(key)) {
-	        var mat1 = this.createPhysicalMaterial(name1);
-	        var mat2 = this.createPhysicalMaterial(name2);
-	        var contactMat = new ContactMaterial(mat1, mat2, options);
-	        this.contactMaterials.set(key, contactMat);
-	        this.worlds.forEach(function (world) {
-	          return world.addContactMaterial(contactMat);
-	        });
-	      }
-
-	      return this.contactMaterials.get(key);
-	    }
-	    /**
-	     * Creates a combined string to use as a key for contact materials.
-	     */
-
-	  }, {
-	    key: "createContactKey",
-	    value: function createContactKey(name1, name2) {
-	      // Alphabetize, then concatenate.
-	      if (name1 < name2) {
-	        return "".concat(name1, ",").concat(name2);
-	      }
-
-	      return "".concat(name2, ",").concat(name1);
-	    }
-	  }]);
-
-	  return MaterialManager;
-	}();
-
-	function _createSuper$6(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$7(); return function _createSuperInternal() { var Super = getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return possibleConstructorReturn(this, result); }; }
-
-	function _isNativeReflectConstruct$7() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
-	var MAX_DELTA = 1;
-	var MAX_SUBSTEPS = 10;
-	var instance$5 = null;
-	/**
-	 * API implementation for Cannon.js, a pure JavaScript physics engine.
-	 * https://github.com/schteppe/cannon.js
-	 */
-
-	var PhysicsPlugin = /*#__PURE__*/function (_Plugin) {
-	  inherits(PhysicsPlugin, _Plugin);
-
-	  var _super = _createSuper$6(PhysicsPlugin);
-
-	  createClass(PhysicsPlugin, null, [{
-	    key: "get",
-
-	    /**
-	     * Enforces singleton physics instance.
-	     */
-	    value: function get() {
-	      if (!instance$5) {
-	        instance$5 = new PhysicsPlugin();
-	      }
-
-	      return instance$5;
-	    }
-	  }]);
-
-	  function PhysicsPlugin() {
-	    var _this;
-
-	    classCallCheck(this, PhysicsPlugin);
-
-	    _this = _super.call(this);
-	    _this.registeredEntities = new Map();
-	    _this.world = _this.createWorld();
-	    _this.eraWorld = null;
-	    _this.lastTime = performance.now();
-	    _this.debugRenderer = null;
-	    return _this;
-	  }
-	  /** @override */
-
-
-	  createClass(PhysicsPlugin, [{
-	    key: "reset",
-	    value: function reset() {
-	      this.terminate();
-	      MaterialManager.get().unregisterWorld(this.world); // TODO: Clean up physics bodies.
-	    }
-	    /** @override */
-
-	  }, {
-	    key: "update",
-	    value: function update() {
-	      var currTime = performance.now();
-	      var delta = currTime - this.lastTime;
-	      this.lastTime = currTime;
-
-	      if (delta <= 0) {
-	        return;
-	      }
-
-	      this.step(delta);
-	      this.updateEntities(delta);
-
-	      if (this.debugRenderer) {
-	        this.debugRenderer.update();
-	      }
-	    }
-	    /** @override */
-
-	  }, {
-	    key: "handleSettingsChange",
-	    value: function handleSettingsChange() {
-	      if (Settings$1.get('physics_debug') && this.debugRenderer) {
-	        return;
-	      }
-
-	      Settings$1.get('physics_debug') ? this.enableDebugRenderer() : this.disableDebugRenderer();
-	    }
-	  }, {
-	    key: "getWorld",
-	    value: function getWorld() {
-	      return this.world;
-	    }
-	  }, {
-	    key: "setEraWorld",
-	    value: function setEraWorld(eraWorld) {
-	      this.eraWorld = eraWorld;
-	      this.handleSettingsChange();
-	      return this;
-	    }
-	  }, {
-	    key: "getEraWorld",
-	    value: function getEraWorld() {
-	      return this.eraWorld;
-	    }
-	    /**
-	     * Steps the physics world.
-	     * @param {number} delta
-	     */
-
-	  }, {
-	    key: "step",
-	    value: function step(delta) {
-	      delta /= 1000;
-	      delta = Math.min(MAX_DELTA, delta);
-	      this.world.step(1 / 60, delta, MAX_SUBSTEPS);
-	    }
-	    /**
-	     * Instantiates the physics world.
-	     */
-
-	  }, {
-	    key: "createWorld",
-	    value: function createWorld() {
-	      var world = new World();
-	      world.gravity.set(0, -9.82, 0);
-	      MaterialManager.get().registerWorld(world);
-	      return world;
-	    }
-	    /**
-	     * Iterates through all registered entities and updates them.
-	     */
-
-	  }, {
-	    key: "updateEntities",
-	    value: function updateEntities(delta) {
-	      this.registeredEntities.forEach(function (entity) {
-	        return entity.update(delta);
-	      });
-	    }
-	    /**
-	     * Registers an entity to partake in physics simulations.
-	     * @param {Entity} entity
-	     */
-
-	  }, {
-	    key: "registerEntity",
-	    value: function registerEntity(entity) {
-	      if (!entity || !entity.physicsBody) {
-	        console.error('Must pass in an entity');
-	        return false;
-	      }
-
-	      this.registeredEntities.set(entity.uuid, entity);
-	      entity.registerPhysicsWorld(this);
-	      this.registerContactHandler(entity);
-	      this.world.addBody(entity.physicsBody);
-	      return true;
-	    }
-	    /**
-	     * Unregisters an entity from partaking in physics simulations.
-	     * @param {Entity} entity
-	     */
-
-	  }, {
-	    key: "unregisterEntity",
-	    value: function unregisterEntity(entity) {
-	      if (!entity || !entity.physicsBody) {
-	        console.error('Must pass in an entity');
-	        return false;
-	      }
-
-	      this.registeredEntities["delete"](entity.uuid);
-	      entity.unregisterPhysicsWorld(this);
-	      this.world.remove(entity.physicsBody);
-	      return true;
-	    }
-	    /**
-	     * Ends the physics simulation. Is only called client-side.
-	     */
-
-	  }, {
-	    key: "terminate",
-	    value: function terminate() {
-	      clearInterval(this.updateInterval);
-	      instance$5 = null;
-	    }
-	    /**
-	     * Gets the position of the given entity. Must be implemented by
-	     * engine-specific implementations.
-	     * @param {Entity} entity
-	     * @returns {CANNON.Vec3}
-	     */
-
-	  }, {
-	    key: "getPosition",
-	    value: function getPosition(entity) {
-	      return entity.physicsBody.position;
-	    }
-	    /**
-	     * Gets the rotation of the given entity. Must be implemented by
-	     * engine-specific implementations.
-	     * @param {Entity} entity
-	     * @returns {Object}
-	     */
-
-	  }, {
-	    key: "getRotation",
-	    value: function getRotation(entity) {
-	      return entity.physicsBody.quaternion;
-	    }
-	    /**
-	     * Sets a debug renderer on the physics instance. This should be overriden by
-	     * each engine-specific implementation for ease of use.
-	     */
-
-	  }, {
-	    key: "enableDebugRenderer",
-	    value: function enableDebugRenderer() {
-	      var scene = this.getEraWorld() ? this.getEraWorld().getScene() : null;
-	      var world = this.getWorld();
-
-	      if (!scene || !world) {
-	        return console.warn('Debug renderer missing scene or world.');
-	      }
-
-	      this.debugRenderer = new DebugRenderer(scene, world);
-	      return this.debugRenderer;
-	    }
-	    /**
-	     * Disables the debug renderer on the physics instance.
-	     */
-
-	  }, {
-	    key: "disableDebugRenderer",
-	    value: function disableDebugRenderer() {
-	      if (!this.debugRenderer) {
-	        return;
-	      }
-
-	      this.debugRenderer.destroy();
-	      this.debugRenderer = null;
-	    }
-	    /**
-	     * Autogenerates a physics body based on the given mesh.
-	     * @param {THREE.Object3D} mesh
-	     * @returns {?} The physics body.
-	     */
-
-	  }, {
-	    key: "autogeneratePhysicsBody",
-	    value: function autogeneratePhysicsBody(mesh) {
-	      console.warn('Autogenerating physics bodies not supported.');
-	    }
-	    /**
-	     * Registers an entity to receive contact events.
-	     * @param {Entity} entity
-	     */
-
-	  }, {
-	    key: "registerContactHandler",
-	    value: function registerContactHandler(entity) {
-	      entity.physicsBody.addEventListener('collide', function (e) {
-	        entity.handleCollision(e);
-	      });
-	    }
-	  }]);
-
-	  return PhysicsPlugin;
-	}(Plugin);
-
-	function _createSuper$7(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$8(); return function _createSuperInternal() { var Super = getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return possibleConstructorReturn(this, result); }; }
-
-	function _isNativeReflectConstruct$8() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
-	/**
-	 * Custom event fired when a soft error occurs.
-	 */
-
-	var ErrorEvent = /*#__PURE__*/function (_EraEvent) {
-	  inherits(ErrorEvent, _EraEvent);
-
-	  var _super = _createSuper$7(ErrorEvent);
-
-	  function ErrorEvent(message) {
-	    classCallCheck(this, ErrorEvent);
-
-	    var label = 'error';
-	    var data = {
-	      message: message
-	    };
-	    return _super.call(this, label, data);
-	  }
-	  /** @override */
-
-
-	  createClass(ErrorEvent, null, [{
-	    key: "listen",
-	    value: function listen(callback) {
-	      EraEvent.listen('error', callback);
-	    }
-	  }]);
-
-	  return ErrorEvent;
-	}(EraEvent);
-
-	/**
 	 * Parses an URI
 	 *
 	 * @author Steven Levithan <stevenlevithan.com> (MIT license)
@@ -36171,535 +32664,6 @@
 	  exports.Socket = socket$1;
 	});
 
-	function _createForOfIteratorHelper(o, allowArrayLike) { var it; if (typeof Symbol === "undefined" || o[Symbol.iterator] == null) { if (Array.isArray(o) || (it = _unsupportedIterableToArray$1(o)) || allowArrayLike && o && typeof o.length === "number") { if (it) o = it; var i = 0; var F = function F() {}; return { s: F, n: function n() { if (i >= o.length) return { done: true }; return { done: false, value: o[i++] }; }, e: function e(_e) { throw _e; }, f: F }; } throw new TypeError("Invalid attempt to iterate non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); } var normalCompletion = true, didErr = false, err; return { s: function s() { it = o[Symbol.iterator](); }, n: function n() { var step = it.next(); normalCompletion = step.done; return step; }, e: function e(_e2) { didErr = true; err = _e2; }, f: function f() { try { if (!normalCompletion && it["return"] != null) it["return"](); } finally { if (didErr) throw err; } } }; }
-
-	function _unsupportedIterableToArray$1(o, minLen) { if (!o) return; if (typeof o === "string") return _arrayLikeToArray$1(o, minLen); var n = Object.prototype.toString.call(o).slice(8, -1); if (n === "Object" && o.constructor) n = o.constructor.name; if (n === "Map" || n === "Set") return Array.from(o); if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return _arrayLikeToArray$1(o, minLen); }
-
-	function _arrayLikeToArray$1(arr, len) { if (len == null || len > arr.length) len = arr.length; for (var i = 0, arr2 = new Array(len); i < len; i++) { arr2[i] = arr[i]; } return arr2; }
-	/**
-	 * Core functionality for network procedures in the engine. Can be extended
-	 * in the case of different servers.
-	 */
-
-	var Network = /*#__PURE__*/function () {
-	  function Network(protocol, host, port) {
-	    classCallCheck(this, Network);
-
-	    this.protocol = protocol;
-	    this.host = host;
-	    this.port = port;
-	    this.origin = this.createPath(protocol, host, port);
-	    this.pendingResponses = new Set();
-	    this.connectionResolve = null;
-	    this.socket = null;
-	    this.token = null;
-	    this.name = null;
-	  }
-	  /**
-	   * Give the server a name.
-	   * @param {string} name
-	   * @returns {Network}
-	   */
-
-
-	  createClass(Network, [{
-	    key: "withName",
-	    value: function withName(name) {
-	      this.name = name;
-	      return this;
-	    }
-	    /**
-	     * Disconnects the network instance.
-	     */
-
-	  }, {
-	    key: "disconnect",
-	    value: function disconnect() {
-	      if (this.socket) {
-	        this.socket.disconnect();
-	      }
-	    }
-	    /**
-	     * Creates a path given the protocol, host, and port.
-	     */
-
-	  }, {
-	    key: "createPath",
-	    value: function createPath(protocol, host, port) {
-	      return "".concat(protocol, "://").concat(host, ":").concat(port);
-	    }
-	  }, {
-	    key: "setAuthToken",
-	    value: function setAuthToken(token) {
-	      this.token = token;
-	    }
-	    /**
-	     * Creates and sends an HTTP POST request, awaiting for the response.
-	     * @param {string} path Endpoint path on the server, i.e. /path/to/endpoint.
-	     * @param {Object} data
-	     * @returns {Object}
-	     * @async
-	     */
-
-	  }, {
-	    key: "createPostRequest",
-	    value: function () {
-	      var _createPostRequest = asyncToGenerator( /*#__PURE__*/regenerator.mark(function _callee(path, data) {
-	        var url, req, response;
-	        return regenerator.wrap(function _callee$(_context) {
-	          while (1) {
-	            switch (_context.prev = _context.next) {
-	              case 0:
-	                url = this.origin + path;
-	                req = this.buildRequest('POST', url);
-	                _context.next = 4;
-	                return this.sendRequest(req, data);
-
-	              case 4:
-	                response = _context.sent;
-	                return _context.abrupt("return", response);
-
-	              case 6:
-	              case "end":
-	                return _context.stop();
-	            }
-	          }
-	        }, _callee, this);
-	      }));
-
-	      function createPostRequest(_x, _x2) {
-	        return _createPostRequest.apply(this, arguments);
-	      }
-
-	      return createPostRequest;
-	    }()
-	    /**
-	     * Creates and sends an HTTP GET request, awaiting for the response.
-	     * @param {string} path Endpoint path on the server, i.e. /path/to/endpoint.
-	     * @returns {Object}
-	     * @async
-	     */
-
-	  }, {
-	    key: "createGetRequest",
-	    value: function () {
-	      var _createGetRequest = asyncToGenerator( /*#__PURE__*/regenerator.mark(function _callee2(path) {
-	        var url, req, response;
-	        return regenerator.wrap(function _callee2$(_context2) {
-	          while (1) {
-	            switch (_context2.prev = _context2.next) {
-	              case 0:
-	                url = this.origin + path;
-	                req = this.buildRequest('GET', url);
-	                _context2.next = 4;
-	                return this.sendRequest(req);
-
-	              case 4:
-	                response = _context2.sent;
-	                return _context2.abrupt("return", response);
-
-	              case 6:
-	              case "end":
-	                return _context2.stop();
-	            }
-	          }
-	        }, _callee2, this);
-	      }));
-
-	      function createGetRequest(_x3) {
-	        return _createGetRequest.apply(this, arguments);
-	      }
-
-	      return createGetRequest;
-	    }()
-	    /**
-	     * Creates and sends an HTTP DELETE request, awaiting for the response.
-	     * @param {string} path Endpoint path on the server, i.e. /path/to/endpoint.
-	     * @returns {Object}
-	     * @async
-	     */
-
-	  }, {
-	    key: "createDeleteRequest",
-	    value: function () {
-	      var _createDeleteRequest = asyncToGenerator( /*#__PURE__*/regenerator.mark(function _callee3(path, data) {
-	        var url, req, response;
-	        return regenerator.wrap(function _callee3$(_context3) {
-	          while (1) {
-	            switch (_context3.prev = _context3.next) {
-	              case 0:
-	                url = this.origin + path;
-	                req = this.buildRequest('DELETE', url);
-	                _context3.next = 4;
-	                return this.sendRequest(req, data);
-
-	              case 4:
-	                response = _context3.sent;
-	                return _context3.abrupt("return", response);
-
-	              case 6:
-	              case "end":
-	                return _context3.stop();
-	            }
-	          }
-	        }, _callee3, this);
-	      }));
-
-	      function createDeleteRequest(_x4, _x5) {
-	        return _createDeleteRequest.apply(this, arguments);
-	      }
-
-	      return createDeleteRequest;
-	    }()
-	    /**
-	     * Creates an error for a failed or invalid HTTP request.
-	     */
-
-	  }, {
-	    key: "createError",
-	    value: function createError(req) {
-	      var message;
-
-	      try {
-	        message = JSON.parse(req.responseText).message;
-	      } catch (e) {
-	        message = req.responseText;
-	      }
-
-	      return new Error(message);
-	    }
-	    /**
-	     * Begins to establish a WebSockets connection to the server. The query
-	     * parameter is a map of query params used in the connection string.
-	     * Returns a promise with the resolver set in a field. Once the connection
-	     * is successful, it resolves.
-	     */
-
-	  }, {
-	    key: "createSocketConnection",
-	    value: function () {
-	      var _createSocketConnection = asyncToGenerator( /*#__PURE__*/regenerator.mark(function _callee4(query) {
-	        var _this = this;
-
-	        var required,
-	            _args4 = arguments;
-	        return regenerator.wrap(function _callee4$(_context4) {
-	          while (1) {
-	            switch (_context4.prev = _context4.next) {
-	              case 0:
-	                required = _args4.length > 1 && _args4[1] !== undefined ? _args4[1] : false;
-	                return _context4.abrupt("return", new Promise(function (resolve) {
-	                  if (_this.socket) {
-	                    return resolve(_this.socket);
-	                  }
-
-	                  _this.connectionResolver = resolve;
-	                  var params = {
-	                    reconnection: false
-	                  };
-
-	                  if (!query) {
-	                    query = new Map();
-	                  }
-
-	                  if (_this.token) {
-	                    query.set('token', _this.token);
-	                  }
-
-	                  var queryString = '';
-
-	                  var _iterator = _createForOfIteratorHelper(query),
-	                      _step;
-
-	                  try {
-	                    for (_iterator.s(); !(_step = _iterator.n()).done;) {
-	                      var pair = _step.value;
-	                      var pairString = pair[0] + '=' + pair[1];
-
-	                      if (queryString) {
-	                        pairString = '&' + pairString;
-	                      }
-
-	                      queryString += pairString;
-	                    }
-	                  } catch (err) {
-	                    _iterator.e(err);
-	                  } finally {
-	                    _iterator.f();
-	                  }
-
-	                  if (queryString) {
-	                    params.query = queryString;
-	                  }
-
-	                  _this.socket = lib$1.connect(_this.origin, params);
-
-	                  _this.socket.on('connect', function () {
-	                    return _this.handleConnect(required);
-	                  });
-	                }));
-
-	              case 2:
-	              case "end":
-	                return _context4.stop();
-	            }
-	          }
-	        }, _callee4);
-	      }));
-
-	      function createSocketConnection(_x6) {
-	        return _createSocketConnection.apply(this, arguments);
-	      }
-
-	      return createSocketConnection;
-	    }()
-	    /**
-	     * Handles a successful connection to the WebSockets server.
-	     */
-
-	  }, {
-	    key: "handleConnect",
-	    value: function handleConnect() {
-	      this.connectionResolver(this.socket); // TODO: Create base socket endpoints for easier registration of handlers.
-
-	      this.socket.on('error', function (err) {
-	        var message = 'Socket error:' + JSON.stringify(err);
-	        console.error(message);
-	        new ErrorEvent(message).fire();
-	      });
-	    }
-	    /**
-	     * Sends a WS message and waits for a specific reply indicating that the
-	     * message was received. The key is the socket endpoint, so only one call
-	     * to a certain endpoint can be awaited at once.
-	     * @param {string} endpoint The emitted endpoint name.
-	     * @param {*} sentData The data to emit, if any.
-	     * @param {string=} responseEndpoint Optional response endpoint name.
-	     */
-
-	  }, {
-	    key: "emitAndAwaitResponse",
-	    value: function () {
-	      var _emitAndAwaitResponse = asyncToGenerator( /*#__PURE__*/regenerator.mark(function _callee5(endpoint, sentData, responseEndpoint) {
-	        var _this2 = this;
-
-	        return regenerator.wrap(function _callee5$(_context5) {
-	          while (1) {
-	            switch (_context5.prev = _context5.next) {
-	              case 0:
-	                if (this.socket) {
-	                  _context5.next = 2;
-	                  break;
-	                }
-
-	                throw new Error('No socket installed.');
-
-	              case 2:
-	                // Default the response endpoint to the emitted endpoint.
-	                if (!responseEndpoint) {
-	                  responseEndpoint = endpoint;
-	                } // Don't install a listener for something twice.
-
-
-	                if (!(this.pendingResponses.has(endpoint) || this.pendingResponses.has(responseEndpoint))) {
-	                  _context5.next = 5;
-	                  break;
-	                }
-
-	                throw new Error('Listener already installed.');
-
-	              case 5:
-	                this.pendingResponses.add(endpoint);
-	                this.pendingResponses.add(responseEndpoint);
-	                this.socket.removeAllListeners(endpoint);
-	                this.socket.removeAllListeners(responseEndpoint);
-	                return _context5.abrupt("return", new Promise(function (resolve, reject) {
-	                  _this2.socket.once(responseEndpoint, function (data) {
-	                    resolve(data);
-	                  });
-
-	                  _this2.socket.emit(endpoint, sentData);
-	                }));
-
-	              case 10:
-	              case "end":
-	                return _context5.stop();
-	            }
-	          }
-	        }, _callee5, this);
-	      }));
-
-	      function emitAndAwaitResponse(_x7, _x8, _x9) {
-	        return _emitAndAwaitResponse.apply(this, arguments);
-	      }
-
-	      return emitAndAwaitResponse;
-	    }()
-	    /**
-	     * Waits for a message to be received, then resolves.
-	     * @param {string} endpoint
-	     */
-
-	  }, {
-	    key: "waitForMessage",
-	    value: function () {
-	      var _waitForMessage = asyncToGenerator( /*#__PURE__*/regenerator.mark(function _callee6(endpoint) {
-	        var _this3 = this;
-
-	        return regenerator.wrap(function _callee6$(_context6) {
-	          while (1) {
-	            switch (_context6.prev = _context6.next) {
-	              case 0:
-	                if (this.socket) {
-	                  _context6.next = 2;
-	                  break;
-	                }
-
-	                throw new Error('No socket installed.');
-
-	              case 2:
-	                if (!this.pendingResponses.has(endpoint)) {
-	                  _context6.next = 4;
-	                  break;
-	                }
-
-	                throw new Error('Listener already installed.');
-
-	              case 4:
-	                this.pendingResponses.add(endpoint);
-	                this.socket.removeAllListeners(endpoint);
-	                return _context6.abrupt("return", new Promise(function (resolve) {
-	                  _this3.socket.once(endpoint, function (data) {
-	                    return resolve(data);
-	                  });
-	                }));
-
-	              case 7:
-	              case "end":
-	                return _context6.stop();
-	            }
-	          }
-	        }, _callee6, this);
-	      }));
-
-	      function waitForMessage(_x10) {
-	        return _waitForMessage.apply(this, arguments);
-	      }
-
-	      return waitForMessage;
-	    }()
-	    /**
-	     * Builds a request object given a method and url.
-	     * @param {string} method
-	     * @param {string} url
-	     */
-
-	  }, {
-	    key: "buildRequest",
-	    value: function buildRequest(method, url) {
-	      var req = new XMLHttpRequest();
-	      req.open(method, url, true);
-	      req.setRequestHeader('Content-type', 'application/json');
-
-	      if (this.token) {
-	        req.setRequestHeader('Authorization', this.token);
-	      }
-
-	      return req;
-	    }
-	    /**
-	     * Sends the request and awaits the response.
-	     * @param {XMLHttpRequest} req
-	     * @param {Object=} data
-	     * @async
-	     */
-
-	  }, {
-	    key: "sendRequest",
-	    value: function sendRequest(req) {
-	      var _this4 = this;
-
-	      var data = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : null;
-	      return new Promise(function (resolve, reject) {
-	        // Install load listener.
-	        req.addEventListener('load', function () {
-	          if (req.status == 200 || req.status == 304) {
-	            var responseStr = req.responseText;
-
-	            try {
-	              var response = JSON.parse(responseStr);
-	              resolve(response);
-	            } catch (e) {
-	              resolve(responseStr);
-	            }
-	          } else {
-	            reject(_this4.createError(req));
-	          }
-	        }); // Install error listener.
-
-	        req.addEventListener('error', function () {
-	          return reject(_this4.createError(req));
-	        }); // Send request.
-
-	        if (data) {
-	          req.send(JSON.stringify(data));
-	        } else {
-	          req.send();
-	        }
-	      });
-	    }
-	  }]);
-
-	  return Network;
-	}();
-
-	function _createSuper$8(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$9(); return function _createSuperInternal() { var Super = getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return possibleConstructorReturn(this, result); }; }
-
-	function _isNativeReflectConstruct$9() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
-	/**
-	 * A map of all network instances, keyed by their server name. This is useful
-	 * when a client has to track multiple servers with which it communicates.
-	 */
-
-	var NetworkRegistry = /*#__PURE__*/function (_Map) {
-	  inherits(NetworkRegistry, _Map);
-
-	  var _super = _createSuper$8(NetworkRegistry);
-
-	  function NetworkRegistry() {
-	    classCallCheck(this, NetworkRegistry);
-
-	    return _super.apply(this, arguments);
-	  }
-
-	  createClass(NetworkRegistry, [{
-	    key: "registerNewServer",
-
-	    /**
-	     * Creates a new network instance for a server.
-	     * @param {string} name
-	     * @param {string} protocol
-	     * @param {string} host
-	     * @param {number} port
-	     * @returns {Network}
-	     */
-	    value: function registerNewServer(name, protocol, host, port) {
-	      if (this.has(name)) {
-	        console.warn("Server with name ".concat(name, " already registered."));
-	        return this.get(name);
-	      }
-
-	      var server = new Network(protocol, host, port).withName(name);
-	      this.set(name, server);
-	      return server;
-	    }
-	  }]);
-
-	  return NetworkRegistry;
-	}( /*#__PURE__*/wrapNativeSuper(Map));
-
-	new NetworkRegistry();
-
 	function _arrayWithHoles(arr) {
 	  if (Array.isArray(arr)) return arr;
 	}
@@ -36746,1300 +32710,6 @@
 	}
 
 	var slicedToArray = _slicedToArray;
-
-	/**
-	 * Creates a physics body based on extra data provided from the model, such as
-	 * userData. This only works for a select number of objects, so please use
-	 * this carefully.
-	 */
-
-	var Autogenerator = /*#__PURE__*/function () {
-	  function Autogenerator() {
-	    classCallCheck(this, Autogenerator);
-	  }
-
-	  createClass(Autogenerator, null, [{
-	    key: "generatePhysicsBody",
-
-	    /**
-	     * @param {THREE.Object3D} subject
-	     * @returns {CANNON.Body}
-	     */
-	    value: function generatePhysicsBody(subject) {
-	      var _this = this;
-
-	      // Root body.
-	      var body = new Body({
-	        mass: 0
-	      });
-	      subject.traverse(function (child) {
-	        var physicsType = child.userData.physics;
-
-	        if (!physicsType) {
-	          return;
-	        }
-
-	        switch (physicsType) {
-	          case 'BOX':
-	            _this.autogenerateBox(body, child);
-
-	            break;
-	        }
-	      });
-	      return body;
-	    }
-	    /**
-	     * Generates a box shape and attaches it to the root body.
-	     * @param {CANNON.Body} body
-	     * @param {THREE.Object3D} subject
-	     */
-
-	  }, {
-	    key: "autogenerateBox",
-	    value: function autogenerateBox(body, subject) {
-	      var boundingBox = subject.geometry.boundingBox;
-	      var size = new Vector3();
-	      boundingBox.getSize(size);
-	      size.divideScalar(2);
-	      size = size.multiplyVectors(size, subject.scale);
-	      var shape = new Box(new Vec3().copy(size));
-	      var position = new Vec3().copy(subject.position);
-	      var quaternion = new Quaternion$1().copy(subject.quaternion);
-	      body.addShape(shape, position, quaternion);
-	    }
-	  }]);
-
-	  return Autogenerator;
-	}();
-
-	function _createSuper$9(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$a(); return function _createSuperInternal() { var Super = getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return possibleConstructorReturn(this, result); }; }
-
-	function _isNativeReflectConstruct$a() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
-	var ENTITY_BINDINGS = {
-	  BACKWARD: {
-	    keys: {
-	      keyboard: 83,
-	      controller: '+axes1'
-	    }
-	  },
-	  FORWARD: {
-	    keys: {
-	      keyboard: 87,
-	      controller: '-axes1'
-	    }
-	  },
-	  LEFT: {
-	    keys: {
-	      keyboard: 65,
-	      controller: '-axes0'
-	    }
-	  },
-	  RIGHT: {
-	    keys: {
-	      keyboard: 68,
-	      controller: '+axes0'
-	    }
-	  }
-	};
-	var CONTROLS_ID = 'Entity';
-	/**
-	 * Super class for all entities within the game, mostly those
-	 * that are updated by the physics engine.
-	 */
-
-	var Entity = /*#__PURE__*/function (_Object3DEventTarget) {
-	  inherits(Entity, _Object3DEventTarget);
-
-	  var _super = _createSuper$9(Entity);
-
-	  createClass(Entity, null, [{
-	    key: "GetBindings",
-	    value: function GetBindings() {
-	      return new Bindings(CONTROLS_ID).load(ENTITY_BINDINGS);
-	    }
-	  }]);
-
-	  function Entity() {
-	    var _this;
-
-	    classCallCheck(this, Entity);
-
-	    _this = _super.call(this);
-	    _this.uuid = createUUID();
-	    _this.world = null;
-	    _this.built = false;
-	    _this.modelName = null;
-	    _this.mesh = null;
-	    _this.cameraArm = null;
-	    _this.registeredCameras = new Set();
-	    _this.meshEnabled = true;
-	    _this.qualityAdjustEnabled = true; // Physics properties.
-
-	    _this.physicsBody = null;
-	    _this.physicsEnabled = true;
-	    _this.physicsWorld = null;
-	    _this.autogeneratePhysics = false;
-	    _this.meshRotationLocked = false; // Animation properties.
-
-	    _this.animationMixer = null;
-	    _this.animationClips = null;
-	    _this.currentAction = null; // Controls properties.
-
-	    _this.actions = new Map(); // Map of action -> value (0 - 1)
-
-	    _this.bindings = Controls.get().getBindings(_this.getControlsId());
-	    _this.inputDevice = 'keyboard';
-	    _this.playerNumber = null;
-	    _this.lastMouseMovement = new Vector2();
-	    _this.mouseMovement = new Vector2();
-	    _this.inputVector = new Vector3();
-	    _this.cameraQuaternion = new Quaternion();
-	    _this.cameraEuler = new Euler();
-	    _this.cameraEuler.order = 'YXZ';
-	    SettingsEvent.listen(_this.handleSettingsChange.bind(assertThisInitialized(_this)));
-	    return _this;
-	  }
-	  /**
-	   * Enables physics generation.
-	   */
-
-
-	  createClass(Entity, [{
-	    key: "withPhysics",
-	    value: function withPhysics() {
-	      this.physicsEnabled = true;
-	      return this;
-	    }
-	    /**
-	     * Provides the Entity with the ERA world to which it belongs.
-	     * @param {World} world
-	     */
-
-	  }, {
-	    key: "setWorld",
-	    value: function setWorld(world) {
-	      this.world = world;
-	    }
-	    /**
-	     * Returns the ERA world to which the Entity belongs.
-	     * @return {World}
-	     */
-
-	  }, {
-	    key: "getWorld",
-	    value: function getWorld() {
-	      return this.world;
-	    }
-	    /**
-	     * Callback that's fired when an entity is added to a world.
-	     */
-
-	  }, {
-	    key: "onAdd",
-	    value: function onAdd() {}
-	    /**
-	     * Callback that's fired when an entity is removed from a world.
-	     */
-
-	  }, {
-	    key: "onRemove",
-	    value: function onRemove() {}
-	    /**
-	     * Sets the entity to be attached to a certain local player, used explicitly
-	     * for split-screen/local co-op experiences.
-	     * @param {number} playerNumber
-	     */
-
-	  }, {
-	    key: "setPlayerNumber",
-	    value: function setPlayerNumber(playerNumber) {
-	      this.playerNumber = playerNumber;
-	      return this;
-	    }
-	  }, {
-	    key: "getPlayerNumber",
-	    value: function getPlayerNumber() {
-	      return this.playerNumber;
-	    }
-	    /**
-	     * Returns the static controls ID for the entity. Needs to be defined for
-	     * each entity with unique controls.
-	     */
-
-	  }, {
-	    key: "getControlsId",
-	    value: function getControlsId() {
-	      return CONTROLS_ID;
-	    }
-	    /**
-	     * Returns the default set of bindings for the entity.
-	     * @returns {Bindings}
-	     */
-
-	  }, {
-	    key: "getDefaultBindings",
-	    value: function getDefaultBindings() {
-	      return this.constructor.GetBindings();
-	    }
-	    /**
-	     * @param {THREE.Vector3|CANNON.Vec3} position
-	     * @return {Entity}
-	     */
-
-	  }, {
-	    key: "setPosition",
-	    value: function setPosition(position) {
-	      if (this.physicsEnabled && this.physicsBody) {
-	        this.physicsBody.position.copy(position);
-	      } else {
-	        this.position.copy(position);
-	      }
-	    }
-	    /**
-	     * Creates the mesh and physics object.
-	     */
-
-	  }, {
-	    key: "build",
-	    value: function build() {
-	      if (this.built) {
-	        return this;
-	      }
-
-	      this.mesh = this.generateMesh();
-
-	      if (this.mesh) {
-	        this.add(this.mesh);
-	        this.animationMixer = Animation.get().createAnimationMixer(this.modelName, this);
-	        this.animationClips = Animation.get().getClips(this.modelName);
-
-	        if (Settings$1.get('shadows')) {
-	          this.enableShadows();
-	        }
-	      }
-
-	      this.cameraArm = this.createCameraArm();
-	      this.physicsBody = this.generatePhysicsBody();
-	      this.built = true;
-	      return this;
-	    }
-	    /**
-	     * Destroys the entity by unregistering from all core components and disposing
-	     * of all objects in memory.
-	     */
-
-	  }, {
-	    key: "destroy",
-	    value: function destroy() {
-	      var world = getRootWorld(this);
-
-	      if (!world) {
-	        return console.warn('Destroyed entity has no root world');
-	      }
-
-	      world.remove(this);
-	    }
-	    /**
-	     * Registers a physics instance to the entity. This is used for communicating
-	     * with the physics engine.
-	     * @param {Physics} physics
-	     */
-
-	  }, {
-	    key: "registerPhysicsWorld",
-	    value: function registerPhysicsWorld(physics) {
-	      this.physicsWorld = physics;
-	    }
-	    /**
-	     * Unregisters a physics instance from the entity.
-	     * @param {Physics} physics
-	     */
-
-	  }, {
-	    key: "unregisterPhysicsWorld",
-	    value: function unregisterPhysicsWorld(physics) {
-	      if (this.physicsWorld && this.physicsWorld.uuid == physics.uuid) {
-	        this.physicsWorld = null;
-	      }
-	    }
-	    /**
-	     * Creates the mesh for the entity, using the entity name provided.
-	     */
-
-	  }, {
-	    key: "generateMesh",
-	    value: function generateMesh() {
-	      if (!this.meshEnabled) {
-	        return;
-	      }
-
-	      if (!this.modelName) {
-	        return console.warn('Model name not provided');
-	      }
-
-	      var scene = Models.get().createModel(this.modelName);
-	      return scene;
-	    }
-	    /**
-	     * Creates a camera arm for the entity. All cameras will be automatically
-	     * added to this arm by default.
-	     */
-
-	  }, {
-	    key: "createCameraArm",
-	    value: function createCameraArm() {
-	      var obj = new Object3D();
-	      this.add(obj);
-	      return obj;
-	    }
-	    /**
-	     * Attaches a camera to the entity. It can be assumed that the camera has been
-	     * properly detached from other entities and is ready for spatial mutations.
-	     * @param {THREE.Camera} camera
-	     */
-
-	  }, {
-	    key: "attachCamera",
-	    value: function attachCamera(camera) {
-	      if (this.registeredCameras.has(camera)) {
-	        return console.warn('Camera already registered on entity');
-	      }
-
-	      this.registeredCameras.add(camera);
-	      this.positionCamera(camera);
-	    }
-	    /**
-	     * Positions the camera when attaching. This should be overriden by custom
-	     * entities, not the attachCamera function.
-	     * @param {THREE.Camera} camera
-	     */
-
-	  }, {
-	    key: "positionCamera",
-	    value: function positionCamera(camera) {
-	      this.cameraArm.add(camera);
-	      camera.position.set(0, 0, 0);
-	      camera.rotation.set(0, 0, 0);
-	    }
-	    /**
-	     * Detaches a camera from the entity.
-	     * @param {THREE.Camera} camera
-	     */
-
-	  }, {
-	    key: "detachCamera",
-	    value: function detachCamera(camera) {
-	      if (!this.registeredCameras.has(camera)) {
-	        return console.warn('Camera not registered on entity');
-	      }
-
-	      camera.parent.remove(camera);
-	      this.registeredCameras["delete"](camera);
-	    }
-	    /**
-	     * Creates the physics object for the entity. This should be defined by each
-	     * entity.
-	     * @return {CANNON.Body}
-	     */
-
-	  }, {
-	    key: "generatePhysicsBody",
-	    value: function generatePhysicsBody() {
-	      if (!this.physicsEnabled) {
-	        return null;
-	      }
-
-	      if (this.autogeneratePhysics) {
-	        return Autogenerator.generatePhysicsBody(this.mesh);
-	      }
-
-	      return null;
-	    }
-	    /**
-	     * Handles a collision for the entity.
-	     * @param {?} e
-	     */
-
-	  }, {
-	    key: "handleCollision",
-	    value: function handleCollision(e) {}
-	    /**
-	     * Serializes the physics aspect of the entity.
-	     */
-
-	  }, {
-	    key: "serializePhysics",
-	    value: function serializePhysics() {
-	      var body = this.physicsBody;
-	      if (!body) return null;
-	      var precision = 4; // TODO: make this engine-agnostic.
-
-	      return [[body.angularVelocity.toFixed(precision)], body.interpolatedPosition.map(function (x) {
-	        return x.toFixed(precision);
-	      }), body.velocity.map(function (x) {
-	        return x.toFixed(precision);
-	      }), [body.angle.toFixed(precision)]];
-	    }
-	  }, {
-	    key: "getMesh",
-	    value: function getMesh() {
-	      return this.mesh;
-	    }
-	    /**
-	     * Clears all input registered to the entity. This is used in
-	     * the case controller input is removed from the entity.
-	     */
-
-	  }, {
-	    key: "clearInput",
-	    value: function clearInput() {
-	      this.actions.clear();
-	      this.mouseMovement.set(0, 0);
-	      this.lastMouseMovement.set(0, 0);
-	    }
-	    /**
-	     * Sets an action to the specified value for the entity
-	     */
-
-	  }, {
-	    key: "setAction",
-	    value: function setAction(action, value) {
-	      if (this.actions.has(action.getName()) && this.actions.get(action.getName()) === value) {
-	        return;
-	      }
-
-	      if (value !== 0) {
-	        this.actions.set(action.getName(), value);
-	      } else {
-	        this.actions["delete"](action.getName());
-	      }
-	    }
-	    /**
-	     * Check the force a registered action is pressed with.
-	     * @param {string} binding
-	     * @returns {number}
-	     */
-
-	  }, {
-	    key: "getActionValue",
-	    value: function getActionValue(actionName) {
-	      return this.actions.get(actionName) || 0;
-	    }
-	    /**
-	     * Gets the last mouse movement registered. Does not directly read from mouse
-	     * movement in order to better handle clearing.
-	     */
-
-	  }, {
-	    key: "getMouseMovement",
-	    value: function getMouseMovement() {
-	      return this.lastMouseMovement;
-	    }
-	    /**
-	     * Sets the mouse movement vector for the entity.
-	     */
-
-	  }, {
-	    key: "setMouseMovement",
-	    value: function setMouseMovement(x, y) {
-	      this.mouseMovement.x += x;
-	      this.mouseMovement.y += y;
-	    }
-	    /**
-	     * Takes in data passed from the client to the server as input.
-	     */
-
-	  }, {
-	    key: "setInputFromData",
-	    value: function setInputFromData(data) {
-	      this.mouseMovement = data.mouseMovement;
-	      this.cameraRotation = data.cameraRotation;
-	      this.actions = data.actions ? data.actions : {};
-	      this.inputDevice = data.inputDevice;
-	    }
-	    /**
-	     * Called every step of the physics engine to keep the mesh and physics object
-	     * synchronized.
-	     */
-
-	  }, {
-	    key: "update",
-	    value: function update() {
-	      this.lastMouseMovement.copy(this.mouseMovement);
-	      this.mouseMovement.set(0, 0);
-
-	      if (this.bindings) {
-	        this.calculateInputVector();
-	      }
-
-	      if (!this.mesh || !this.physicsBody || !this.physicsWorld) {
-	        return;
-	      }
-
-	      var position = this.physicsWorld.getPosition(this);
-	      var rotation = this.physicsWorld.getRotation(this);
-
-	      if (position.x != null) {
-	        this.position.x = position.x;
-	      }
-
-	      if (position.y != null) {
-	        this.position.y = position.y;
-	      }
-
-	      if (position.z != null) {
-	        this.position.z = position.z;
-	      }
-
-	      if (rotation.w != null && !this.meshRotationLocked) {
-	        this.mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
-	      }
-	    }
-	    /**
-	     * Calculates the input vector of the entity.
-	     */
-
-	  }, {
-	    key: "calculateInputVector",
-	    value: function calculateInputVector() {
-	      var inputVector = this.inputVector;
-	      inputVector.set(0, 0, 0);
-
-	      if (this.getActionValue(this.bindings.FORWARD)) {
-	        inputVector.z -= this.getActionValue(this.bindings.FORWARD);
-	      }
-
-	      if (this.getActionValue(this.bindings.BACKWARD)) {
-	        inputVector.z += this.getActionValue(this.bindings.BACKWARD);
-	      }
-
-	      if (this.getActionValue(this.bindings.LEFT)) {
-	        inputVector.x -= this.getActionValue(this.bindings.LEFT);
-	      }
-
-	      if (this.getActionValue(this.bindings.RIGHT)) {
-	        inputVector.x += this.getActionValue(this.bindings.RIGHT);
-	      } // Update input vector with camera direction.
-
-
-	      var camera = this.getWorld() ? this.getWorld().getAssociatedCamera(this) : null;
-
-	      if (camera) {
-	        camera.getWorldQuaternion(this.cameraQuaternion);
-	        this.cameraEuler.setFromQuaternion(this.cameraQuaternion); // We only care about the X and Z axis, so remove the angle looking down
-	        // on the character.
-
-	        this.cameraEuler.x = 0;
-	        this.cameraQuaternion.setFromEuler(this.cameraEuler);
-	      }
-
-	      inputVector.applyQuaternion(this.cameraQuaternion);
-	      inputVector.normalize();
-	    }
-	    /**
-	     * Updates the entity based on data sent from the server.
-	     */
-
-	  }, {
-	    key: "consumeUpdate",
-	    value: function consumeUpdate(physics) {
-	      if (!physics) return; // TODO: make this engine-agnostic.
-
-	      var _physics = slicedToArray(physics, 4),
-	          angVelo = _physics[0],
-	          pos = _physics[1],
-	          velo = _physics[2],
-	          rot = _physics[3];
-
-	      this.physicsBody.angularVelocity = angVelo;
-	      this.physicsBody.angle = rot;
-	      this.physicsBody.position.copy(pos);
-	      this.physicsBody.velocity.copy(velo);
-	    }
-	    /**
-	     * Registers the entity to the physics engine.
-	     */
-
-	  }, {
-	    key: "registerToPhysics",
-	    value: function registerToPhysics() {
-	      PhysicsPlugin.get().registerEntity(this);
-	    }
-	    /**
-	     * Registers a component of an entity to the physics engine. This
-	     * is primarily used if there is a body separate from the entity's
-	     * main physics body.
-	     */
-
-	  }, {
-	    key: "registerComponent",
-	    value: function registerComponent(body) {
-	      PhysicsPlugin.get().registerComponent(body);
-	    }
-	    /**
-	     * Finds an animation clip by name.
-	     * @param {string} name
-	     * @returns {THREE.AnimationClip}
-	     */
-
-	  }, {
-	    key: "getAnimationClip",
-	    value: function getAnimationClip(name) {
-	      if (!name || !this.animationClips) {
-	        return null;
-	      }
-
-	      return AnimationClip.findByName(this.animationClips, name);
-	    }
-	    /**
-	     * Plays an animation given a name.
-	     * @param {string} name
-	     * @returns {THREE.AnimationAction}
-	     */
-
-	  }, {
-	    key: "playAnimation",
-	    value: function playAnimation(name) {
-	      if (!name) {
-	        return null;
-	      }
-
-	      var clip = this.getAnimationClip(name);
-
-	      if (!clip) {
-	        return null;
-	      }
-
-	      var action = this.animationMixer.clipAction(clip);
-	      action.reset();
-
-	      if (this.currentAction) {
-	        action.crossFadeFrom(this.currentAction, 0.2, true);
-	      }
-
-	      action.play();
-	      this.currentAction = action;
-	      return action;
-	    }
-	    /**
-	     * Stops all animations on the entity.
-	     */
-
-	  }, {
-	    key: "stopAllAnimation",
-	    value: function stopAllAnimation() {
-	      this.animationMixer.stopAllAction();
-	      this.currentAction = null;
-	    }
-	    /**
-	     * Enables shadows to be cast and received by the entity.
-	     */
-
-	  }, {
-	    key: "enableShadows",
-	    value: function enableShadows() {
-	      this.traverse(function (child) {
-	        child.castShadow = true;
-	        child.receiveShadow = true;
-	      });
-	    }
-	    /**
-	     * Disabled shadows from being cast and received by the entity.
-	     */
-
-	  }, {
-	    key: "disableShadows",
-	    value: function disableShadows() {
-	      this.traverse(function (child) {
-	        child.castShadow = false;
-	        child.receiveShadow = false;
-	      });
-	    }
-	    /**
-	     * Handles a settings change event.
-	     */
-
-	  }, {
-	    key: "handleSettingsChange",
-	    value: function handleSettingsChange() {}
-	  }]);
-
-	  return Entity;
-	}(Object3DEventTarget);
-
-	function _createSuper$a(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$b(); return function _createSuperInternal() { var Super = getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return possibleConstructorReturn(this, result); }; }
-
-	function _isNativeReflectConstruct$b() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
-	var CHARACTER_BINDINGS = {
-	  SPRINT: {
-	    keys: {
-	      keyboard: 16,
-	      controller: 'button10'
-	    }
-	  },
-	  JUMP: {
-	    keys: {
-	      keyboard: 32,
-	      controller: 'button0'
-	    }
-	  },
-	  LOOK_X: {
-	    keys: {
-	      controller: 'axes2'
-	    }
-	  },
-	  LOOK_Y: {
-	    keys: {
-	      controller: 'axes3'
-	    }
-	  }
-	};
-	var RAYCAST_GEO = new BoxGeometry(0.2, 0.2, 0.2);
-	var RAYCAST_MATERIAL = new MeshLambertMaterial({
-	  color: 0xff0000
-	});
-	var RAYCAST_BLUE_MATERIAL = new MeshLambertMaterial({
-	  color: 0x0000ff
-	});
-	var CONTROLS_ID$1 = 'Character'; // Default character properties.
-
-	var DEFAULT_CAPSULE_OFFSET = 0.2;
-	var DEFAULT_CAPSULE_RADIUS = 0.25;
-	var DEFAULT_HEIGHT = 1.8;
-	var DEFAULT_LERP_FACTOR = 0.5;
-	var DEFAULT_MASS = 1;
-	var DEFAULT_FALL_THRESHOLD = 700;
-	var DEFAULT_JUMP_MIN = 500;
-	var DEFAULT_LAND_MIX_THRESHOLD = 150;
-	var DEFAULT_LAND_SPEED_THRESHOLD = 5;
-	var DEFAULT_LAND_TIME_THRESHOLD = 1500;
-	var DEFAULT_VELO_LERP_FACTOR = 0.15;
-	/**
-	 * A special entity used for controlling an organic character, such as a human.
-	 * This is different from a standard entity in its physics and animation
-	 * behavior. Note: This is designed exclusively for Cannon.js.
-	 */
-
-	var Character = /*#__PURE__*/function (_Entity) {
-	  inherits(Character, _Entity);
-
-	  var _super = _createSuper$a(Character);
-
-	  function Character() {
-	    var _this;
-
-	    classCallCheck(this, Character);
-
-	    _this = _super.call(this);
-	    _this.qualityAdjustEnabled = false; // Make all defaults overrideable by subclasses.
-	    // Height of the character.
-
-	    _this.height = DEFAULT_HEIGHT; // Offset used for smoother movement. Increase for larger vertical motion.
-
-	    _this.capsuleOffset = DEFAULT_CAPSULE_OFFSET; // Radius of the character's physics capsule.
-
-	    _this.capsuleRadius = DEFAULT_CAPSULE_RADIUS; // Amount of time in ms that the fall animation requires to trigger.
-
-	    _this.fallThreshold = DEFAULT_FALL_THRESHOLD; // The interpolation factor for character raycasting adjustments.
-
-	    _this.lerpFactor = DEFAULT_LERP_FACTOR; // The interpolation factor for character movement.
-
-	    _this.velocityLerpFactor = DEFAULT_VELO_LERP_FACTOR; // The mass of the character.
-
-	    _this.mass = DEFAULT_MASS; // Amount of time in ms required to cancel a jump animation.
-
-	    _this.jumpMin = DEFAULT_JUMP_MIN; // Time in ms before the end of the landing animation that the next
-	    // animation can start.
-
-	    _this.landMixThreshold = DEFAULT_LAND_MIX_THRESHOLD; // The speed at which a landing animation will be cancelled.
-
-	    _this.landSpeedThreshold = DEFAULT_LAND_SPEED_THRESHOLD; // The amount of time falling in ms that a character needs to endure before
-	    // triggering a landing action.
-
-	    _this.landTimeThreshold = DEFAULT_LAND_TIME_THRESHOLD; // TODO: Bundle animation names with states.
-
-	    _this.idleAnimationName = null;
-	    _this.walkingAnimationName = null;
-	    _this.sprintingAnimationName = null;
-	    _this.jumpingAnimationName = null;
-	    _this.fallingAnimationName = null;
-	    _this.landingAnimationName = null;
-	    _this.jumpAction = null;
-	    _this.landAction = null; // TODO: Make state a common practice in ERA.
-
-	    _this.state = 'idle';
-	    _this.grounded = false;
-	    _this.frozen = false;
-	    _this.lastGroundedTime = 0;
-	    _this.jumpTime = 0;
-	    _this.wasFalling = false;
-	    _this.previouslyGrounded = true;
-	    _this.unfreezeTimeout = null;
-	    _this.landingDummy = new Vector2(); // Raycasting properties.
-
-	    _this.startVec = new Vec3();
-	    _this.endVec = new Vec3();
-	    _this.ray = new Ray$1(_this.startVec, _this.endVec);
-	    _this.ray.skipBackfaces = true;
-	    _this.ray.mode = Ray$1.CLOSEST;
-	    _this.ray.collisionFilterMask = ~2;
-	    _this.rayStartBox = new Mesh(RAYCAST_GEO, RAYCAST_BLUE_MATERIAL);
-	    _this.rayEndBox = new Mesh(RAYCAST_GEO, RAYCAST_MATERIAL); // Input properties.
-
-	    _this.targetQuaternion = new Quaternion$1();
-	    _this.lerpedVelocity = new Vector3();
-	    _this.targetVelocity = new Vector3();
-	    return _this;
-	  }
-	  /** @override */
-
-
-	  createClass(Character, [{
-	    key: "getControlsId",
-
-	    /** @override */
-	    value: function getControlsId() {
-	      return CONTROLS_ID$1;
-	    }
-	    /** @override */
-
-	  }, {
-	    key: "generatePhysicsBody",
-	    value: function generatePhysicsBody() {
-	      var capsule = new Body({
-	        mass: this.mass
-	      }); // TODO: Remove this collison filter group and make it more explicit to the
-	      // user.
-
-	      capsule.collisionFilterGroup = 2; // Create center portion of capsule.
-
-	      var height = this.height - this.capsuleRadius * 2 - this.capsuleOffset;
-	      var cylinderShape = new Cylinder(this.capsuleRadius, this.capsuleRadius, height, 20);
-	      var quat = new Quaternion$1();
-	      quat.setFromAxisAngle(Vec3.UNIT_X, Math.PI / 2);
-	      var cylinderPos = height / 2 + this.capsuleRadius + this.capsuleOffset;
-	      capsule.addShape(cylinderShape, new Vec3(0, cylinderPos, 0), quat); // Create round ends of capsule.
-
-	      var sphereShape = new Sphere$1(this.capsuleRadius);
-	      var topPos = new Vec3(0, height + this.capsuleRadius + this.capsuleOffset, 0);
-	      var bottomPos = new Vec3(0, this.capsuleRadius + this.capsuleOffset, 0);
-	      capsule.addShape(sphereShape, topPos);
-	      capsule.addShape(sphereShape, bottomPos); // Prevent capsule from tipping over.
-
-	      capsule.fixedRotation = true;
-	      capsule.updateMassProperties();
-	      capsule.material = MaterialManager.get().createPhysicalMaterial('character', {
-	        friction: 0
-	      });
-	      MaterialManager.get().createContactMaterial('character', 'ground', {
-	        friction: 0,
-	        contactEquationStiffness: 1e8
-	      }); // Raycast debug.
-
-	      this.toggleRaycastDebug();
-	      return capsule;
-	    }
-	    /** @override */
-
-	  }, {
-	    key: "build",
-	    value: function build() {
-	      get(getPrototypeOf(Character.prototype), "build", this).call(this);
-
-	      this.playAnimation(this.idleAnimationName);
-	      return this;
-	    }
-	    /** @override */
-
-	  }, {
-	    key: "positionCamera",
-	    value: function positionCamera(camera) {
-	      this.cameraArm.add(camera);
-	      camera.position.x = 5;
-	      this.cameraArm.rotation.z = Math.PI / 6;
-	      this.cameraArm.rotation.y = Math.PI / 2;
-	      camera.lookAt(this.position); // TODO: Fix this junk.
-
-	      Promise.resolve().then(function () {
-	        return camera.position.y = 1.2;
-	      });
-	    }
-	    /** @override */
-
-	  }, {
-	    key: "update",
-	    value: function update() {
-	      get(getPrototypeOf(Character.prototype), "update", this).call(this);
-
-	      this.updateRaycast();
-	      this.updateAnimations();
-	      this.updatePhysics();
-	    }
-	    /** @override */
-
-	  }, {
-	    key: "handleSettingsChange",
-	    value: function handleSettingsChange() {
-	      this.toggleRaycastDebug();
-	    }
-	    /**
-	     * Raycast to the ground.
-	     */
-
-	  }, {
-	    key: "updateRaycast",
-	    value: function updateRaycast() {
-	      if (!this.physicsWorld) {
-	        return;
-	      } // Set up ray targets. Make the origin vector around mid-level.
-
-
-	      this.ray.from.copy(this.physicsBody.interpolatedPosition);
-	      this.ray.to.copy(this.ray.from);
-	      this.ray.from.y += this.capsuleOffset + this.height / 2;
-	      this.rayStartBox.position.copy(this.ray.from);
-	      this.rayEndBox.position.copy(this.ray.to); // Intersect against the world.
-
-	      this.ray.result.reset();
-	      this.ray.intersectBodies(this.physicsWorld.getWorld().bodies, this.ray.result);
-
-	      if (this.ray.result.hasHit) {
-	        var hitDistance = this.ray.result.distance;
-	        var diff = this.capsuleOffset + this.height / 2 - hitDistance;
-	        this.rayEndBox.position.y = this.rayStartBox.position.y - hitDistance;
-	        this.rayEndBox.material.color.setHex(0xff8800); // Lerp new position.
-
-	        var newY = this.physicsBody.position.y + diff;
-	        var lerpedY = lerp(this.physicsBody.position.y, newY, this.lerpFactor);
-	        this.physicsBody.position.y = lerpedY;
-	        this.physicsBody.interpolatedPosition.y = lerpedY;
-	        this.physicsBody.velocity.y = 0;
-	        this.grounded = true;
-	      } else {
-	        this.grounded = false;
-	        this.rayEndBox.material.color.setHex(0xff0000);
-	      }
-	    }
-	    /**
-	     * Updates the animation state of the character.
-	     */
-
-	  }, {
-	    key: "updateAnimations",
-	    value: function updateAnimations() {
-	      if (this.frozen) {
-	        this.idle();
-	        return;
-	      } // Handle grounded/landing state.
-
-
-	      if (!this.grounded) {
-	        this.previouslyGrounded = false;
-	        return this.fall();
-	      } else {
-	        if (!this.previouslyGrounded && this.wasFalling) {
-	          this.land();
-	        }
-
-	        this.wasFalling = false;
-	        this.lastGroundedTime = performance.now();
-	        this.previouslyGrounded = true;
-	      }
-
-	      if (this.getActionValue(this.bindings.JUMP)) {
-	        return this.jump();
-	      }
-
-	      if (this.getActionValue(this.bindings.FORWARD) || this.getActionValue(this.bindings.BACKWARD) || this.getActionValue(this.bindings.LEFT) || this.getActionValue(this.bindings.RIGHT)) {
-	        if (this.getActionValue(this.bindings.SPRINT)) {
-	          this.sprint();
-	        } else {
-	          this.walk();
-	        }
-	      } else {
-	        this.idle();
-	      }
-	    }
-	    /**
-	     * Updates the physics state of the character.
-	     */
-
-	  }, {
-	    key: "updatePhysics",
-	    value: function updatePhysics() {
-	      // Update physics.
-	      if (this.frozen) {
-	        return;
-	      }
-
-	      if (this.grounded) {
-	        this.targetVelocity.x = this.inputVector.x * 2.5;
-	        this.targetVelocity.z = this.inputVector.z * 2.5;
-
-	        if (this.getActionValue(this.bindings.SPRINT)) {
-	          this.targetVelocity.x *= 2.5;
-	          this.targetVelocity.z *= 2.5;
-	        }
-
-	        this.lerpedVelocity.copy(this.physicsBody.velocity);
-	        this.targetVelocity.y = this.physicsBody.velocity.y;
-	        this.lerpedVelocity.lerp(this.targetVelocity, this.velocityLerpFactor);
-	        this.physicsBody.velocity.copy(this.lerpedVelocity);
-	      } // Update body rotation.
-
-
-	      if (this.inputVector.x || this.inputVector.z) {
-	        var angle = vectorToAngle(this.inputVector.z, this.inputVector.x);
-	        this.targetQuaternion.setFromAxisAngle(Vec3.UNIT_Y, angle);
-	        this.updateRotation();
-	      }
-	    }
-	    /**
-	     * Updates the rotation of the character.
-	     */
-
-	  }, {
-	    key: "updateRotation",
-	    value: function updateRotation() {
-	      this.physicsBody.quaternion.slerp(this.targetQuaternion, 0.1, this.physicsBody.quaternion);
-	    }
-	    /**
-	     * Checks settings to see if raycast debug should be used.
-	     */
-
-	  }, {
-	    key: "toggleRaycastDebug",
-	    value: function toggleRaycastDebug() {
-	      var world = this.getWorld();
-
-	      if (!world) {
-	        return console.warn('World not set on character');
-	      }
-
-	      if (Settings$1.get('physics_debug')) {
-	        var scene = world.getScene();
-	        scene.add(this.rayStartBox);
-	        scene.add(this.rayEndBox);
-	      } else {
-	        var _scene = world.getScene();
-
-	        _scene.remove(this.rayStartBox);
-
-	        _scene.remove(this.rayEndBox);
-	      }
-	    }
-	    /**
-	     * Freezes the character, preventing it from updating.
-	     */
-
-	  }, {
-	    key: "freeze",
-	    value: function freeze() {
-	      clearTimeout(this.unfreezeTimeout);
-	      this.frozen = true;
-	    }
-	    /**
-	     * Unfreezes the character, allowing updates.
-	     */
-
-	  }, {
-	    key: "unfreeze",
-	    value: function unfreeze() {
-	      this.frozen = false;
-	    }
-	    /**
-	     * Sets the character in the idle state.
-	     */
-
-	  }, {
-	    key: "idle",
-	    value: function idle() {
-	      if (this.state == 'idle') {
-	        return;
-	      }
-
-	      if (this.isJumpCooldown()) {
-	        return;
-	      }
-
-	      if (this.isLandPlaying()) {
-	        return;
-	      }
-
-	      this.state = 'idle';
-	      this.playAnimation(this.idleAnimationName);
-	    }
-	    /**
-	     * Marks the character in a walking state.
-	     */
-
-	  }, {
-	    key: "walk",
-	    value: function walk() {
-	      if (this.state == 'walking') {
-	        return;
-	      }
-
-	      if (this.isJumpCooldown()) {
-	        return;
-	      }
-
-	      if (this.isLandPlaying()) {
-	        return;
-	      }
-
-	      this.state = 'walking';
-	      this.playAnimation(this.walkingAnimationName);
-	    }
-	    /**
-	     * Marks the character in a sprint state.
-	     */
-
-	  }, {
-	    key: "sprint",
-	    value: function sprint() {
-	      if (this.state == 'sprinting') {
-	        return;
-	      }
-
-	      if (this.isJumpCooldown()) {
-	        return;
-	      }
-
-	      if (this.isLandPlaying()) {
-	        return;
-	      }
-
-	      this.state = 'sprinting';
-	      this.playAnimation(this.sprintingAnimationName);
-	    }
-	    /**
-	     * Marks the character in a jump state.
-	     */
-
-	  }, {
-	    key: "jump",
-	    value: function jump() {
-	      if (this.state == 'jumping') {
-	        return;
-	      }
-
-	      this.state = 'jumping';
-	      this.jumpTime = performance.now();
-	      this.jumpAction = this.playAnimation(this.jumpingAnimationName);
-
-	      if (!this.jumpAction) {
-	        return;
-	      }
-
-	      this.jumpAction.loop = LoopOnce;
-	      this.jumpAction.clampWhenFinished = true;
-	      return true;
-	    }
-	    /**
-	     * Marks the character in a falling state.
-	     */
-
-	  }, {
-	    key: "fall",
-	    value: function fall() {
-	      if (this.state == 'falling') {
-	        return;
-	      }
-
-	      if (performance.now() - this.lastGroundedTime < this.fallThreshold) {
-	        return;
-	      }
-
-	      if (this.jumpAction && this.jumpAction.isRunning()) {
-	        return;
-	      }
-
-	      this.wasFalling = true;
-	      this.state = 'falling';
-	      this.playAnimation(this.fallingAnimationName);
-	    }
-	    /**
-	     * Plays landing animation.
-	     */
-
-	  }, {
-	    key: "land",
-	    value: function land() {
-	      var diff = performance.now() - this.lastGroundedTime;
-
-	      if (diff < this.landTimeThreshold) {
-	        return;
-	      }
-
-	      this.landingDummy.set(this.physicsBody.velocity.x, this.physicsBody.velocity.z); // TODO: We should have a cooler running landing animation like a roll or
-	      //       stumble.
-
-	      if (this.landingDummy.length() > this.landSpeedThreshold) {
-	        return;
-	      }
-
-	      this.landAction = this.playAnimation(this.landingAnimationName);
-
-	      if (!this.landAction) {
-	        return;
-	      }
-
-	      this.landAction.loop = LoopOnce;
-	      this.physicsBody.velocity.x = 0;
-	      this.physicsBody.velocity.z = 0;
-	      this.tempFreeze(1000 * this.landAction.getClip().duration - this.landMixThreshold);
-	    }
-	    /**
-	     * Checks if the landing animation is still playing.
-	     */
-
-	  }, {
-	    key: "isLandPlaying",
-	    value: function isLandPlaying() {
-	      if (!this.landAction) {
-	        return false;
-	      }
-
-	      var landDiff = this.landAction.getClip().duration - this.landAction.time;
-	      return landDiff * 1000 > this.landMixThreshold;
-	    }
-	    /**
-	     * Returns if the jump animation cooldown is still in effect.
-	     * @return {boolean}
-	     */
-
-	  }, {
-	    key: "isJumpCooldown",
-	    value: function isJumpCooldown() {
-	      return performance.now() - this.jumpTime < this.jumpMin;
-	    }
-	    /**
-	     * Temporarily freezes the character.
-	     * @param {number} time
-	     */
-
-	  }, {
-	    key: "tempFreeze",
-	    value: function tempFreeze(time) {
-	      var _this2 = this;
-
-	      this.freeze();
-	      this.unfreezeTimeout = setTimeout(function () {
-	        return _this2.unfreeze();
-	      }, time);
-	    }
-	  }], [{
-	    key: "GetBindings",
-	    value: function GetBindings() {
-	      return new Bindings(CONTROLS_ID$1).load(CHARACTER_BINDINGS).merge(Entity.GetBindings());
-	    }
-	  }]);
-
-	  return Character;
-	}(Entity);
-
-	Controls.get().registerBindings(Character);
 
 	/**
 	 * @author Daosheng Mu / https://github.com/DaoshengMu/
@@ -38454,153 +33124,6 @@
 	    return useOffscreen ? canvas.transferToImageBitmap() : canvas;
 	  }
 	});
-
-	function _createSuper$b(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$c(); return function _createSuperInternal() { var Super = getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return possibleConstructorReturn(this, result); }; }
-
-	function _isNativeReflectConstruct$c() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
-	var FREE_ROAM_BINDINGS = {
-	  UP: {
-	    keys: {
-	      keyboard: 32,
-	      controller: 'button7'
-	    }
-	  },
-	  DOWN: {
-	    keys: {
-	      keyboard: 67,
-	      controller: 'button6'
-	    }
-	  },
-	  LOOK_X: {
-	    keys: {
-	      controller: 'axes2'
-	    }
-	  },
-	  LOOK_Y: {
-	    keys: {
-	      controller: 'axes3'
-	    }
-	  },
-	  SPRINT: {
-	    keys: {
-	      keyboard: 16,
-	      controller: 'button10'
-	    }
-	  }
-	};
-	var CONTROLS_ID$2 = 'FreeRoam';
-	var MAX_CAMERA_Z = Math.PI / 2;
-	var MIN_CAMERA_Z = -Math.PI / 2;
-	var MOUSE_SENS = 0.002;
-	var SPRINT_COEFFICIENT = 5;
-	var VELOCITY_COEFFICIENT = 0.5;
-	/**
-	 * An entity that provides "free roam" controls, allowing it to fly through
-	 * space unaffected by physics.
-	 */
-
-	var FreeRoamEntity = /*#__PURE__*/function (_Entity) {
-	  inherits(FreeRoamEntity, _Entity);
-
-	  var _super = _createSuper$b(FreeRoamEntity);
-
-	  createClass(FreeRoamEntity, [{
-	    key: "getControlsId",
-
-	    /** @override */
-	    value: function getControlsId() {
-	      return CONTROLS_ID$2;
-	    }
-	  }], [{
-	    key: "GetBindings",
-	    value: function GetBindings() {
-	      return new Bindings(CONTROLS_ID$2).load(FREE_ROAM_BINDINGS).merge(Entity.GetBindings());
-	    }
-	  }]);
-
-	  function FreeRoamEntity() {
-	    var _this;
-
-	    var speed = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : VELOCITY_COEFFICIENT;
-
-	    classCallCheck(this, FreeRoamEntity);
-
-	    /**
-	     * @param {number} speed
-	     */
-	    _this = _super.call(this); // Input properties.
-
-	    _this.targetQuaternion = new Quaternion$1();
-	    _this.lerpedVelocity = new Vector3();
-	    _this.targetVelocity = new Vector3();
-	    _this.speed = speed;
-	    return _this;
-	  }
-	  /** @override */
-
-
-	  createClass(FreeRoamEntity, [{
-	    key: "positionCamera",
-	    value: function positionCamera(camera) {
-	      this.cameraArm.add(camera);
-	      camera.position.x = 0.5;
-	      camera.lookAt(this.position);
-	    }
-	    /** @override */
-
-	  }, {
-	    key: "update",
-	    value: function update() {
-	      get(getPrototypeOf(FreeRoamEntity.prototype), "update", this).call(this);
-
-	      var inputY = 0;
-
-	      if (this.getActionValue(this.bindings.UP)) {
-	        inputY += this.getActionValue(this.bindings.UP);
-	      }
-
-	      if (this.getActionValue(this.bindings.DOWN)) {
-	        inputY -= this.getActionValue(this.bindings.DOWN);
-	      }
-
-	      this.targetVelocity.set(this.inputVector.x, inputY, this.inputVector.z);
-	      this.targetVelocity.multiplyScalar(this.speed);
-
-	      if (this.getActionValue(this.bindings.SPRINT)) {
-	        this.targetVelocity.multiplyScalar(SPRINT_COEFFICIENT);
-	      }
-
-	      this.position.add(this.targetVelocity);
-	      this.updateRotation();
-	    }
-	    /**
-	     * Updates the camera rotation.
-	     */
-
-	  }, {
-	    key: "updateRotation",
-	    value: function updateRotation() {
-	      // Update from controller.
-	      if (this.getActionValue(this.bindings.LOOK_X)) {
-	        this.cameraArm.rotation.y -= 0.1 * this.getActionValue(this.bindings.LOOK_X);
-	      }
-
-	      if (this.getActionValue(this.bindings.LOOK_Y)) {
-	        this.cameraArm.rotation.z += 0.02 * this.getActionValue(this.bindings.LOOK_Y);
-	      } // Update from mouse movement.
-
-
-	      this.cameraArm.rotation.y -= MOUSE_SENS * this.getMouseMovement().x;
-	      this.cameraArm.rotation.z += MOUSE_SENS * this.getMouseMovement().y; // Clamp.
-
-	      this.cameraArm.rotation.z = Math.min(MAX_CAMERA_Z, Math.max(MIN_CAMERA_Z, this.cameraArm.rotation.z));
-	    }
-	  }]);
-
-	  return FreeRoamEntity;
-	}(Entity);
-
-	Controls.get().registerBindings(FreeRoamEntity);
 
 	var NOW; // Include a performance.now polyfill.
 	// In node.js, use process.hrtime.
@@ -39536,52 +34059,16 @@
 
 	var TWEEN = new Main();
 
-	function _createSuper$c(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$d(); return function _createSuperInternal() { var Super = getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return possibleConstructorReturn(this, result); }; }
-
-	function _isNativeReflectConstruct$d() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
-	/**
-	 * A maze character.
-	 */
-
-	var Character$1 = /*#__PURE__*/function (_EraCharacter) {
-	  inherits(Character, _EraCharacter);
-
-	  var _super = _createSuper$c(Character);
-
-	  function Character() {
-	    var _this;
-
-	    classCallCheck(this, Character);
-
-	    _this = _super.call(this);
-	    _this.modelName = 'robot';
-	    _this.idleAnimationName = 'Character|Idling';
-	    _this.walkingAnimationName = 'Character|Walking';
-	    _this.sprintingAnimationName = 'Character|Running';
-	    return _this;
-	  }
-	  /** @override */
-
-
-	  createClass(Character, [{
-	    key: "jump",
-	    value: function jump() {// Jump disabled for this level.
-	    }
-	  }]);
-
-	  return Character;
-	}(Character);
-
 	/**
 	 * @author rogerscg / https://github.com/rogerscg
 	 */
 
-	var SPLIT_SCREEN_REG$1 = RegExp('[a-zA-Z]+-[0-9]*');
+	var SPLIT_SCREEN_REG = RegExp('[a-zA-Z]+-[0-9]*');
 	/**
 	 * A bindings object, used for better control of custom bindings.
 	 */
 
-	var Bindings$1 = /*#__PURE__*/function () {
+	var Bindings = /*#__PURE__*/function () {
 	  function Bindings(id) {
 	    classCallCheck(this, Bindings);
 
@@ -39677,7 +34164,7 @@
 	    value: function load(bindingsObj) {
 	      for (var actionName in bindingsObj) {
 	        var actionObj = bindingsObj[actionName];
-	        var action = new Action$1(actionName).load(actionObj);
+	        var action = new Action(actionName).load(actionObj);
 	        this.actions.set(actionName, action);
 	      }
 
@@ -39702,7 +34189,7 @@
 
 	        keys.forEach(function (key, inputType) {
 	          // Get if this key is for a specific player, denoted by a "-[0-9]".
-	          if (SPLIT_SCREEN_REG$1.test(inputType)) {
+	          if (SPLIT_SCREEN_REG.test(inputType)) {
 	            // This is a split-screen binding, add the player number to the key.
 	            var playerNumber = inputType.split('-').pop();
 	            key = "".concat(key, "-").concat(playerNumber);
@@ -39800,7 +34287,7 @@
 	 */
 
 
-	var Action$1 = /*#__PURE__*/function () {
+	var Action = /*#__PURE__*/function () {
 	  function Action(name) {
 	    classCallCheck(this, Action);
 
@@ -39937,7 +34424,7 @@
 	 */
 
 
-	function createUUID$1() {
+	function createUUID() {
 	  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
 	    var r = Math.random() * 16 | 0,
 	        v = c == 'x' ? r : r & 0x3 | 0x8;
@@ -39960,7 +34447,7 @@
 	 */
 
 
-	function vectorToAngle$1(x, y) {
+	function vectorToAngle(x, y) {
 	  var angle = Math.atan2(y, x);
 	  if (angle < 0) angle += 2 * Math.PI;
 	  return angle;
@@ -39974,7 +34461,7 @@
 	 */
 
 
-	function lerp$1(a, b, factor) {
+	function lerp(a, b, factor) {
 	  return a + (b - a) * factor;
 	}
 	/**
@@ -39985,8 +34472,8 @@
 	 */
 
 
-	function loadJsonFromFile$1(_x) {
-	  return _loadJsonFromFile$1.apply(this, arguments);
+	function loadJsonFromFile(_x) {
+	  return _loadJsonFromFile.apply(this, arguments);
 	}
 	/**
 	 * Loads a texture from a file.
@@ -39997,8 +34484,8 @@
 	 */
 
 
-	function _loadJsonFromFile$1() {
-	  _loadJsonFromFile$1 = asyncToGenerator( /*#__PURE__*/regenerator.mark(function _callee(path) {
+	function _loadJsonFromFile() {
+	  _loadJsonFromFile = asyncToGenerator( /*#__PURE__*/regenerator.mark(function _callee(path) {
 	    return regenerator.wrap(function _callee$(_context) {
 	      while (1) {
 	        switch (_context.prev = _context.next) {
@@ -40019,10 +34506,10 @@
 	      }
 	    }, _callee);
 	  }));
-	  return _loadJsonFromFile$1.apply(this, arguments);
+	  return _loadJsonFromFile.apply(this, arguments);
 	}
 
-	function getRootScene$1(object) {
+	function getRootScene(object) {
 	  var rootScene = null;
 	  object.traverseAncestors(function (ancestor) {
 	    if (ancestor.isRootScene) {
@@ -40039,8 +34526,8 @@
 	 */
 
 
-	function getRootWorld$1(object) {
-	  var rootScene = getRootScene$1(object);
+	function getRootWorld(object) {
+	  var rootScene = getRootScene(object);
 	  return rootScene && rootScene.parentWorld ? rootScene.parentWorld : null;
 	}
 	/**
@@ -40068,9 +34555,9 @@
 	 */
 
 
-	var eventsInstance$1 = null;
+	var eventsInstance = null;
 
-	var Events$1 = /*#__PURE__*/function () {
+	var Events = /*#__PURE__*/function () {
 	  createClass(Events, null, [{
 	    key: "get",
 
@@ -40078,11 +34565,11 @@
 	     * Enforces singleton instance.
 	     */
 	    value: function get() {
-	      if (!eventsInstance$1) {
-	        eventsInstance$1 = new Events();
+	      if (!eventsInstance) {
+	        eventsInstance = new Events();
 	      }
 
-	      return eventsInstance$1;
+	      return eventsInstance;
 	    }
 	  }]);
 
@@ -40138,7 +34625,7 @@
 	        this.registeredListeners.set(label, listeners);
 	      }
 
-	      var listenerUUID = createUUID$1();
+	      var listenerUUID = createUUID();
 	      listeners.set(listenerUUID, callback);
 	      this.registeredUUIDs.set(listenerUUID, label);
 	      return listenerUUID;
@@ -40176,7 +34663,7 @@
 	 */
 
 
-	var EraEvent$1 = /*#__PURE__*/function () {
+	var EraEvent = /*#__PURE__*/function () {
 	  function EraEvent(label, data) {
 	    classCallCheck(this, EraEvent);
 
@@ -40191,7 +34678,7 @@
 	  createClass(EraEvent, [{
 	    key: "fire",
 	    value: function fire() {
-	      Events$1.get().fireEvent(this.label, this.data);
+	      Events.get().fireEvent(this.label, this.data);
 	    }
 	    /**
 	     * Creates an event listener for the given type.
@@ -40200,15 +34687,15 @@
 	  }], [{
 	    key: "listen",
 	    value: function listen(label, callback) {
-	      Events$1.get().addListener(label, callback);
+	      Events.get().addListener(label, callback);
 	    }
 	  }]);
 
 	  return EraEvent;
 	}();
 
-	function _createSuper$d(Derived) {
-	  var hasNativeReflectConstruct = _isNativeReflectConstruct$e();
+	function _createSuper(Derived) {
+	  var hasNativeReflectConstruct = _isNativeReflectConstruct$1();
 
 	  return function _createSuperInternal() {
 	    var Super = getPrototypeOf(Derived),
@@ -40226,7 +34713,7 @@
 	  };
 	}
 
-	function _isNativeReflectConstruct$e() {
+	function _isNativeReflectConstruct$1() {
 	  if (typeof Reflect === "undefined" || !Reflect.construct) return false;
 	  if (Reflect.construct.sham) return false;
 	  if (typeof Proxy === "function") return true;
@@ -40239,20 +34726,20 @@
 	  }
 	}
 
-	var LABEL$1 = 'reset';
+	var LABEL = 'reset';
 	/**
 	 * Engine reset event.
 	 */
 
-	var EngineResetEvent$1 = /*#__PURE__*/function (_EraEvent) {
+	var EngineResetEvent = /*#__PURE__*/function (_EraEvent) {
 	  inherits(EngineResetEvent, _EraEvent);
 
-	  var _super = _createSuper$d(EngineResetEvent);
+	  var _super = _createSuper(EngineResetEvent);
 
 	  function EngineResetEvent() {
 	    classCallCheck(this, EngineResetEvent);
 
-	    return _super.call(this, LABEL$1, {});
+	    return _super.call(this, LABEL, {});
 	  }
 	  /** @override */
 
@@ -40260,14 +34747,14 @@
 	  createClass(EngineResetEvent, null, [{
 	    key: "listen",
 	    value: function listen(callback) {
-	      EraEvent$1.listen(LABEL$1, callback);
+	      EraEvent.listen(LABEL, callback);
 	    }
 	  }]);
 
 	  return EngineResetEvent;
-	}(EraEvent$1);
+	}(EraEvent);
 
-	function _createSuper$1$1(Derived) {
+	function _createSuper$1(Derived) {
 	  var hasNativeReflectConstruct = _isNativeReflectConstruct$1$1();
 
 	  return function _createSuperInternal() {
@@ -40303,10 +34790,10 @@
 	 */
 
 
-	var SettingsEvent$1 = /*#__PURE__*/function (_EraEvent) {
+	var SettingsEvent = /*#__PURE__*/function (_EraEvent) {
 	  inherits(SettingsEvent, _EraEvent);
 
-	  var _super = _createSuper$1$1(SettingsEvent);
+	  var _super = _createSuper$1(SettingsEvent);
 	  /**
 	   * Takes in the new settings object.
 	   */
@@ -40325,15 +34812,15 @@
 	  createClass(SettingsEvent, null, [{
 	    key: "listen",
 	    value: function listen(callback) {
-	      EraEvent$1.listen('settings', callback);
+	      EraEvent.listen('settings', callback);
 	    }
 	  }]);
 
 	  return SettingsEvent;
-	}(EraEvent$1);
+	}(EraEvent);
 
-	function _createSuper$2$1(Derived) {
-	  var hasNativeReflectConstruct = _isNativeReflectConstruct$2$1();
+	function _createSuper$2(Derived) {
+	  var hasNativeReflectConstruct = _isNativeReflectConstruct$2();
 
 	  return function _createSuperInternal() {
 	    var Super = getPrototypeOf(Derived),
@@ -40351,7 +34838,7 @@
 	  };
 	}
 
-	function _isNativeReflectConstruct$2$1() {
+	function _isNativeReflectConstruct$2() {
 	  if (typeof Reflect === "undefined" || !Reflect.construct) return false;
 	  if (Reflect.construct.sham) return false;
 	  if (typeof Proxy === "function") return true;
@@ -40366,7 +34853,7 @@
 	// TODO: Allow for an enum of options for a setting.
 
 
-	var DEFAULT_SETTINGS$1 = {
+	var DEFAULT_SETTINGS = {
 	  debug: {
 	    value: true
 	  },
@@ -40395,15 +34882,15 @@
 	    max: 100
 	  }
 	};
-	var SETTINGS_KEY$1 = 'era_settings';
+	var SETTINGS_KEY = 'era_settings';
 	/**
 	 * Controls the client settings in a singleton model in local storage.
 	 */
 
-	var Settings$2 = /*#__PURE__*/function (_Map) {
+	var Settings = /*#__PURE__*/function (_Map) {
 	  inherits(Settings, _Map);
 
-	  var _super = _createSuper$2$1(Settings);
+	  var _super = _createSuper$2(Settings);
 
 	  function Settings() {
 	    var _this;
@@ -40513,13 +35000,13 @@
 	        return;
 	      }
 
-	      for (var key in DEFAULT_SETTINGS$1) {
-	        var setting = new Setting$1(key, DEFAULT_SETTINGS$1[key]);
+	      for (var key in DEFAULT_SETTINGS) {
+	        var setting = new Setting(key, DEFAULT_SETTINGS[key]);
 
 	        get(getPrototypeOf(Settings.prototype), "set", this).call(this, setting.getName(), setting);
 	      }
 
-	      new SettingsEvent$1().fire();
+	      new SettingsEvent().fire();
 	    }
 	    /**
 	     * Loads a default settings file at the give path. This is user-provided.
@@ -40548,7 +35035,7 @@
 	              case 2:
 	                _context2.prev = 2;
 	                _context2.next = 5;
-	                return loadJsonFromFile$1(settingsPath);
+	                return loadJsonFromFile(settingsPath);
 
 	              case 5:
 	                allSettingsData = _context2.sent;
@@ -40562,7 +35049,7 @@
 
 	              case 11:
 	                for (key in allSettingsData) {
-	                  setting = new Setting$1(key, allSettingsData[key]);
+	                  setting = new Setting(key, allSettingsData[key]);
 
 	                  get(getPrototypeOf(Settings.prototype), "set", this).call(this, setting.getName(), setting);
 	                }
@@ -40593,7 +35080,7 @@
 	      var savedSettings;
 
 	      try {
-	        savedSettings = localStorage.getItem(SETTINGS_KEY$1);
+	        savedSettings = localStorage.getItem(SETTINGS_KEY);
 
 	        if (!savedSettings) {
 	          return;
@@ -40606,7 +35093,7 @@
 
 
 	      for (var key in savedSettings) {
-	        var setting = new Setting$1(key, savedSettings[key]);
+	        var setting = new Setting(key, savedSettings[key]);
 
 	        var defaultSetting = get(getPrototypeOf(Settings.prototype), "get", this).call(this, setting.getName());
 
@@ -40626,8 +35113,8 @@
 	  }, {
 	    key: "apply",
 	    value: function apply() {
-	      localStorage.setItem(SETTINGS_KEY$1, this["export"]());
-	      new SettingsEvent$1().fire();
+	      localStorage.setItem(SETTINGS_KEY, this["export"]());
+	      new SettingsEvent().fire();
 	    }
 	    /**
 	     * Exports all settings into a string for use in local storage.
@@ -40648,13 +35135,13 @@
 	  return Settings;
 	}( /*#__PURE__*/wrapNativeSuper(Map));
 
-	var Settings$1$1 = new Settings$2();
+	var Settings$1 = new Settings();
 	/**
 	 * An individual setting for tracking defaults, types, and other properties
 	 * of the field.
 	 */
 
-	var Setting$1 = /*#__PURE__*/function () {
+	var Setting = /*#__PURE__*/function () {
 	  /**
 	   * Loads a setting from an object.
 	   * @param {Object} settingsData
@@ -40755,14 +35242,14 @@
 	  return Setting;
 	}();
 
-	var MEASUREMENT_MIN$1 = 10;
-	var MAX_LENGTH$1 = 100;
+	var MEASUREMENT_MIN = 10;
+	var MAX_LENGTH = 100;
 	/**
 	 * A timer for monitoring render loop execution time. Installed on the engine
 	 * core, then read by renderer stats. Only enabled when debug is enabled.
 	 */
 
-	var EngineTimer$2 = /*#__PURE__*/function () {
+	var EngineTimer = /*#__PURE__*/function () {
 	  function EngineTimer() {
 	    classCallCheck(this, EngineTimer);
 
@@ -40770,8 +35257,8 @@
 	    this.min = Infinity;
 	    this.max = 0;
 	    this.currIndex = 0;
-	    this.enabled = !Settings$1$1.loaded || Settings$1$1.get('debug');
-	    SettingsEvent$1.listen(this.handleSettings.bind(this));
+	    this.enabled = !Settings$1.loaded || Settings$1.get('debug');
+	    SettingsEvent.listen(this.handleSettings.bind(this));
 	  }
 	  /**
 	   * Starts a measurement.
@@ -40802,7 +35289,7 @@
 	      this.measurements[this.currIndex] = time;
 	      this.currIndex++;
 
-	      if (this.currIndex >= MAX_LENGTH$1) {
+	      if (this.currIndex >= MAX_LENGTH) {
 	        this.currIndex = 0;
 	      }
 
@@ -40840,7 +35327,7 @@
 	        return null;
 	      }
 
-	      if (this.measurements.length < MEASUREMENT_MIN$1) {
+	      if (this.measurements.length < MEASUREMENT_MIN) {
 	        return null;
 	      }
 
@@ -40865,11 +35352,11 @@
 	    value: function handleSettings() {
 	      var currEnabled = this.enabled;
 
-	      if (currEnabled == Settings$1$1.get('debug')) {
+	      if (currEnabled == Settings$1.get('debug')) {
 	        return;
 	      }
 
-	      this.enabled = Settings$1$1.get('debug');
+	      this.enabled = Settings$1.get('debug');
 	      this.reset();
 	    }
 	  }]);
@@ -40877,7 +35364,7 @@
 	  return EngineTimer;
 	}();
 
-	var EngineTimer$1$1 = new EngineTimer$2();
+	var EngineTimer$1 = new EngineTimer();
 	/**
 	 * A dat.gui module for ERA settings. This is, of course, heavily tied to the
 	 * settings object loading and changing over time. It should also modify
@@ -40885,7 +35372,7 @@
 	 * TODO: Developer mode to enable/disable settings panel.
 	 */
 
-	var SettingsPanel$2 = /*#__PURE__*/function () {
+	var SettingsPanel = /*#__PURE__*/function () {
 	  function SettingsPanel() {
 	    classCallCheck(this, SettingsPanel);
 
@@ -40894,7 +35381,7 @@
 	    this.datControllers = new Map();
 	    this.dummySettings = {};
 	    this.load();
-	    SettingsEvent$1.listen(this.load.bind(this));
+	    SettingsEvent.listen(this.load.bind(this));
 	  }
 	  /**
 	   * Loads new data into the panel.
@@ -40940,7 +35427,7 @@
 	    value: function update() {
 	      var _this = this;
 
-	      Settings$1$1.forEach(function (setting, name) {
+	      Settings$1.forEach(function (setting, name) {
 	        var controller = _this.datControllers.get(name);
 
 	        if (!controller) {
@@ -40969,20 +35456,20 @@
 	  }, {
 	    key: "updateValue",
 	    value: function updateValue(name, value) {
-	      Settings$1$1.set(name, value);
+	      Settings$1.set(name, value);
 	    }
 	  }]);
 
 	  return SettingsPanel;
 	}();
 
-	var SettingsPanel$1$1 = new SettingsPanel$2();
-	var instance$6 = null;
+	var SettingsPanel$1 = new SettingsPanel();
+	var instance = null;
 	/**
 	 * Engine core for the game.
 	 */
 
-	var Engine$1 = /*#__PURE__*/function () {
+	var Engine = /*#__PURE__*/function () {
 	  createClass(Engine, null, [{
 	    key: "get",
 
@@ -40990,11 +35477,11 @@
 	     * Enforces singleton engine instance.
 	     */
 	    value: function get() {
-	      if (!instance$6) {
-	        instance$6 = new Engine();
+	      if (!instance) {
+	        instance = new Engine();
 	      }
 
-	      return instance$6;
+	      return instance;
 	    }
 	  }]);
 
@@ -41005,12 +35492,12 @@
 	    this.rendering = false;
 	    this.plugins = new Set(); // Debug.
 
-	    this.timer = EngineTimer$1$1;
-	    this.settingsPanel = SettingsPanel$1$1; // The current game mode running.
+	    this.timer = EngineTimer$1;
+	    this.settingsPanel = SettingsPanel$1; // The current game mode running.
 
 	    this.currentGameMode = null; // Load engine defaults.
 
-	    Settings$1$1.loadEngineDefaults();
+	    Settings$1.loadEngineDefaults();
 	  }
 	  /**
 	   * Starts the engine. This is separate from the constructor as it
@@ -41067,7 +35554,7 @@
 	      this.plugins.forEach(function (plugin) {
 	        return plugin.reset();
 	      });
-	      new EngineResetEvent$1().fire(); // Clear the renderer.
+	      new EngineResetEvent().fire(); // Clear the renderer.
 
 	      this.resetRender = true;
 	      this.started = false;
@@ -41158,13 +35645,13 @@
 	 */
 
 
-	var Plugin$1 = /*#__PURE__*/function () {
+	var Plugin = /*#__PURE__*/function () {
 	  function Plugin() {
 	    classCallCheck(this, Plugin);
 
-	    this.uuid = createUUID$1();
+	    this.uuid = createUUID();
 	    this.install();
-	    SettingsEvent$1.listen(this.handleSettingsChange.bind(this));
+	    SettingsEvent.listen(this.handleSettingsChange.bind(this));
 	  }
 	  /**
 	   * Installs the plugin into the engine. This method should be final.
@@ -41174,7 +35661,7 @@
 	  createClass(Plugin, [{
 	    key: "install",
 	    value: function install() {
-	      Engine$1.get().installPlugin(this);
+	      Engine.get().installPlugin(this);
 	      return this;
 	    }
 	    /**
@@ -41208,8 +35695,8 @@
 	  return Plugin;
 	}();
 
-	function _createSuper$3$1(Derived) {
-	  var hasNativeReflectConstruct = _isNativeReflectConstruct$3$1();
+	function _createSuper$3(Derived) {
+	  var hasNativeReflectConstruct = _isNativeReflectConstruct$3();
 
 	  return function _createSuperInternal() {
 	    var Super = getPrototypeOf(Derived),
@@ -41227,7 +35714,7 @@
 	  };
 	}
 
-	function _isNativeReflectConstruct$3$1() {
+	function _isNativeReflectConstruct$3() {
 	  if (typeof Reflect === "undefined" || !Reflect.construct) return false;
 	  if (Reflect.construct.sham) return false;
 	  if (typeof Proxy === "function") return true;
@@ -41240,24 +35727,24 @@
 	  }
 	}
 
-	var instance$1$1 = null;
+	var instance$1 = null;
 	/**
 	 * The animation library stores animation data for loaded models.
 	 */
 
-	var Animation$1 = /*#__PURE__*/function (_Plugin) {
+	var Animation = /*#__PURE__*/function (_Plugin) {
 	  inherits(Animation, _Plugin);
 
-	  var _super = _createSuper$3$1(Animation);
+	  var _super = _createSuper$3(Animation);
 
 	  createClass(Animation, null, [{
 	    key: "get",
 	    value: function get() {
-	      if (!instance$1$1) {
-	        instance$1$1 = new Animation();
+	      if (!instance$1) {
+	        instance$1 = new Animation();
 	      }
 
-	      return instance$1$1;
+	      return instance$1;
 	    }
 	  }]);
 
@@ -41331,13 +35818,13 @@
 	  }]);
 
 	  return Animation;
-	}(Plugin$1);
+	}(Plugin);
 
-	function _createForOfIteratorHelper$1(o, allowArrayLike) {
+	function _createForOfIteratorHelper(o, allowArrayLike) {
 	  var it;
 
 	  if (typeof Symbol === "undefined" || o[Symbol.iterator] == null) {
-	    if (Array.isArray(o) || (it = _unsupportedIterableToArray$2(o)) || allowArrayLike && o && typeof o.length === "number") {
+	    if (Array.isArray(o) || (it = _unsupportedIterableToArray$1(o)) || allowArrayLike && o && typeof o.length === "number") {
 	      if (it) o = it;
 	      var i = 0;
 
@@ -41390,16 +35877,16 @@
 	  };
 	}
 
-	function _unsupportedIterableToArray$2(o, minLen) {
+	function _unsupportedIterableToArray$1(o, minLen) {
 	  if (!o) return;
-	  if (typeof o === "string") return _arrayLikeToArray$2(o, minLen);
+	  if (typeof o === "string") return _arrayLikeToArray$1(o, minLen);
 	  var n = Object.prototype.toString.call(o).slice(8, -1);
 	  if (n === "Object" && o.constructor) n = o.constructor.name;
 	  if (n === "Map" || n === "Set") return Array.from(o);
-	  if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return _arrayLikeToArray$2(o, minLen);
+	  if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return _arrayLikeToArray$1(o, minLen);
 	}
 
-	function _arrayLikeToArray$2(arr, len) {
+	function _arrayLikeToArray$1(arr, len) {
 	  if (len == null || len > arr.length) len = arr.length;
 
 	  for (var i = 0, arr2 = new Array(len); i < len; i++) {
@@ -41409,8 +35896,8 @@
 	  return arr2;
 	}
 
-	function _createSuper$4$1(Derived) {
-	  var hasNativeReflectConstruct = _isNativeReflectConstruct$4$1();
+	function _createSuper$4(Derived) {
+	  var hasNativeReflectConstruct = _isNativeReflectConstruct$4();
 
 	  return function _createSuperInternal() {
 	    var Super = getPrototypeOf(Derived),
@@ -41428,7 +35915,7 @@
 	  };
 	}
 
-	function _isNativeReflectConstruct$4$1() {
+	function _isNativeReflectConstruct$4() {
 	  if (typeof Reflect === "undefined" || !Reflect.construct) return false;
 	  if (Reflect.construct.sham) return false;
 	  if (typeof Proxy === "function") return true;
@@ -41442,7 +35929,7 @@
 	}
 
 	var CROSSFADE_TIME = 500;
-	var instance$2$1 = null;
+	var instance$2 = null;
 	/**
 	 * Core implementation for all audio. Manages the loading, playback, and
 	 * other controls needed for in-game audio.
@@ -41451,16 +35938,16 @@
 	var Audio$1 = /*#__PURE__*/function (_Plugin) {
 	  inherits(Audio, _Plugin);
 
-	  var _super = _createSuper$4$1(Audio);
+	  var _super = _createSuper$4(Audio);
 
 	  createClass(Audio, null, [{
 	    key: "get",
 	    value: function get() {
-	      if (!instance$2$1) {
-	        instance$2$1 = new Audio();
+	      if (!instance$2) {
+	        instance$2 = new Audio();
 	      }
 
-	      return instance$2$1;
+	      return instance$2;
 	    }
 	  }]);
 
@@ -41509,11 +35996,11 @@
 	    value: function handleSettingsChange() {
 	      var _this2 = this;
 
-	      if (Settings$1$1.get('volume') == this.masterVolume) {
+	      if (Settings$1.get('volume') == this.masterVolume) {
 	        return;
 	      }
 
-	      this.masterVolume = Settings$1$1.get('volume');
+	      this.masterVolume = Settings$1.get('volume');
 	      this.playingSounds.forEach(function (node) {
 	        var volRatio = _this2.masterVolume / _this2.defaultVolume;
 	        var dataVolume = node.dataVolume ? node.dataVolume : 1.0;
@@ -41548,7 +36035,7 @@
 	              case 2:
 	                _context.prev = 2;
 	                _context.next = 5;
-	                return loadJsonFromFile$1(filePath);
+	                return loadJsonFromFile(filePath);
 
 	              case 5:
 	                allSoundData = _context.sent;
@@ -41712,7 +36199,7 @@
 	      var volume = volRatio * dataVolume * adjustVolume;
 	      node.gain.gain.value = volume;
 	      node.source.start(0);
-	      node.uuid = createUUID$1();
+	      node.uuid = createUUID();
 	      node.dataVolume = dataVolume;
 	      node.adjustVolume = adjustVolume;
 	      this.playingSounds.set(node.uuid, node);
@@ -41745,7 +36232,7 @@
 	      node.gain.gain.value = volume;
 	      node.source.loop = true;
 	      node.source.start(0);
-	      node.uuid = createUUID$1();
+	      node.uuid = createUUID();
 	      node.dataVolume = dataVolume;
 	      node.adjustVolume = adjustVolume;
 	      this.playingSounds.set(node.uuid, node);
@@ -41828,7 +36315,7 @@
 	      shuffleArray(sources);
 	      var selectedBuffer = null;
 
-	      var _iterator = _createForOfIteratorHelper$1(sources),
+	      var _iterator = _createForOfIteratorHelper(sources),
 	          _step;
 
 	      try {
@@ -41865,7 +36352,7 @@
 	        node.gain.gain.linearRampToValueAtTime(0, currTime + CROSSFADE_TIME / 1000);
 	      }, Math.round(node.source.buffer.duration * 1000 - CROSSFADE_TIME)); // When audio finishes playing, mark as not in use.
 
-	      var uuid = createUUID$1();
+	      var uuid = createUUID();
 	      this.playingSounds.set(uuid, node);
 	      setTimeout(function () {
 	        selectedBuffer.inUse = false;
@@ -41876,9 +36363,9 @@
 	  }]);
 
 	  return Audio;
-	}(Plugin$1);
+	}(Plugin);
 
-	var instance$3$1 = null;
+	var instance$3 = null;
 	/**
 	 * Manages camera contruction.
 	 */
@@ -41887,11 +36374,11 @@
 	  createClass(Camera, null, [{
 	    key: "get",
 	    value: function get() {
-	      if (!instance$3$1) {
-	        instance$3$1 = new Camera();
+	      if (!instance$3) {
+	        instance$3 = new Camera();
 	      }
 
-	      return instance$3$1;
+	      return instance$3;
 	    }
 	  }]);
 
@@ -41957,8 +36444,8 @@
 	  return Camera;
 	}();
 
-	function _createSuper$5$1(Derived) {
-	  var hasNativeReflectConstruct = _isNativeReflectConstruct$5$1();
+	function _createSuper$5(Derived) {
+	  var hasNativeReflectConstruct = _isNativeReflectConstruct$5();
 
 	  return function _createSuperInternal() {
 	    var Super = getPrototypeOf(Derived),
@@ -41976,7 +36463,7 @@
 	  };
 	}
 
-	function _isNativeReflectConstruct$5$1() {
+	function _isNativeReflectConstruct$5() {
 	  if (typeof Reflect === "undefined" || !Reflect.construct) return false;
 	  if (Reflect.construct.sham) return false;
 	  if (typeof Proxy === "function") return true;
@@ -41989,17 +36476,17 @@
 	  }
 	}
 
-	var CONTROLS_KEY$1 = 'era_bindings';
-	var instance$4$1 = null;
+	var CONTROLS_KEY = 'era_bindings';
+	var instance$4 = null;
 	/**
 	 * The controls core for the game. Input handlers are created here. Once the
 	 * input is received, the response is delegated to the entity in control.
 	 */
 
-	var Controls$1 = /*#__PURE__*/function (_Plugin) {
+	var Controls = /*#__PURE__*/function (_Plugin) {
 	  inherits(Controls, _Plugin);
 
-	  var _super = _createSuper$5$1(Controls);
+	  var _super = _createSuper$5(Controls);
 
 	  createClass(Controls, null, [{
 	    key: "get",
@@ -42008,11 +36495,11 @@
 	     * Enforces singleton controls instance.
 	     */
 	    value: function get() {
-	      if (!instance$4$1) {
-	        instance$4$1 = new Controls();
+	      if (!instance$4) {
+	        instance$4 = new Controls();
 	      }
 
-	      return instance$4$1;
+	      return instance$4;
 	    }
 	  }]);
 
@@ -42053,7 +36540,7 @@
 	    _this.registerCustomBindings();
 
 	    _this.pointerLockEnabled = false;
-	    SettingsEvent$1.listen(_this.loadSettings.bind(assertThisInitialized(_this)));
+	    SettingsEvent.listen(_this.loadSettings.bind(assertThisInitialized(_this)));
 	    return _this;
 	  }
 	  /** @override */
@@ -42081,14 +36568,14 @@
 	    key: "loadCustomBindingsFromStorage",
 	    value: function loadCustomBindingsFromStorage() {
 	      // Load bindings from localStorage.
-	      if (!localStorage.getItem(CONTROLS_KEY$1)) {
+	      if (!localStorage.getItem(CONTROLS_KEY)) {
 	        return new Map();
 	      }
 
 	      var customObj;
 
 	      try {
-	        customObj = JSON.parse(localStorage.getItem(CONTROLS_KEY$1));
+	        customObj = JSON.parse(localStorage.getItem(CONTROLS_KEY));
 	      } catch (e) {
 	        console.error(e);
 	        return new Map();
@@ -42099,7 +36586,7 @@
 	      for (var _i = 0, _Object$keys = Object.keys(customObj); _i < _Object$keys.length; _i++) {
 	        var controlsId = _Object$keys[_i]; // Create bindings from the given object.
 
-	        var bindings = new Bindings$1(controlsId).load(customObj[controlsId]);
+	        var bindings = new Bindings(controlsId).load(customObj[controlsId]);
 	        bindingsMap.set(controlsId, bindings);
 	      }
 
@@ -42141,7 +36628,7 @@
 	      var idBindings = allCustomBindings.get(controlsId);
 
 	      if (!idBindings) {
-	        idBindings = new Bindings$1(controlsId);
+	        idBindings = new Bindings(controlsId);
 	        allCustomBindings.set(controlsId, idBindings);
 	      } // Check if the action exists for the given ID.
 
@@ -42149,7 +36636,7 @@
 	      var idAction = idBindings.getActions().get(action);
 
 	      if (!idAction) {
-	        idAction = new Action$1(action);
+	        idAction = new Action(action);
 	        idBindings.addAction(idAction);
 	      }
 
@@ -42261,7 +36748,7 @@
 	      bindingsMap.forEach(function (bindings) {
 	        exportObj[bindings.getId()] = bindings.toObject();
 	      });
-	      localStorage.setItem(CONTROLS_KEY$1, JSON.stringify(exportObj));
+	      localStorage.setItem(CONTROLS_KEY, JSON.stringify(exportObj));
 	    }
 	    /**
 	     * Get all valid keys for the binding
@@ -42301,8 +36788,8 @@
 	    value: function disable() {
 	      this.controlsEnabled = false;
 
-	      if (Engine$1.get().getMainPlayer()) {
-	        Engine$1.get().getMainPlayer().clearInput();
+	      if (Engine.get().getMainPlayer()) {
+	        Engine.get().getMainPlayer().clearInput();
 	      }
 	    }
 	    /**
@@ -42563,8 +37050,8 @@
 	  }, {
 	    key: "loadSettings",
 	    value: function loadSettings() {
-	      this.movementDeadzone = Settings$1$1.get('movement_deadzone');
-	      this.mouseSensitivity = Settings$1$1.get('mouse_sensitivity');
+	      this.movementDeadzone = Settings$1.get('movement_deadzone');
+	      this.mouseSensitivity = Settings$1.get('mouse_sensitivity');
 	    }
 	    /**
 	     * Creates orbit controls on the camera, if they exist.
@@ -42647,10 +37134,10 @@
 	  }]);
 
 	  return Controls;
-	}(Plugin$1);
+	}(Plugin);
 
-	function _createSuper$6$1(Derived) {
-	  var hasNativeReflectConstruct = _isNativeReflectConstruct$6$1();
+	function _createSuper$6(Derived) {
+	  var hasNativeReflectConstruct = _isNativeReflectConstruct$6();
 
 	  return function _createSuperInternal() {
 	    var Super = getPrototypeOf(Derived),
@@ -42668,7 +37155,7 @@
 	  };
 	}
 
-	function _isNativeReflectConstruct$6$1() {
+	function _isNativeReflectConstruct$6() {
 	  if (typeof Reflect === "undefined" || !Reflect.construct) return false;
 	  if (Reflect.construct.sham) return false;
 	  if (typeof Proxy === "function") return true;
@@ -42703,7 +37190,7 @@
 	        this.listeners.set(label, new Map());
 	      }
 
-	      var uuid = createUUID$1();
+	      var uuid = createUUID();
 	      this.listeners.get(label).set(uuid, handler);
 	      this.uuidToLabels.set(uuid, label);
 	      return uuid;
@@ -42755,10 +37242,10 @@
 	 */
 
 
-	var Object3DEventTarget$1 = /*#__PURE__*/function (_THREE$Object3D) {
+	var Object3DEventTarget = /*#__PURE__*/function (_THREE$Object3D) {
 	  inherits(Object3DEventTarget, _THREE$Object3D);
 
-	  var _super = _createSuper$6$1(Object3DEventTarget);
+	  var _super = _createSuper$6(Object3DEventTarget);
 
 	  function Object3DEventTarget() {
 	    var _this;
@@ -42780,7 +37267,7 @@
 	        this.listeners.set(label, new Map());
 	      }
 
-	      var uuid = createUUID$1();
+	      var uuid = createUUID();
 	      this.listeners.get(label).set(uuid, handler);
 	      this.uuidToLabels.set(uuid, label);
 	      return uuid;
@@ -42838,8 +37325,8 @@
 	  return Object3DEventTarget;
 	}(Object3D);
 
-	function _createSuper$7$1(Derived) {
-	  var hasNativeReflectConstruct = _isNativeReflectConstruct$7$1();
+	function _createSuper$7(Derived) {
+	  var hasNativeReflectConstruct = _isNativeReflectConstruct$7();
 
 	  return function _createSuperInternal() {
 	    var Super = getPrototypeOf(Derived),
@@ -42857,7 +37344,7 @@
 	  };
 	}
 
-	function _isNativeReflectConstruct$7$1() {
+	function _isNativeReflectConstruct$7() {
 	  if (typeof Reflect === "undefined" || !Reflect.construct) return false;
 	  if (Reflect.construct.sham) return false;
 	  if (typeof Proxy === "function") return true;
@@ -42880,7 +37367,7 @@
 	var GameMode = /*#__PURE__*/function (_EventTarget) {
 	  inherits(GameMode, _EventTarget);
 
-	  var _super = _createSuper$7$1(GameMode);
+	  var _super = _createSuper$7(GameMode);
 
 	  function GameMode() {
 	    classCallCheck(this, GameMode);
@@ -43023,8 +37510,8 @@
 	  return GameMode;
 	}(EventTarget$1);
 
-	function _createSuper$8$1(Derived) {
-	  var hasNativeReflectConstruct = _isNativeReflectConstruct$8$1();
+	function _createSuper$8(Derived) {
+	  var hasNativeReflectConstruct = _isNativeReflectConstruct$8();
 
 	  return function _createSuperInternal() {
 	    var Super = getPrototypeOf(Derived),
@@ -43042,7 +37529,7 @@
 	  };
 	}
 
-	function _isNativeReflectConstruct$8$1() {
+	function _isNativeReflectConstruct$8() {
 	  if (typeof Reflect === "undefined" || !Reflect.construct) return false;
 	  if (Reflect.construct.sham) return false;
 	  if (typeof Proxy === "function") return true;
@@ -43055,7 +37542,7 @@
 	  }
 	}
 
-	var instance$5$1 = null;
+	var instance$5 = null;
 	/**
 	 * Light core for the game engine. Creates and manages light
 	 * sources in-game. Should be used as a singleton.
@@ -43064,7 +37551,7 @@
 	var Light$1 = /*#__PURE__*/function (_Plugin) {
 	  inherits(Light, _Plugin);
 
-	  var _super = _createSuper$8$1(Light);
+	  var _super = _createSuper$8(Light);
 
 	  createClass(Light, null, [{
 	    key: "get",
@@ -43073,11 +37560,11 @@
 	     * Enforces singleton light instance.
 	     */
 	    value: function get() {
-	      if (!instance$5$1) {
-	        instance$5$1 = new Light();
+	      if (!instance$5) {
+	        instance$5 = new Light();
 	      }
 
-	      return instance$5$1;
+	      return instance$5;
 	    }
 	  }]);
 
@@ -43233,7 +37720,7 @@
 	      light.shadow.mapSize.height = options.mapSize;
 	      light.shadow.helper = new CameraHelper(light.shadow.camera);
 
-	      if (Settings$1$1.get('shadows')) {
+	      if (Settings$1.get('shadows')) {
 	        light.castShadow = true;
 	      }
 	    }
@@ -43242,8 +37729,8 @@
 	  }, {
 	    key: "handleSettingsChange",
 	    value: function handleSettingsChange() {
-	      Settings$1$1.get('shadows') ? this.enableShadows() : this.disableShadows();
-	      Settings$1$1.get('debug') ? this.enableDebug() : this.disableDebug();
+	      Settings$1.get('shadows') ? this.enableShadows() : this.disableShadows();
+	      Settings$1.get('debug') ? this.enableDebug() : this.disableDebug();
 	    }
 	    /**
 	     * Enables shadows.
@@ -43330,19 +37817,19 @@
 	    key: "addHelpers",
 	    value: function addHelpers(light) {
 	      // Handle base light helper first.
-	      var rootScene = getRootScene$1(light);
+	      var rootScene = getRootScene(light);
 
 	      if (light.helper && !light.helper.parent) {
-	        rootScene = getRootScene$1(light);
+	        rootScene = getRootScene(light);
 
 	        if (rootScene) {
 	          rootScene.add(light.helper);
 	        }
 	      }
 
-	      if (Settings$1$1.get('shadows') && light.shadow && light.shadow.helper && !light.shadow.helper.parent) {
+	      if (Settings$1.get('shadows') && light.shadow && light.shadow.helper && !light.shadow.helper.parent) {
 	        if (!rootScene) {
-	          rootScene = getRootScene$1(light);
+	          rootScene = getRootScene(light);
 	        }
 
 	        if (rootScene) {
@@ -43371,7 +37858,7 @@
 	  }]);
 
 	  return Light;
-	}(Plugin$1);
+	}(Plugin);
 	/**
 	 * Light options created from a light config passed in by the user.
 	 * @record
@@ -43417,12 +37904,12 @@
 	  this.bias = options.bias || null;
 	};
 
-	var instance$6$1 = null;
+	var instance$6 = null;
 	/**
 	 * Core implementation for loading 3D models for use in-game.
 	 */
 
-	var Models$1 = /*#__PURE__*/function () {
+	var Models = /*#__PURE__*/function () {
 	  createClass(Models, null, [{
 	    key: "get",
 
@@ -43431,11 +37918,11 @@
 	     * @returns {Models}
 	     */
 	    value: function get() {
-	      if (!instance$6$1) {
-	        instance$6$1 = new Models();
+	      if (!instance$6) {
+	        instance$6 = new Models();
 	      }
 
-	      return instance$6$1;
+	      return instance$6;
 	    }
 	  }]);
 
@@ -43473,7 +37960,7 @@
 	              case 2:
 	                _context.prev = 2;
 	                _context.next = 5;
-	                return loadJsonFromFile$1(filePath);
+	                return loadJsonFromFile(filePath);
 
 	              case 5:
 	                allModelData = _context.sent;
@@ -43549,7 +38036,7 @@
 	              case 8:
 	                gltf = _context2.sent;
 	                root = gltf.scene;
-	                Animation$1.get().setAnimations(name, gltf.animations);
+	                Animation.get().setAnimations(name, gltf.animations);
 	                return _context2.abrupt("break", 21);
 
 	              case 12:
@@ -43566,7 +38053,7 @@
 
 	              case 18:
 	                root = _context2.sent;
-	                Animation$1.get().setAnimations(name, root.animations);
+	                Animation.get().setAnimations(name, root.animations);
 	                return _context2.abrupt("break", 21);
 
 	              case 21:
@@ -43890,10 +38377,10 @@
 	}(); // TODO: Make this dynamic, with multiple levels.
 
 
-	var QUALITY_RANGE$1 = new Vector3().setScalar(2);
+	var QUALITY_RANGE = new Vector3().setScalar(2);
 
-	function _createSuper$9$1(Derived) {
-	  var hasNativeReflectConstruct = _isNativeReflectConstruct$9$1();
+	function _createSuper$9(Derived) {
+	  var hasNativeReflectConstruct = _isNativeReflectConstruct$9();
 
 	  return function _createSuperInternal() {
 	    var Super = getPrototypeOf(Derived),
@@ -43911,7 +38398,7 @@
 	  };
 	}
 
-	function _isNativeReflectConstruct$9$1() {
+	function _isNativeReflectConstruct$9() {
 	  if (typeof Reflect === "undefined" || !Reflect.construct) return false;
 	  if (Reflect.construct.sham) return false;
 	  if (typeof Proxy === "function") return true;
@@ -43934,7 +38421,7 @@
 	var RendererStats = /*#__PURE__*/function (_Plugin) {
 	  inherits(RendererStats, _Plugin);
 
-	  var _super = _createSuper$9$1(RendererStats);
+	  var _super = _createSuper$9(RendererStats);
 	  /**
 	   * @param {THREE.WebGLRenderer} renderer
 	   */
@@ -43947,7 +38434,7 @@
 
 	    _this = _super.call(this);
 	    _this.renderer = renderer;
-	    _this.enabled = Settings$1$1.get('debug');
+	    _this.enabled = Settings$1.get('debug');
 	    _this.webGLStats = new WebGLStats(renderer);
 	    _this.fpsStats = new FpsStats();
 	    _this.dom = _this.createDom();
@@ -44021,7 +38508,7 @@
 	  }, {
 	    key: "handleSettingsChange",
 	    value: function handleSettingsChange() {
-	      var currEnabled = Settings$1$1.get('debug');
+	      var currEnabled = Settings$1.get('debug');
 
 	      if (currEnabled && !this.enabled) {
 	        return this.enable();
@@ -44034,7 +38521,7 @@
 	  }]);
 
 	  return RendererStats;
-	}(Plugin$1);
+	}(Plugin);
 	/**
 	 * Interface for a stats component.
 	 */
@@ -44082,7 +38569,7 @@
 	var WebGLStats = /*#__PURE__*/function (_Stats) {
 	  inherits(WebGLStats, _Stats);
 
-	  var _super2 = _createSuper$9$1(WebGLStats);
+	  var _super2 = _createSuper$9(WebGLStats);
 
 	  function WebGLStats(renderer) {
 	    var _this2;
@@ -44146,7 +38633,7 @@
 	var FpsStats = /*#__PURE__*/function (_Stats2) {
 	  inherits(FpsStats, _Stats2);
 
-	  var _super3 = _createSuper$9$1(FpsStats);
+	  var _super3 = _createSuper$9(FpsStats);
 
 	  function FpsStats() {
 	    var _this3;
@@ -44222,7 +38709,7 @@
 	      this.frames++;
 	      var time = (performance || Date).now();
 	      this.msPanel.update(time - this.beginTime, 30);
-	      var engStats = EngineTimer$1$1["export"]();
+	      var engStats = EngineTimer$1["export"]();
 
 	      if (engStats) {
 	        this.timerPanel.update(engStats.avg, 30);
@@ -44330,7 +38817,7 @@
 	 */
 
 
-	var DebugRenderer$1 = /*#__PURE__*/function () {
+	var DebugRenderer = /*#__PURE__*/function () {
 	  /**
 	   * @param {THREE.Scene} scene
 	   * @param {CANNON.World} world
@@ -44577,7 +39064,7 @@
 	 * engine.
 	 */
 
-	var MaterialManager$1 = /*#__PURE__*/function () {
+	var MaterialManager = /*#__PURE__*/function () {
 	  createClass(MaterialManager, null, [{
 	    key: "get",
 	    value: function get() {
@@ -44679,8 +39166,8 @@
 	  return MaterialManager;
 	}();
 
-	function _createSuper$a$1(Derived) {
-	  var hasNativeReflectConstruct = _isNativeReflectConstruct$a$1();
+	function _createSuper$a(Derived) {
+	  var hasNativeReflectConstruct = _isNativeReflectConstruct$a();
 
 	  return function _createSuperInternal() {
 	    var Super = getPrototypeOf(Derived),
@@ -44698,7 +39185,7 @@
 	  };
 	}
 
-	function _isNativeReflectConstruct$a$1() {
+	function _isNativeReflectConstruct$a() {
 	  if (typeof Reflect === "undefined" || !Reflect.construct) return false;
 	  if (Reflect.construct.sham) return false;
 	  if (typeof Proxy === "function") return true;
@@ -44711,18 +39198,18 @@
 	  }
 	}
 
-	var MAX_DELTA$1 = 1;
-	var MAX_SUBSTEPS$1 = 10;
+	var MAX_DELTA = 1;
+	var MAX_SUBSTEPS = 10;
 	var instance$8 = null;
 	/**
 	 * API implementation for Cannon.js, a pure JavaScript physics engine.
 	 * https://github.com/schteppe/cannon.js
 	 */
 
-	var PhysicsPlugin$1 = /*#__PURE__*/function (_Plugin) {
+	var PhysicsPlugin = /*#__PURE__*/function (_Plugin) {
 	  inherits(PhysicsPlugin, _Plugin);
 
-	  var _super = _createSuper$a$1(PhysicsPlugin);
+	  var _super = _createSuper$a(PhysicsPlugin);
 
 	  createClass(PhysicsPlugin, null, [{
 	    key: "get",
@@ -44759,7 +39246,7 @@
 	    key: "reset",
 	    value: function reset() {
 	      this.terminate();
-	      MaterialManager$1.get().unregisterWorld(this.world); // TODO: Clean up physics bodies.
+	      MaterialManager.get().unregisterWorld(this.world); // TODO: Clean up physics bodies.
 	    }
 	    /** @override */
 
@@ -44786,11 +39273,11 @@
 	  }, {
 	    key: "handleSettingsChange",
 	    value: function handleSettingsChange() {
-	      if (Settings$1$1.get('physics_debug') && this.debugRenderer) {
+	      if (Settings$1.get('physics_debug') && this.debugRenderer) {
 	        return;
 	      }
 
-	      Settings$1$1.get('physics_debug') ? this.enableDebugRenderer() : this.disableDebugRenderer();
+	      Settings$1.get('physics_debug') ? this.enableDebugRenderer() : this.disableDebugRenderer();
 	    }
 	  }, {
 	    key: "getWorld",
@@ -44818,8 +39305,8 @@
 	    key: "step",
 	    value: function step(delta) {
 	      delta /= 1000;
-	      delta = Math.min(MAX_DELTA$1, delta);
-	      this.world.step(1 / 60, delta, MAX_SUBSTEPS$1);
+	      delta = Math.min(MAX_DELTA, delta);
+	      this.world.step(1 / 60, delta, MAX_SUBSTEPS);
 	    }
 	    /**
 	     * Instantiates the physics world.
@@ -44830,7 +39317,7 @@
 	    value: function createWorld() {
 	      var world = new World();
 	      world.gravity.set(0, -9.82, 0);
-	      MaterialManager$1.get().registerWorld(world);
+	      MaterialManager.get().registerWorld(world);
 	      return world;
 	    }
 	    /**
@@ -44878,7 +39365,7 @@
 
 	      this.registeredEntities["delete"](entity.uuid);
 	      entity.unregisterPhysicsWorld(this);
-	      this.world.remove(entity.physicsBody);
+	      this.world.removeBody(entity.physicsBody);
 	      return true;
 	    }
 	    /**
@@ -44930,7 +39417,7 @@
 	        return console.warn('Debug renderer missing scene or world.');
 	      }
 
-	      this.debugRenderer = new DebugRenderer$1(scene, world);
+	      this.debugRenderer = new DebugRenderer(scene, world);
 	      return this.debugRenderer;
 	    }
 	    /**
@@ -44973,10 +39460,10 @@
 	  }]);
 
 	  return PhysicsPlugin;
-	}(Plugin$1);
+	}(Plugin);
 
-	function _createSuper$b$1(Derived) {
-	  var hasNativeReflectConstruct = _isNativeReflectConstruct$b$1();
+	function _createSuper$b(Derived) {
+	  var hasNativeReflectConstruct = _isNativeReflectConstruct$b();
 
 	  return function _createSuperInternal() {
 	    var Super = getPrototypeOf(Derived),
@@ -44994,7 +39481,7 @@
 	  };
 	}
 
-	function _isNativeReflectConstruct$b$1() {
+	function _isNativeReflectConstruct$b() {
 	  if (typeof Reflect === "undefined" || !Reflect.construct) return false;
 	  if (Reflect.construct.sham) return false;
 	  if (typeof Proxy === "function") return true;
@@ -45015,7 +39502,7 @@
 	var World$1 = /*#__PURE__*/function (_Plugin) {
 	  inherits(World, _Plugin);
 
-	  var _super = _createSuper$b$1(World);
+	  var _super = _createSuper$b(World);
 
 	  function World() {
 	    var _this;
@@ -45157,7 +39644,7 @@
 	  }, {
 	    key: "withPhysics",
 	    value: function withPhysics() {
-	      this.physics = new PhysicsPlugin$1();
+	      this.physics = new PhysicsPlugin();
 	      this.physics.setEraWorld(this);
 	      return this;
 	    }
@@ -45406,10 +39893,10 @@
 	  }]);
 
 	  return World;
-	}(Plugin$1);
+	}(Plugin);
 
-	function _createSuper$c$1(Derived) {
-	  var hasNativeReflectConstruct = _isNativeReflectConstruct$c$1();
+	function _createSuper$c(Derived) {
+	  var hasNativeReflectConstruct = _isNativeReflectConstruct$c();
 
 	  return function _createSuperInternal() {
 	    var Super = getPrototypeOf(Derived),
@@ -45427,7 +39914,7 @@
 	  };
 	}
 
-	function _isNativeReflectConstruct$c$1() {
+	function _isNativeReflectConstruct$c() {
 	  if (typeof Reflect === "undefined" || !Reflect.construct) return false;
 	  if (Reflect.construct.sham) return false;
 	  if (typeof Proxy === "function") return true;
@@ -45444,10 +39931,10 @@
 	 */
 
 
-	var ErrorEvent$1 = /*#__PURE__*/function (_EraEvent) {
+	var ErrorEvent = /*#__PURE__*/function (_EraEvent) {
 	  inherits(ErrorEvent, _EraEvent);
 
-	  var _super = _createSuper$c$1(ErrorEvent);
+	  var _super = _createSuper$c(ErrorEvent);
 
 	  function ErrorEvent(message) {
 	    classCallCheck(this, ErrorEvent);
@@ -45464,14 +39951,14 @@
 	  createClass(ErrorEvent, null, [{
 	    key: "listen",
 	    value: function listen(callback) {
-	      EraEvent$1.listen('error', callback);
+	      EraEvent.listen('error', callback);
 	    }
 	  }]);
 
 	  return ErrorEvent;
-	}(EraEvent$1);
+	}(EraEvent);
 
-	function _createForOfIteratorHelper$1$1(o, allowArrayLike) {
+	function _createForOfIteratorHelper$1(o, allowArrayLike) {
 	  var it;
 
 	  if (typeof Symbol === "undefined" || o[Symbol.iterator] == null) {
@@ -45552,7 +40039,7 @@
 	 */
 
 
-	var Network$1 = /*#__PURE__*/function () {
+	var Network = /*#__PURE__*/function () {
 	  function Network(protocol, host, port) {
 	    classCallCheck(this, Network);
 
@@ -45779,7 +40266,7 @@
 
 	                  var queryString = '';
 
-	                  var _iterator = _createForOfIteratorHelper$1$1(query),
+	                  var _iterator = _createForOfIteratorHelper$1(query),
 	                      _step;
 
 	                  try {
@@ -45803,7 +40290,7 @@
 	                    params.query = queryString;
 	                  }
 
-	                  _this.socket = io.connect(_this.origin, params);
+	                  _this.socket = lib$1.connect(_this.origin, params);
 
 	                  _this.socket.on('connect', function () {
 	                    return _this.handleConnect(required);
@@ -45836,7 +40323,7 @@
 	      this.socket.on('error', function (err) {
 	        var message = 'Socket error:' + JSON.stringify(err);
 	        console.error(message);
-	        new ErrorEvent$1(message).fire();
+	        new ErrorEvent(message).fire();
 	      });
 	    }
 	    /**
@@ -46024,8 +40511,8 @@
 	  return Network;
 	}();
 
-	function _createSuper$d$1(Derived) {
-	  var hasNativeReflectConstruct = _isNativeReflectConstruct$d$1();
+	function _createSuper$d(Derived) {
+	  var hasNativeReflectConstruct = _isNativeReflectConstruct$d();
 
 	  return function _createSuperInternal() {
 	    var Super = getPrototypeOf(Derived),
@@ -46043,7 +40530,7 @@
 	  };
 	}
 
-	function _isNativeReflectConstruct$d$1() {
+	function _isNativeReflectConstruct$d() {
 	  if (typeof Reflect === "undefined" || !Reflect.construct) return false;
 	  if (Reflect.construct.sham) return false;
 	  if (typeof Proxy === "function") return true;
@@ -46061,10 +40548,10 @@
 	 */
 
 
-	var NetworkRegistry$1 = /*#__PURE__*/function (_Map) {
+	var NetworkRegistry = /*#__PURE__*/function (_Map) {
 	  inherits(NetworkRegistry, _Map);
 
-	  var _super = _createSuper$d$1(NetworkRegistry);
+	  var _super = _createSuper$d(NetworkRegistry);
 
 	  function NetworkRegistry() {
 	    classCallCheck(this, NetworkRegistry);
@@ -46089,7 +40576,7 @@
 	        return this.get(name);
 	      }
 
-	      var server = new Network$1(protocol, host, port).withName(name);
+	      var server = new Network(protocol, host, port).withName(name);
 	      this.set(name, server);
 	      return server;
 	    }
@@ -46098,14 +40585,14 @@
 	  return NetworkRegistry;
 	}( /*#__PURE__*/wrapNativeSuper(Map));
 
-	var network_registry = new NetworkRegistry$1();
+	var network_registry = new NetworkRegistry();
 	/**
 	 * Creates a physics body based on extra data provided from the model, such as
 	 * userData. This only works for a select number of objects, so please use
 	 * this carefully.
 	 */
 
-	var Autogenerator$1 = /*#__PURE__*/function () {
+	var Autogenerator = /*#__PURE__*/function () {
 	  function Autogenerator() {
 	    classCallCheck(this, Autogenerator);
 	  }
@@ -46165,7 +40652,7 @@
 	}();
 
 	function _createSuper$e(Derived) {
-	  var hasNativeReflectConstruct = _isNativeReflectConstruct$e$1();
+	  var hasNativeReflectConstruct = _isNativeReflectConstruct$e();
 
 	  return function _createSuperInternal() {
 	    var Super = getPrototypeOf(Derived),
@@ -46183,7 +40670,7 @@
 	  };
 	}
 
-	function _isNativeReflectConstruct$e$1() {
+	function _isNativeReflectConstruct$e() {
 	  if (typeof Reflect === "undefined" || !Reflect.construct) return false;
 	  if (Reflect.construct.sham) return false;
 	  if (typeof Proxy === "function") return true;
@@ -46196,7 +40683,7 @@
 	  }
 	}
 
-	var ENTITY_BINDINGS$1 = {
+	var ENTITY_BINDINGS = {
 	  BACKWARD: {
 	    keys: {
 	      keyboard: 83,
@@ -46222,13 +40709,13 @@
 	    }
 	  }
 	};
-	var CONTROLS_ID$3 = 'Entity';
+	var CONTROLS_ID = 'Entity';
 	/**
 	 * Super class for all entities within the game, mostly those
 	 * that are updated by the physics engine.
 	 */
 
-	var Entity$1 = /*#__PURE__*/function (_Object3DEventTarget) {
+	var Entity = /*#__PURE__*/function (_Object3DEventTarget) {
 	  inherits(Entity, _Object3DEventTarget);
 
 	  var _super = _createSuper$e(Entity);
@@ -46236,7 +40723,7 @@
 	  createClass(Entity, null, [{
 	    key: "GetBindings",
 	    value: function GetBindings() {
-	      return new Bindings$1(CONTROLS_ID$3).load(ENTITY_BINDINGS$1);
+	      return new Bindings(CONTROLS_ID).load(ENTITY_BINDINGS);
 	    }
 	  }]);
 
@@ -46246,7 +40733,7 @@
 	    classCallCheck(this, Entity);
 
 	    _this = _super.call(this);
-	    _this.uuid = createUUID$1();
+	    _this.uuid = createUUID();
 	    _this.world = null;
 	    _this.built = false;
 	    _this.modelName = null;
@@ -46268,7 +40755,7 @@
 
 	    _this.actions = new Map(); // Map of action -> value (0 - 1)
 
-	    _this.bindings = Controls$1.get().getBindings(_this.getControlsId());
+	    _this.bindings = Controls.get().getBindings(_this.getControlsId());
 	    _this.inputDevice = 'keyboard';
 	    _this.playerNumber = null;
 	    _this.lastMouseMovement = new Vector2();
@@ -46277,7 +40764,7 @@
 	    _this.cameraQuaternion = new Quaternion();
 	    _this.cameraEuler = new Euler();
 	    _this.cameraEuler.order = 'YXZ';
-	    SettingsEvent$1.listen(_this.handleSettingsChange.bind(assertThisInitialized(_this)));
+	    SettingsEvent.listen(_this.handleSettingsChange.bind(assertThisInitialized(_this)));
 	    return _this;
 	  }
 	  /**
@@ -46350,7 +40837,7 @@
 	  }, {
 	    key: "getControlsId",
 	    value: function getControlsId() {
-	      return CONTROLS_ID$3;
+	      return CONTROLS_ID;
 	    }
 	    /**
 	     * Returns the default set of bindings for the entity.
@@ -46391,10 +40878,10 @@
 
 	      if (this.mesh) {
 	        this.add(this.mesh);
-	        this.animationMixer = Animation$1.get().createAnimationMixer(this.modelName, this);
-	        this.animationClips = Animation$1.get().getClips(this.modelName);
+	        this.animationMixer = Animation.get().createAnimationMixer(this.modelName, this);
+	        this.animationClips = Animation.get().getClips(this.modelName);
 
-	        if (Settings$1$1.get('shadows')) {
+	        if (Settings$1.get('shadows')) {
 	          this.enableShadows();
 	        }
 	      }
@@ -46412,7 +40899,7 @@
 	  }, {
 	    key: "destroy",
 	    value: function destroy() {
-	      var world = getRootWorld$1(this);
+	      var world = getRootWorld(this);
 
 	      if (!world) {
 	        return console.warn('Destroyed entity has no root world');
@@ -46458,7 +40945,7 @@
 	        return console.warn('Model name not provided');
 	      }
 
-	      var scene = Models$1.get().createModel(this.modelName);
+	      var scene = Models.get().createModel(this.modelName);
 	      return scene;
 	    }
 	    /**
@@ -46531,7 +41018,7 @@
 	      }
 
 	      if (this.autogeneratePhysics) {
-	        return Autogenerator$1.generatePhysicsBody(this.mesh);
+	        return Autogenerator.generatePhysicsBody(this.mesh);
 	      }
 
 	      return null;
@@ -46744,7 +41231,7 @@
 	  }, {
 	    key: "registerToPhysics",
 	    value: function registerToPhysics() {
-	      PhysicsPlugin$1.get().registerEntity(this);
+	      PhysicsPlugin.get().registerEntity(this);
 	    }
 	    /**
 	     * Registers a component of an entity to the physics engine. This
@@ -46755,7 +41242,7 @@
 	  }, {
 	    key: "registerComponent",
 	    value: function registerComponent(body) {
-	      PhysicsPlugin$1.get().registerComponent(body);
+	      PhysicsPlugin.get().registerComponent(body);
 	    }
 	    /**
 	     * Finds an animation clip by name.
@@ -46846,7 +41333,7 @@
 	  }]);
 
 	  return Entity;
-	}(Object3DEventTarget$1);
+	}(Object3DEventTarget);
 
 	function _createSuper$f(Derived) {
 	  var hasNativeReflectConstruct = _isNativeReflectConstruct$f();
@@ -46880,7 +41367,7 @@
 	  }
 	}
 
-	var CHARACTER_BINDINGS$1 = {
+	var CHARACTER_BINDINGS = {
 	  SPRINT: {
 	    keys: {
 	      keyboard: 16,
@@ -46904,33 +41391,33 @@
 	    }
 	  }
 	};
-	var RAYCAST_GEO$1 = new BoxGeometry(0.2, 0.2, 0.2);
-	var RAYCAST_MATERIAL$1 = new MeshLambertMaterial({
+	var RAYCAST_GEO = new BoxGeometry(0.2, 0.2, 0.2);
+	var RAYCAST_MATERIAL = new MeshLambertMaterial({
 	  color: 0xff0000
 	});
-	var RAYCAST_BLUE_MATERIAL$1 = new MeshLambertMaterial({
+	var RAYCAST_BLUE_MATERIAL = new MeshLambertMaterial({
 	  color: 0x0000ff
 	});
-	var CONTROLS_ID$1$1 = 'Character'; // Default character properties.
+	var CONTROLS_ID$1 = 'Character'; // Default character properties.
 
-	var DEFAULT_CAPSULE_OFFSET$1 = 0.2;
-	var DEFAULT_CAPSULE_RADIUS$1 = 0.25;
-	var DEFAULT_HEIGHT$1 = 1.8;
-	var DEFAULT_LERP_FACTOR$1 = 0.5;
-	var DEFAULT_MASS$1 = 1;
-	var DEFAULT_FALL_THRESHOLD$1 = 700;
-	var DEFAULT_JUMP_MIN$1 = 500;
-	var DEFAULT_LAND_MIX_THRESHOLD$1 = 150;
-	var DEFAULT_LAND_SPEED_THRESHOLD$1 = 5;
-	var DEFAULT_LAND_TIME_THRESHOLD$1 = 1500;
-	var DEFAULT_VELO_LERP_FACTOR$1 = 0.15;
+	var DEFAULT_CAPSULE_OFFSET = 0.2;
+	var DEFAULT_CAPSULE_RADIUS = 0.25;
+	var DEFAULT_HEIGHT = 1.8;
+	var DEFAULT_LERP_FACTOR = 0.5;
+	var DEFAULT_MASS = 1;
+	var DEFAULT_FALL_THRESHOLD = 700;
+	var DEFAULT_JUMP_MIN = 500;
+	var DEFAULT_LAND_MIX_THRESHOLD = 150;
+	var DEFAULT_LAND_SPEED_THRESHOLD = 5;
+	var DEFAULT_LAND_TIME_THRESHOLD = 1500;
+	var DEFAULT_VELO_LERP_FACTOR = 0.15;
 	/**
 	 * A special entity used for controlling an organic character, such as a human.
 	 * This is different from a standard entity in its physics and animation
 	 * behavior. Note: This is designed exclusively for Cannon.js.
 	 */
 
-	var Character$2 = /*#__PURE__*/function (_Entity) {
+	var Character = /*#__PURE__*/function (_Entity) {
 	  inherits(Character, _Entity);
 
 	  var _super = _createSuper$f(Character);
@@ -46944,29 +41431,29 @@
 	    _this.qualityAdjustEnabled = false; // Make all defaults overrideable by subclasses.
 	    // Height of the character.
 
-	    _this.height = DEFAULT_HEIGHT$1; // Offset used for smoother movement. Increase for larger vertical motion.
+	    _this.height = DEFAULT_HEIGHT; // Offset used for smoother movement. Increase for larger vertical motion.
 
-	    _this.capsuleOffset = DEFAULT_CAPSULE_OFFSET$1; // Radius of the character's physics capsule.
+	    _this.capsuleOffset = DEFAULT_CAPSULE_OFFSET; // Radius of the character's physics capsule.
 
-	    _this.capsuleRadius = DEFAULT_CAPSULE_RADIUS$1; // Amount of time in ms that the fall animation requires to trigger.
+	    _this.capsuleRadius = DEFAULT_CAPSULE_RADIUS; // Amount of time in ms that the fall animation requires to trigger.
 
-	    _this.fallThreshold = DEFAULT_FALL_THRESHOLD$1; // The interpolation factor for character raycasting adjustments.
+	    _this.fallThreshold = DEFAULT_FALL_THRESHOLD; // The interpolation factor for character raycasting adjustments.
 
-	    _this.lerpFactor = DEFAULT_LERP_FACTOR$1; // The interpolation factor for character movement.
+	    _this.lerpFactor = DEFAULT_LERP_FACTOR; // The interpolation factor for character movement.
 
-	    _this.velocityLerpFactor = DEFAULT_VELO_LERP_FACTOR$1; // The mass of the character.
+	    _this.velocityLerpFactor = DEFAULT_VELO_LERP_FACTOR; // The mass of the character.
 
-	    _this.mass = DEFAULT_MASS$1; // Amount of time in ms required to cancel a jump animation.
+	    _this.mass = DEFAULT_MASS; // Amount of time in ms required to cancel a jump animation.
 
-	    _this.jumpMin = DEFAULT_JUMP_MIN$1; // Time in ms before the end of the landing animation that the next
+	    _this.jumpMin = DEFAULT_JUMP_MIN; // Time in ms before the end of the landing animation that the next
 	    // animation can start.
 
-	    _this.landMixThreshold = DEFAULT_LAND_MIX_THRESHOLD$1; // The speed at which a landing animation will be cancelled.
+	    _this.landMixThreshold = DEFAULT_LAND_MIX_THRESHOLD; // The speed at which a landing animation will be cancelled.
 
-	    _this.landSpeedThreshold = DEFAULT_LAND_SPEED_THRESHOLD$1; // The amount of time falling in ms that a character needs to endure before
+	    _this.landSpeedThreshold = DEFAULT_LAND_SPEED_THRESHOLD; // The amount of time falling in ms that a character needs to endure before
 	    // triggering a landing action.
 
-	    _this.landTimeThreshold = DEFAULT_LAND_TIME_THRESHOLD$1; // TODO: Bundle animation names with states.
+	    _this.landTimeThreshold = DEFAULT_LAND_TIME_THRESHOLD; // TODO: Bundle animation names with states.
 
 	    _this.idleAnimationName = null;
 	    _this.walkingAnimationName = null;
@@ -46993,8 +41480,8 @@
 	    _this.ray.skipBackfaces = true;
 	    _this.ray.mode = Ray$1.CLOSEST;
 	    _this.ray.collisionFilterMask = ~2;
-	    _this.rayStartBox = new Mesh(RAYCAST_GEO$1, RAYCAST_BLUE_MATERIAL$1);
-	    _this.rayEndBox = new Mesh(RAYCAST_GEO$1, RAYCAST_MATERIAL$1); // Input properties.
+	    _this.rayStartBox = new Mesh(RAYCAST_GEO, RAYCAST_BLUE_MATERIAL);
+	    _this.rayEndBox = new Mesh(RAYCAST_GEO, RAYCAST_MATERIAL); // Input properties.
 
 	    _this.targetQuaternion = new Quaternion$1();
 	    _this.lerpedVelocity = new Vector3();
@@ -47009,7 +41496,7 @@
 
 	    /** @override */
 	    value: function getControlsId() {
-	      return CONTROLS_ID$1$1;
+	      return CONTROLS_ID$1;
 	    }
 	    /** @override */
 
@@ -47026,7 +41513,6 @@
 	      var height = this.height - this.capsuleRadius * 2 - this.capsuleOffset;
 	      var cylinderShape = new Cylinder(this.capsuleRadius, this.capsuleRadius, height, 20);
 	      var quat = new Quaternion$1();
-	      quat.setFromAxisAngle(Vec3.UNIT_X, Math.PI / 2);
 	      var cylinderPos = height / 2 + this.capsuleRadius + this.capsuleOffset;
 	      capsule.addShape(cylinderShape, new Vec3(0, cylinderPos, 0), quat); // Create round ends of capsule.
 
@@ -47038,10 +41524,10 @@
 
 	      capsule.fixedRotation = true;
 	      capsule.updateMassProperties();
-	      capsule.material = MaterialManager$1.get().createPhysicalMaterial('character', {
+	      capsule.material = MaterialManager.get().createPhysicalMaterial('character', {
 	        friction: 0
 	      });
-	      MaterialManager$1.get().createContactMaterial('character', 'ground', {
+	      MaterialManager.get().createContactMaterial('character', 'ground', {
 	        friction: 0,
 	        contactEquationStiffness: 1e8
 	      }); // Raycast debug.
@@ -47120,7 +41606,7 @@
 	        this.rayEndBox.material.color.setHex(0xff8800); // Lerp new position.
 
 	        var newY = this.physicsBody.position.y + diff;
-	        var lerpedY = lerp$1(this.physicsBody.position.y, newY, this.lerpFactor);
+	        var lerpedY = lerp(this.physicsBody.position.y, newY, this.lerpFactor);
 	        this.physicsBody.position.y = lerpedY;
 	        this.physicsBody.interpolatedPosition.y = lerpedY;
 	        this.physicsBody.velocity.y = 0;
@@ -47199,7 +41685,7 @@
 
 
 	      if (this.inputVector.x || this.inputVector.z) {
-	        var angle = vectorToAngle$1(this.inputVector.z, this.inputVector.x);
+	        var angle = vectorToAngle(this.inputVector.z, this.inputVector.x);
 	        this.targetQuaternion.setFromAxisAngle(Vec3.UNIT_Y, angle);
 	        this.updateRotation();
 	      }
@@ -47226,7 +41712,7 @@
 	        return console.warn('World not set on character');
 	      }
 
-	      if (Settings$1$1.get('physics_debug')) {
+	      if (Settings$1.get('physics_debug')) {
 	        var scene = world.getScene();
 	        scene.add(this.rayStartBox);
 	        scene.add(this.rayEndBox);
@@ -47442,14 +41928,14 @@
 	  }], [{
 	    key: "GetBindings",
 	    value: function GetBindings() {
-	      return new Bindings$1(CONTROLS_ID$1$1).load(CHARACTER_BINDINGS$1).merge(Entity$1.GetBindings());
+	      return new Bindings(CONTROLS_ID$1).load(CHARACTER_BINDINGS).merge(Entity.GetBindings());
 	    }
 	  }]);
 
 	  return Character;
-	}(Entity$1);
+	}(Entity);
 
-	Controls$1.get().registerBindings(Character$2);
+	Controls.get().registerBindings(Character);
 
 	function _createSuper$g(Derived) {
 	  var hasNativeReflectConstruct = _isNativeReflectConstruct$g();
@@ -47750,7 +42236,7 @@
 
 	              case 2:
 	                _context.next = 4;
-	                return loadJsonFromFile$1(filePath);
+	                return loadJsonFromFile(filePath);
 
 	              case 4:
 	                environmentData = _context.sent;
@@ -47906,7 +42392,7 @@
 	  }]);
 
 	  return Environment;
-	}(Entity$1);
+	}(Entity);
 
 	function _createSuper$i(Derived) {
 	  var hasNativeReflectConstruct = _isNativeReflectConstruct$i();
@@ -47940,7 +42426,7 @@
 	  }
 	}
 
-	var FREE_ROAM_BINDINGS$1 = {
+	var FREE_ROAM_BINDINGS = {
 	  UP: {
 	    keys: {
 	      keyboard: 32,
@@ -47970,18 +42456,18 @@
 	    }
 	  }
 	};
-	var CONTROLS_ID$2$1 = 'FreeRoam';
-	var MAX_CAMERA_Z$1 = Math.PI / 2;
-	var MIN_CAMERA_Z$1 = -Math.PI / 2;
-	var MOUSE_SENS$1 = 0.002;
-	var SPRINT_COEFFICIENT$1 = 5;
-	var VELOCITY_COEFFICIENT$1 = 0.5;
+	var CONTROLS_ID$2 = 'FreeRoam';
+	var MAX_CAMERA_Z = Math.PI / 2;
+	var MIN_CAMERA_Z = -Math.PI / 2;
+	var MOUSE_SENS = 0.002;
+	var SPRINT_COEFFICIENT = 5;
+	var VELOCITY_COEFFICIENT = 0.5;
 	/**
 	 * An entity that provides "free roam" controls, allowing it to fly through
 	 * space unaffected by physics.
 	 */
 
-	var FreeRoamEntity$1 = /*#__PURE__*/function (_Entity) {
+	var FreeRoamEntity = /*#__PURE__*/function (_Entity) {
 	  inherits(FreeRoamEntity, _Entity);
 
 	  var _super = _createSuper$i(FreeRoamEntity);
@@ -47991,19 +42477,19 @@
 
 	    /** @override */
 	    value: function getControlsId() {
-	      return CONTROLS_ID$2$1;
+	      return CONTROLS_ID$2;
 	    }
 	  }], [{
 	    key: "GetBindings",
 	    value: function GetBindings() {
-	      return new Bindings$1(CONTROLS_ID$2$1).load(FREE_ROAM_BINDINGS$1).merge(Entity$1.GetBindings());
+	      return new Bindings(CONTROLS_ID$2).load(FREE_ROAM_BINDINGS).merge(Entity.GetBindings());
 	    }
 	  }]);
 
 	  function FreeRoamEntity() {
 	    var _this;
 
-	    var speed = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : VELOCITY_COEFFICIENT$1;
+	    var speed = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : VELOCITY_COEFFICIENT;
 
 	    classCallCheck(this, FreeRoamEntity);
 	    /**
@@ -48050,7 +42536,7 @@
 	      this.targetVelocity.multiplyScalar(this.speed);
 
 	      if (this.getActionValue(this.bindings.SPRINT)) {
-	        this.targetVelocity.multiplyScalar(SPRINT_COEFFICIENT$1);
+	        this.targetVelocity.multiplyScalar(SPRINT_COEFFICIENT);
 	      }
 
 	      this.position.add(this.targetVelocity);
@@ -48073,21 +42559,57 @@
 	      } // Update from mouse movement.
 
 
-	      this.cameraArm.rotation.y -= MOUSE_SENS$1 * this.getMouseMovement().x;
-	      this.cameraArm.rotation.z += MOUSE_SENS$1 * this.getMouseMovement().y; // Clamp.
+	      this.cameraArm.rotation.y -= MOUSE_SENS * this.getMouseMovement().x;
+	      this.cameraArm.rotation.z += MOUSE_SENS * this.getMouseMovement().y; // Clamp.
 
-	      this.cameraArm.rotation.z = Math.min(MAX_CAMERA_Z$1, Math.max(MIN_CAMERA_Z$1, this.cameraArm.rotation.z));
+	      this.cameraArm.rotation.z = Math.min(MAX_CAMERA_Z, Math.max(MIN_CAMERA_Z, this.cameraArm.rotation.z));
 	    }
 	  }]);
 
 	  return FreeRoamEntity;
-	}(Entity$1);
+	}(Entity);
 
-	Controls$1.get().registerBindings(FreeRoamEntity$1);
+	Controls.get().registerBindings(FreeRoamEntity);
 
 	function _createSuper$j(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$j(); return function _createSuperInternal() { var Super = getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return possibleConstructorReturn(this, result); }; }
 
 	function _isNativeReflectConstruct$j() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
+	/**
+	 * A maze character.
+	 */
+
+	var Character$1 = /*#__PURE__*/function (_EraCharacter) {
+	  inherits(Character, _EraCharacter);
+
+	  var _super = _createSuper$j(Character);
+
+	  function Character() {
+	    var _this;
+
+	    classCallCheck(this, Character);
+
+	    _this = _super.call(this);
+	    _this.modelName = 'robot';
+	    _this.idleAnimationName = 'Character|Idling';
+	    _this.walkingAnimationName = 'Character|Walking';
+	    _this.sprintingAnimationName = 'Character|Running';
+	    return _this;
+	  }
+	  /** @override */
+
+
+	  createClass(Character, [{
+	    key: "jump",
+	    value: function jump() {// Jump disabled for this level.
+	    }
+	  }]);
+
+	  return Character;
+	}(Character);
+
+	function _createSuper$k(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$k(); return function _createSuperInternal() { var Super = getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return possibleConstructorReturn(this, result); }; }
+
+	function _isNativeReflectConstruct$k() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
 	var WIDTH$2 = 1;
 	var HEIGHT$1 = 1.5;
 	var DEPTH = 0.2;
@@ -48102,7 +42624,7 @@
 	var Objective = /*#__PURE__*/function (_Entity) {
 	  inherits(Objective, _Entity);
 
-	  var _super = _createSuper$j(Objective);
+	  var _super = _createSuper$k(Objective);
 
 	  function Objective() {
 	    var _this;
@@ -48165,11 +42687,11 @@
 	  }]);
 
 	  return Objective;
-	}(Entity$1);
+	}(Entity);
 
-	function _createSuper$k(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$k(); return function _createSuperInternal() { var Super = getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return possibleConstructorReturn(this, result); }; }
+	function _createSuper$l(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$l(); return function _createSuperInternal() { var Super = getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return possibleConstructorReturn(this, result); }; }
 
-	function _isNativeReflectConstruct$k() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
+	function _isNativeReflectConstruct$l() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
 	/**
 	 * A maze level.
 	 */
@@ -48177,7 +42699,7 @@
 	var Level = /*#__PURE__*/function (_Entity) {
 	  inherits(Level, _Entity);
 
-	  var _super = _createSuper$k(Level);
+	  var _super = _createSuper$l(Level);
 
 	  /**
 	   * @param {string} levelName
@@ -48201,8 +42723,8 @@
 	    value: function generatePhysicsBody() {
 	      var body = get(getPrototypeOf(Level.prototype), "generatePhysicsBody", this).call(this);
 
-	      body.material = MaterialManager$1.get().createPhysicalMaterial('level');
-	      MaterialManager$1.get().createContactMaterial('character', 'level', {
+	      body.material = MaterialManager.get().createPhysicalMaterial('level');
+	      MaterialManager.get().createContactMaterial('character', 'level', {
 	        friction: 0,
 	        contactEquationStiffness: 1e8
 	      });
@@ -48252,7 +42774,7 @@
 	            switch (_context.prev = _context.next) {
 	              case 0:
 	                _context.next = 2;
-	                return Models$1.get().loadModel('levels/', this.modelName);
+	                return Models.get().loadModel('levels/', this.modelName);
 
 	              case 2:
 	              case "end":
@@ -48313,11 +42835,11 @@
 	  }]);
 
 	  return Level;
-	}(Entity$1);
+	}(Entity);
 
-	function _createSuper$l(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$l(); return function _createSuperInternal() { var Super = getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return possibleConstructorReturn(this, result); }; }
+	function _createSuper$m(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$m(); return function _createSuperInternal() { var Super = getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return possibleConstructorReturn(this, result); }; }
 
-	function _isNativeReflectConstruct$l() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
+	function _isNativeReflectConstruct$m() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
 	var LEVELS = ['level_1', 'level_2', 'level_3'];
 	/**
 	 * Game mode for solving mazes.
@@ -48326,7 +42848,7 @@
 	var MazeGameMode = /*#__PURE__*/function (_GameMode) {
 	  inherits(MazeGameMode, _GameMode);
 
-	  var _super = _createSuper$l(MazeGameMode);
+	  var _super = _createSuper$m(MazeGameMode);
 
 	  function MazeGameMode() {
 	    var _this;
@@ -48354,7 +42876,7 @@
 	            switch (_context.prev = _context.next) {
 	              case 0:
 	                _context.next = 2;
-	                return Models$1.get().loadAllFromFile('models.json');
+	                return Models.get().loadAllFromFile('models.json');
 
 	              case 2:
 	                _context.next = 4;
@@ -48377,7 +42899,7 @@
 	                this.character = new Character$1().withPhysics();
 	                this.character.freeze();
 	                this.world.add(this.character);
-	                Controls$1.get().registerEntity(this.character); // Load levels.
+	                Controls.get().registerEntity(this.character); // Load levels.
 
 	                _context.next = 16;
 	                return this.loadLevel(this.levelIndex);
@@ -48543,7 +43065,7 @@
 	        switch (_context.prev = _context.next) {
 	          case 0:
 	            // Create engine.
-	            engine = Engine$1.get(); // Create maze game mode.
+	            engine = Engine.get(); // Create maze game mode.
 
 	            mazeGame = new MazeGameMode();
 	            engine.startGameMode(mazeGame);

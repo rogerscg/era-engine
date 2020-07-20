@@ -18,6 +18,9 @@ async function start() {
   // Create engine.
   const engine = ERA.Engine.get();
 
+  // Install TWEEN plugin.
+  ERA.TweenPlugin.get();
+
   // Create world.
   const world = new ERA.World();
 

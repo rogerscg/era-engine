@@ -152,7 +152,6 @@ class Character extends Entity {
       20
     );
     const quat = new CANNON.Quaternion();
-    quat.setFromAxisAngle(CANNON.Vec3.UNIT_X, Math.PI / 2);
     const cylinderPos = height / 2 + this.capsuleRadius + this.capsuleOffset;
     capsule.addShape(cylinderShape, new CANNON.Vec3(0, cylinderPos, 0), quat);
 
