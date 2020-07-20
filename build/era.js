@@ -18,6 +18,7 @@ import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader.js';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import { SkeletonUtils } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { Sphere, Box, Plane, ConvexPolyhedron, Trimesh, Heightfield, Shape, Vec3, Material, ContactMaterial, World as World$1, Body, Quaternion, Ray, Cylinder } from 'cannon-es';
+import io from 'socket.io-client';
 import _slicedToArray from '@babel/runtime/helpers/slicedToArray';
 import { TGALoader } from 'three/examples/jsm/loaders/TGALoader.js';
 import TWEEN from '@tweenjs/tween.js';
@@ -5172,7 +5173,7 @@ var PhysicsPlugin = /*#__PURE__*/function (_Plugin) {
 
       this.registeredEntities["delete"](entity.uuid);
       entity.unregisterPhysicsWorld(this);
-      this.world.remove(entity.physicsBody);
+      this.world.removeBody(entity.physicsBody);
       return true;
     }
     /**
@@ -5712,7 +5713,6 @@ function _createForOfIteratorHelper$1(o, allowArrayLike) { var it; if (typeof Sy
 function _unsupportedIterableToArray$1(o, minLen) { if (!o) return; if (typeof o === "string") return _arrayLikeToArray$1(o, minLen); var n = Object.prototype.toString.call(o).slice(8, -1); if (n === "Object" && o.constructor) n = o.constructor.name; if (n === "Map" || n === "Set") return Array.from(o); if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return _arrayLikeToArray$1(o, minLen); }
 
 function _arrayLikeToArray$1(arr, len) { if (len == null || len > arr.length) len = arr.length; for (var i = 0, arr2 = new Array(len); i < len; i++) { arr2[i] = arr[i]; } return arr2; }
-
 /**
  * Core functionality for network procedures in the engine. Can be extended
  * in the case of different servers.
@@ -7106,7 +7106,6 @@ var Character = /*#__PURE__*/function (_Entity) {
       var height = this.height - this.capsuleRadius * 2 - this.capsuleOffset;
       var cylinderShape = new Cylinder(this.capsuleRadius, this.capsuleRadius, height, 20);
       var quat = new Quaternion();
-      quat.setFromAxisAngle(Vec3.UNIT_X, Math.PI / 2);
       var cylinderPos = height / 2 + this.capsuleRadius + this.capsuleOffset;
       capsule.addShape(cylinderShape, new Vec3(0, cylinderPos, 0), quat); // Create round ends of capsule.
 
@@ -8091,24 +8090,43 @@ var TweenPlugin = /*#__PURE__*/function (_Plugin) {
 
   var _super = _createSuper$j(TweenPlugin);
 
+  _createClass(TweenPlugin, null, [{
+    key: "get",
+
+    /**
+     * Enforces singleton instance.
+     */
+    value: function get() {
+      if (!instance$9) {
+        instance$9 = new TweenPlugin();
+      }
+
+      return instance$9;
+    }
+  }]);
+
   function TweenPlugin() {
+    var _this;
+
     _classCallCheck(this, TweenPlugin);
 
-    return _super.apply(this, arguments);
+    _this = _super.call(this);
+    _this.lastTime = performance.now();
+    return _this;
   }
+  /** @override */
+
 
   _createClass(TweenPlugin, [{
     key: "reset",
-
-    /** @override */
     value: function reset() {// Nothing to reset.
     }
     /** @override */
 
   }, {
     key: "update",
-    value: function update() {
-      TWEEN.update();
+    value: function update(timestamp) {
+      TWEEN.update(timestamp);
     }
     /**
      * Creates a Tween for the given args.
@@ -8124,19 +8142,6 @@ var TweenPlugin = /*#__PURE__*/function (_Plugin) {
       }
 
       return new TWEEN.Tween(args);
-    }
-  }], [{
-    key: "get",
-
-    /**
-     * Enforces singleton instance.
-     */
-    value: function get() {
-      if (!instance$9) {
-        instance$9 = new TweenPlugin();
-      }
-
-      return instance$9;
     }
   }]);
 

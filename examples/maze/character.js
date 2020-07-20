@@ -1,4 +1,4 @@
-import { Character as EraCharacter } from '../../src/era.js';
+import { Character as EraCharacter } from '../../build/era.js';
 
 /**
  * A maze character.

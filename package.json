@@ -6,6 +6,7 @@
   "scripts": {
     "build": "rollup -c utils/rollup_config.js",
     "build-examples": "rollup -c utils/rollup_examples_config.js",
+    "build-all": "npm run-script build && npm run-script build-examples",
     "start": "node test_server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

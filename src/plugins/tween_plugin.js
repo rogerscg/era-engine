@@ -20,14 +20,19 @@ class TweenPlugin extends Plugin {
     return instance;
   }
 
+  constructor() {
+    super();
+    this.lastTime = performance.now();
+  }
+
   /** @override */
   reset() {
     // Nothing to reset.
   }
 
   /** @override */
-  update() {
-    TWEEN.update();
+  update(timestamp) {
+    TWEEN.update(timestamp);
   }
 
   /**
