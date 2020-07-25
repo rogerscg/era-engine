@@ -7,8 +7,8 @@ import {
   QualityAdjuster,
   TerrainMap,
   World,
-  defaultEraRenderer
-} from '../../src/era.js';
+  defaultEraRenderer,
+} from '../../build/era.js';
 
 /**
  * Game mode for walking around terrain. It's not very exciting.
@@ -55,9 +55,8 @@ class TerrainGameMode extends GameMode {
    */
   async loadTerrain() {
     const terrainMap = new TerrainMap(/* tileSize= */ 64, /* scale=*/ 40.0);
-    await terrainMap.loadFromFile('./heightmaps/simple.gltf');
+    await terrainMap.loadFromFile('heightmaps/simple.gltf');
     terrainMap.tiles.forEach((tile) => this.world.add(tile));
-    //this.world.add(terrainMap.water);
   }
 }
 

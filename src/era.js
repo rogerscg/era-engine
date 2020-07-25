@@ -49,3 +49,6 @@ export { default as PhysicsPlugin } from './physics/physics_plugin.js';
 
 // Plugins
 export { default as TweenPlugin } from './plugins/tween_plugin.js';
+
+// Terrain
+export { default as TerrainMap } from './terrain/terrain_map.js';

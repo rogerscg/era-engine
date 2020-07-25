@@ -7,7 +7,7 @@
     "build": "rollup -c utils/rollup_config.js",
     "build-examples": "rollup -c utils/rollup_examples_config.js",
     "build-all": "npm run-script build && npm run-script build-examples",
-    "start": "node test_server.js",
+    "start": "http-server ./ -p=5000",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -34,8 +34,10 @@
     "@babel/plugin-transform-runtime": "^7.10.5",
     "@babel/runtime": "^7.10.5",
     "@tweenjs/tween.js": "^18.6.0",
-    "cannon-es": "^0.15.0",
+    "cannon-es": "^0.15.1",
+    "comlink": "^4.3.0",
     "dat.gui": "^0.7.7",
+    "noisejs": "^2.1.0",
     "socket.io-client": "^2.3.0",
     "three": "^0.118.3"
   }

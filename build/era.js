@@ -6,7 +6,7 @@ import _possibleConstructorReturn from '@babel/runtime/helpers/possibleConstruct
 import _getPrototypeOf from '@babel/runtime/helpers/getPrototypeOf';
 import _regeneratorRuntime from '@babel/runtime/regenerator';
 import _asyncToGenerator from '@babel/runtime/helpers/asyncToGenerator';
-import { FileLoader, TextureLoader, WebGLRenderer, PCFSoftShadowMap, sRGBEncoding, AnimationMixer, PerspectiveCamera, OrthographicCamera, Object3D, AmbientLight, DirectionalLight, DirectionalLightHelper, SpotLight, SpotLightHelper, CameraHelper, Vector3, LOD, Box3, Box3Helper, SphereGeometry, BoxGeometry, PlaneGeometry, Geometry, Face3, Mesh, MeshBasicMaterial, CylinderGeometry, Scene, Vector2, Quaternion as Quaternion$1, Euler, AnimationClip, MeshLambertMaterial, LoopOnce, CubeGeometry, DoubleSide, FogExp2, Fog } from 'three';
+import { FileLoader, TextureLoader, WebGLRenderer, PCFSoftShadowMap, sRGBEncoding, AnimationMixer, PerspectiveCamera, OrthographicCamera, Object3D, AmbientLight, DirectionalLight, DirectionalLightHelper, SpotLight, SpotLightHelper, CameraHelper, Vector3, LOD, Box3, Box3Helper, SphereGeometry, BoxGeometry, PlaneGeometry, Geometry, Face3, Mesh, MeshBasicMaterial, CylinderGeometry, Scene, Vector2, Quaternion as Quaternion$1, Euler, AnimationClip, MeshLambertMaterial, LoopOnce, CubeGeometry, DoubleSide, FogExp2, Fog, CanvasTexture } from 'three';
 import _get from '@babel/runtime/helpers/get';
 import _wrapNativeSuper from '@babel/runtime/helpers/wrapNativeSuper';
 import dat from 'dat.gui';
@@ -22,6 +22,7 @@ import io from 'socket.io-client';
 import _slicedToArray from '@babel/runtime/helpers/slicedToArray';
 import { TGALoader } from 'three/examples/jsm/loaders/TGALoader.js';
 import TWEEN from '@tweenjs/tween.js';
+import { wrap } from 'comlink';
 
 /**
  * @author rogerscg / https://github.com/rogerscg
@@ -8148,4 +8149,655 @@ var TweenPlugin = /*#__PURE__*/function (_Plugin) {
   return TweenPlugin;
 }(Plugin);
 
-export { Action, Animation, Audio, Bindings, Camera, Character, Controls, Engine, EngineResetEvent, Entity, Environment, EraEvent, EventTarget, Events, FreeRoamEntity, GameMode, Light, MaterialManager, Models, Network, network_registry as NetworkRegistry, Object3DEventTarget, PhysicsPlugin, Plugin, QualityAdjuster, RendererStats, Settings$1 as Settings, SettingsEvent, SettingsPanel$1 as SettingsPanel, Skybox, TweenPlugin, World, createUUID, defaultEraRenderer, disableShadows, dispose, extractMeshes, extractMeshesByName, getHexColorRatio, getRootScene, getRootWorld, lerp, loadJsonFromFile, loadTexture, shuffleArray, toDegrees, toRadians, vectorToAngle };
+var instance$a = null;
+/**
+ * A pool for maintaining WebWorkers in order to prevent creating too many
+ * workers at once.
+ */
+
+var WorkerPool = /*#__PURE__*/function () {
+  _createClass(WorkerPool, null, [{
+    key: "get",
+    value: function get() {
+      if (!instance$a) {
+        instance$a = new WorkerPool();
+      }
+
+      return instance$a;
+    }
+  }]);
+
+  function WorkerPool() {
+    _classCallCheck(this, WorkerPool);
+
+    this.capacity = 20; // Set of workers currently in use.
+
+    this.workers = new Set(); // Available workers.
+
+    this.availableWorkers = new Array(); // A queue of resolvers.
+
+    this.queue = new Array(); // Initialize workers.
+
+    for (var i = 0; i < this.capacity; i++) {
+      this.registerWorker_();
+    }
+  }
+  /**
+   * Builds a worker. Otherwise, waits for one to be free.
+   * @return {Worker}
+   * @async
+   */
+
+
+  _createClass(WorkerPool, [{
+    key: "getWorker",
+    value: function () {
+      var _getWorker = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime.mark(function _callee() {
+        var _this = this;
+
+        return _regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) {
+            switch (_context.prev = _context.next) {
+              case 0:
+                if (!(this.availableWorkers.length > 0)) {
+                  _context.next = 2;
+                  break;
+                }
+
+                return _context.abrupt("return", this.availableWorkers.shift());
+
+              case 2:
+                return _context.abrupt("return", new Promise(function (resolve) {
+                  return _this.queue.push(resolve);
+                }));
+
+              case 3:
+              case "end":
+                return _context.stop();
+            }
+          }
+        }, _callee, this);
+      }));
+
+      function getWorker() {
+        return _getWorker.apply(this, arguments);
+      }
+
+      return getWorker;
+    }()
+    /**
+     * Releases a worker from the pool.
+     * @param {Worker} worker
+     */
+
+  }, {
+    key: "releaseWorker",
+    value: function releaseWorker(worker) {
+      if (!this.workers.has(worker)) {
+        return console.warn('Worker pool does not contain this worker');
+      }
+
+      var resolver = this.queue.shift();
+
+      if (resolver) {
+        resolver(worker);
+        return;
+      }
+
+      this.availableWorkers.push(worker);
+    }
+    /**
+     * Registers a worker to the pool.
+     * @return {Worker}
+     * @private
+     */
+
+  }, {
+    key: "registerWorker_",
+    value: function registerWorker_() {
+      // TODO: This needs to be more flexible.
+      var worker = new Worker('/src/terrain/texture_worker.js', {
+        type: 'module'
+      });
+      this.workers.add(worker);
+      this.availableWorkers.push(worker);
+      return worker;
+    }
+  }]);
+
+  return WorkerPool;
+}();
+
+function _createSuper$k(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$k(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
+
+function _isNativeReflectConstruct$k() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
+var DEBUG_MATERIAL = new MeshLambertMaterial({
+  color: 0xff0000,
+  wireframe: true
+});
+var TEXTURE_QUALITY = 8;
+/**
+ * An individual tile of terrain.
+ */
+
+var TerrainTile = /*#__PURE__*/function (_Entity) {
+  _inherits(TerrainTile, _Entity);
+
+  var _super = _createSuper$k(TerrainTile);
+
+  /**
+   * @param {number} elementSize
+   */
+  function TerrainTile() {
+    var _this;
+
+    var elementSize = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 1;
+
+    _classCallCheck(this, TerrainTile);
+
+    _this = _super.call(this); // Lock mesh rotation due to discrepancies with Three and Cannon planes.
+
+    _this.meshRotationLocked = true; // The size of each data tile.
+
+    _this.elementSize = elementSize; // A matrix of data that creates the terrain tile.
+
+    _this.data = null; // Map tile coordinates.
+
+    _this.tileCoordinates = new Vector2(); // Debug planes to help find boundaries of tiles.
+
+    _this.debugWalls = null;
+    return _this;
+  }
+  /** @override */
+
+
+  _createClass(TerrainTile, [{
+    key: "handleSettingsChange",
+    value: function handleSettingsChange() {
+      this.toggleDebug();
+    }
+    /** @override */
+
+  }, {
+    key: "generateMesh",
+    value: function generateMesh() {
+      if (!this.data) {
+        return console.error('Attempting to create a terrain tile with no data');
+      }
+
+      var dataHeight = this.data.length;
+      var dataWidth = this.data[0].length;
+      var totalWidth = (dataWidth - 1) * this.elementSize;
+      var totalHeight = (dataHeight - 1) * this.elementSize;
+      var geometry = new PlaneGeometry(totalWidth, totalHeight, dataWidth - 1, dataHeight - 1);
+      this.data.forEach(function (row, rowIndex) {
+        row.forEach(function (value, valueIndex) {
+          var vertexIndex = rowIndex * dataWidth + valueIndex;
+          geometry.vertices[vertexIndex].z = value;
+        });
+      });
+      geometry.rotateX(-Math.PI / 2);
+      geometry.computeBoundingBox();
+      geometry.computeFaceNormals();
+      geometry.computeVertexNormals();
+      var material = new MeshLambertMaterial();
+      var mesh = new Mesh(geometry, material);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true; // Debug init.
+
+      this.generateDebugWalls(mesh);
+      this.toggleDebug();
+      return mesh;
+    }
+    /** @override */
+
+  }, {
+    key: "generatePhysicsBody",
+    value: function generatePhysicsBody() {
+      var body = new Body();
+      var heightfieldShape = new Heightfield(this.data, {
+        elementSize: this.elementSize
+      });
+      var dataHeight = this.data.length;
+      var dataWidth = this.data[0].length;
+      var totalWidth = (dataWidth - 1) * this.elementSize;
+      var totalHeight = (dataHeight - 1) * this.elementSize;
+      var shapeQuaternion = new Quaternion().setFromEuler(-Math.PI / 2, 0, -Math.PI / 2, 'XYZ');
+      var shapeOffset = new Vec3(-totalWidth / 2, 0, -totalHeight / 2);
+      body.addShape(heightfieldShape, shapeOffset, shapeQuaternion);
+      body.material = MaterialManager.get().createPhysicalMaterial('ground');
+      return body;
+    }
+    /**
+     * Generates a texture given the generated mesh. Takes vertex height and slope
+     * into account.
+     * @param {THREE.Mesh} mesh
+     * @async
+     */
+
+  }, {
+    key: "generateTexture",
+    value: function () {
+      var _generateTexture = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime.mark(function _callee() {
+        var mesh, worker, TextureGenerator, size, imageData, canvas, context, texture;
+        return _regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) {
+            switch (_context.prev = _context.next) {
+              case 0:
+                return _context.abrupt("return");
+
+              case 4:
+                worker = _context.sent;
+                TextureGenerator = wrap(worker);
+                size = TEXTURE_QUALITY * (this.data.length - 1);
+                _context.next = 9;
+                return new TextureGenerator(size, this.getCoordinates());
+
+              case 9:
+                this.textureGenerator = _context.sent;
+                _context.next = 12;
+                return this.textureGenerator.generate(mesh.geometry.faces, mesh.geometry.vertices, mesh.geometry.boundingBox);
+
+              case 12:
+                imageData = _context.sent;
+                WorkerPool.get().releaseWorker(worker); // Use the image data generated by the texture worker.
+
+                canvas = document.createElement('canvas');
+                canvas.width = size;
+                canvas.height = size;
+                context = canvas.getContext('2d');
+                context.putImageData(imageData, 0, 0); // Set the material texture.
+
+                texture = new CanvasTexture(canvas);
+                mesh.material.map = texture;
+                mesh.material.needsUpdate = true;
+
+              case 22:
+              case "end":
+                return _context.stop();
+            }
+          }
+        }, _callee, this);
+      }));
+
+      function generateTexture() {
+        return _generateTexture.apply(this, arguments);
+      }
+
+      return generateTexture;
+    }()
+    /**
+     * Toggles debug meshes for the tile.
+     */
+
+  }, {
+    key: "toggleDebug",
+    value: function toggleDebug() {
+      if (Settings$1.get('terrain_debug')) {
+        this.add(this.debugWalls);
+      } else {
+        this.remove(this.debugWalls);
+      }
+    }
+    /**
+     * Creates debug walls to aid finding the boundaries of a tile.
+     * @param {THREE.Mesh} mesh Tile mesh to get bounding box.
+     */
+
+  }, {
+    key: "generateDebugWalls",
+    value: function generateDebugWalls(mesh) {
+      if (!this.data || !mesh) {
+        return;
+      } // Create walls.
+
+
+      var dataHeight = this.data.length;
+      var dataWidth = this.data[0].length;
+      var totalWidth = (dataWidth - 1) * this.elementSize;
+      var totalHeight = (dataHeight - 1) * this.elementSize;
+      var geometry = new PlaneGeometry(totalWidth, totalHeight, 10, 10);
+      this.debugWalls = new Object3D(); // Calculate min/max.
+
+      var y = (mesh.geometry.boundingBox.min.y + mesh.geometry.boundingBox.max.y) / 2;
+
+      for (var i = 0; i < 4; i++) {
+        var _mesh = new Mesh(geometry, DEBUG_MATERIAL);
+
+        this.mesh;
+
+        switch (i) {
+          case 0:
+            _mesh.position.set(0, y, totalWidth / 2);
+
+            break;
+
+          case 1:
+            _mesh.position.set(totalWidth / 2, y, 0);
+
+            break;
+
+          case 2:
+            _mesh.position.set(0, y, -totalWidth / 2);
+
+            break;
+
+          case 3:
+            _mesh.position.set(-totalWidth / 2, y, 0);
+
+            break;
+        }
+
+        _mesh.rotation.y = i % 2 == 0 ? 0 : Math.PI / 2;
+        this.debugWalls.add(_mesh);
+      } // Create root mesh.
+
+
+      var tileRoot = new Mesh(new BoxGeometry(totalWidth / 20, totalWidth / 2, totalWidth / 20), new MeshLambertMaterial({
+        color: 0xffff00
+      }));
+      tileRoot.position.y = y;
+      this.debugWalls.add(tileRoot);
+    }
+    /**
+     * Builds the tile from a given matrix of data.
+     * @param {Array<Array<number>>} matrix
+     */
+
+  }, {
+    key: "fromMatrix",
+    value: function fromMatrix(matrix) {
+      this.data = matrix;
+      return this;
+    }
+    /**
+     * Sets the coordinates of the tile relative to other tiles in the map.
+     * @param {number} x
+     * @param {number} y
+     * @return {TerrainTile}
+     */
+
+  }, {
+    key: "setCoordinates",
+    value: function setCoordinates(x, y) {
+      this.tileCoordinates.set(x, y);
+      return this;
+    }
+    /**
+     * @return {THREE.Vector2}
+     */
+
+  }, {
+    key: "getCoordinates",
+    value: function getCoordinates() {
+      return this.tileCoordinates;
+    }
+  }]);
+
+  return TerrainTile;
+}(Entity);
+
+/**
+ * Handles loading a terrain map from a 3D model and parsing it into digestible
+ * tiles.
+ */
+
+var TerrainMap = /*#__PURE__*/function () {
+  /**
+   * @param {number} tileSize The size of a tile. Must be a power of two.
+   * @param {number} scale The scale based on the original heightmap size.
+   */
+  function TerrainMap(tileSize) {
+    var scale = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 1.0;
+
+    _classCallCheck(this, TerrainMap);
+
+    this.tileSize = tileSize;
+    this.scale = scale; // Must be computed post-load.
+
+    this.elementSize = null;
+    this.tiles = null;
+  }
+  /**
+   * Loads the terrain map from a 3D model.
+   * @param {string} modelUrl
+   * @async
+   */
+
+
+  _createClass(TerrainMap, [{
+    key: "loadFromFile",
+    value: function () {
+      var _loadFromFile = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime.mark(function _callee(modelUrl) {
+        var model, heightmap, bufferGeometry, geometry;
+        return _regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) {
+            switch (_context.prev = _context.next) {
+              case 0:
+                _context.next = 2;
+                return Models.get().loadModelWithoutStorage(modelUrl);
+
+              case 2:
+                model = _context.sent;
+                heightmap = model.getObjectByName('Grid');
+                bufferGeometry = heightmap.geometry;
+                geometry = new Geometry().fromBufferGeometry(bufferGeometry);
+                geometry.mergeVertices(); // Compute how large each element will be within a tile.
+
+                this.elementSize = this.computeElementSize_(geometry);
+                this.tiles = this.breakIntoTiles_(geometry);
+                _context.next = 11;
+                return this.loadTileTextures_();
+
+              case 11:
+                this.positionTiles_();
+                return _context.abrupt("return", heightmap);
+
+              case 13:
+              case "end":
+                return _context.stop();
+            }
+          }
+        }, _callee, this);
+      }));
+
+      function loadFromFile(_x) {
+        return _loadFromFile.apply(this, arguments);
+      }
+
+      return loadFromFile;
+    }()
+    /**
+     * Loads the terrain map from a geometry.
+     * @param {THREE.Geometry} geometry
+     * @async
+     */
+
+  }, {
+    key: "loadFromGeometry",
+    value: function () {
+      var _loadFromGeometry = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime.mark(function _callee2(geometry) {
+        return _regeneratorRuntime.wrap(function _callee2$(_context2) {
+          while (1) {
+            switch (_context2.prev = _context2.next) {
+              case 0:
+                geometry.mergeVertices(); // Compute how large each element will be within a tile.
+
+                this.elementSize = this.computeElementSize_(geometry);
+                this.tiles = this.breakIntoTiles_(geometry);
+                _context2.next = 5;
+                return this.loadTileTextures_();
+
+              case 5:
+                this.positionTiles_();
+
+              case 6:
+              case "end":
+                return _context2.stop();
+            }
+          }
+        }, _callee2, this);
+      }));
+
+      function loadFromGeometry(_x2) {
+        return _loadFromGeometry.apply(this, arguments);
+      }
+
+      return loadFromGeometry;
+    }()
+    /**
+     * Compute the size of each element within a tile, based on the original
+     * geometry dimensions as well as how many tiles there will be.
+     * @param {THREE.Geometry} geometry
+     * @return {number}
+     */
+
+  }, {
+    key: "computeElementSize_",
+    value: function computeElementSize_(geometry) {
+      geometry.computeBoundingBox();
+      var width = geometry.boundingBox.max.x - geometry.boundingBox.min.x;
+      var numVertices = Math.sqrt(geometry.vertices.length);
+      return width / numVertices * this.scale;
+    }
+    /**
+     * Breaks the given geometry into tiles.
+     * @param {THREE.Geometry} geometry
+     * @async
+     * @private
+     */
+
+  }, {
+    key: "breakIntoTiles_",
+    value: function breakIntoTiles_(geometry) {
+      var vertices = geometry.vertices; // Preprocess vertices first.
+      // TODO: This is inefficient, and also depends on stable sorting.
+
+      vertices.sort(function (a, b) {
+        return a.x - b.x;
+      }); //vertices.sort((a, b) => b.y - a.y);
+
+      vertices.sort(function (a, b) {
+        return b.z - a.z;
+      }); // We track tile size by the number of quads in a tile, not by the number
+      // of vertices, so add one vertex count.
+
+      var tileVertWidth = this.tileSize + 1; // Get how many vertices are in a row on the loaded geometry.
+
+      var geometryVertWidth = Math.sqrt(vertices.length); // Determine how many tiles we need in a row on the given map.
+
+      var tilesInMapRow = (geometryVertWidth - 1) / (tileVertWidth - 1); // We can throw all tiles into an array, as they each keep their own
+      // coordinates relative to the map.
+
+      var tiles = new Array(); // Iterate to create tiles. One tile will be filled at a time.
+
+      for (var i = 0; i < tilesInMapRow; i++) {
+        for (var j = 0; j < tilesInMapRow; j++) {
+          var tile = new TerrainTile(this.elementSize).withPhysics().setCoordinates(i, j);
+          this.loadVerticesIntoTile_(vertices, tile);
+          tiles.push(tile);
+        }
+      }
+
+      return tiles;
+    }
+    /**
+     * Loads vertices into a tile from a larger geometry. This is difficult due to
+     * the vertices being in a one-dimensional array, while the tile consumes a
+     * matrix.
+     * @param {Array<THREE.Vector3>} vertices
+     * @param {TerrainTile} tile
+     * @private
+     */
+
+  }, {
+    key: "loadVerticesIntoTile_",
+    value: function loadVerticesIntoTile_(vertices, tile) {
+      var _this = this;
+
+      var geometryVertWidth = Math.sqrt(vertices.length);
+      var coordinates = tile.getCoordinates(); // Compute the number of vertices we can skip based on the y coordinate.
+
+      var yOffset = geometryVertWidth * coordinates.y * this.tileSize; // Compute the x offset.
+
+      var xOffset = coordinates.x * this.tileSize; // Now that we have our starting point, we can consume chunks of size
+      // `tileSize` at a time, skipping to the next row until we have consumed
+      // `tileSize` rows.
+
+      var matrix = new Array();
+
+      for (var i = 0; i < this.tileSize + 1; i++) {
+        var startIndex = i * geometryVertWidth + yOffset + xOffset;
+        var row = vertices.slice(startIndex, startIndex + this.tileSize + 1);
+        row = row.map(function (x) {
+          return x.y * _this.scale;
+        });
+        matrix.splice(0, 0, row);
+      } // Fill tile out with data.
+
+
+      tile.fromMatrix(matrix);
+    }
+    /**
+     * Loads all tile textures before the terrain map is finished loading.
+     * @async
+     * @private
+     */
+
+  }, {
+    key: "loadTileTextures_",
+    value: function () {
+      var _loadTileTextures_ = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime.mark(function _callee3() {
+        var promises;
+        return _regeneratorRuntime.wrap(function _callee3$(_context3) {
+          while (1) {
+            switch (_context3.prev = _context3.next) {
+              case 0:
+                promises = new Array();
+                this.tiles.forEach(function (tile) {
+                  tile.build();
+                  promises.push(tile.generateTexture());
+                });
+                return _context3.abrupt("return", Promise.all(promises));
+
+              case 3:
+              case "end":
+                return _context3.stop();
+            }
+          }
+        }, _callee3, this);
+      }));
+
+      function loadTileTextures_() {
+        return _loadTileTextures_.apply(this, arguments);
+      }
+
+      return loadTileTextures_;
+    }()
+    /**
+     * Positions all tiles in the world so that they align properly.
+     * @private
+     */
+
+  }, {
+    key: "positionTiles_",
+    value: function positionTiles_() {
+      var _this2 = this;
+
+      this.tiles.forEach(function (tile) {
+        var coords = tile.getCoordinates();
+        var tilesInMapRow = Math.sqrt(_this2.tiles.length); // We want the middle of the terrain map to be at the world origin, so we
+        // create an offset based on half of the terrain map width.
+
+        var tileOffset = tilesInMapRow / 2 - 0.5;
+        var x = (coords.x - tileOffset) * _this2.tileSize * _this2.elementSize;
+        var z = -(coords.y - tileOffset) * _this2.tileSize * _this2.elementSize;
+        tile.setPosition(new Vector3(x, 0, z));
+      });
+    }
+  }]);
+
+  return TerrainMap;
+}();
+
+export { Action, Animation, Audio, Bindings, Camera, Character, Controls, Engine, EngineResetEvent, Entity, Environment, EraEvent, EventTarget, Events, FreeRoamEntity, GameMode, Light, MaterialManager, Models, Network, network_registry as NetworkRegistry, Object3DEventTarget, PhysicsPlugin, Plugin, QualityAdjuster, RendererStats, Settings$1 as Settings, SettingsEvent, SettingsPanel$1 as SettingsPanel, Skybox, TerrainMap, TweenPlugin, World, createUUID, defaultEraRenderer, disableShadows, dispose, extractMeshes, extractMeshesByName, getHexColorRatio, getRootScene, getRootWorld, lerp, loadJsonFromFile, loadTexture, shuffleArray, toDegrees, toRadians, vectorToAngle };

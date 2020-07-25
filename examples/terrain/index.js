@@ -3,7 +3,7 @@
  */
 
 import TerrainGameMode from './terrain_game_mode.js';
-import { Engine } from '../../src/era.js';
+import { Engine } from '../../build/era.js';
 
 async function start() {
   // Create engine.

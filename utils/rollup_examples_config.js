@@ -2,10 +2,22 @@ import babel from 'rollup-plugin-babel';
 import commonjs from '@rollup/plugin-commonjs';
 import { nodeResolve } from '@rollup/plugin-node-resolve';
 
-const EXAMPLES = ['basic', 'character', 'maze', 'physics', 'splitscreen'];
+const EXAMPLES = [
+  'basic',
+  'character',
+  'maze',
+  'physics',
+  'splitscreen',
+  'terrain',
+];
 
-const buildRules = [];
-EXAMPLES.forEach((dir) => {
+function buildAllExamples() {
+  const buildRules = [];
+  EXAMPLES.forEach((dir) => buildRules.push(buildSpecificExample(dir)));
+  return buildRules;
+}
+
+function buildSpecificExample(dir) {
   const rule = {
     input: `examples/${dir}/index.js`,
     plugins: [
@@ -20,7 +32,12 @@ EXAMPLES.forEach((dir) => {
       },
     ],
   };
-  buildRules.push(rule);
-});
+  return rule;
+}
 
-export default buildRules;
+export default (commandLineArgs) => {
+  if (commandLineArgs.example) {
+    return buildSpecificExample(commandLineArgs.example);
+  }
+  return buildAllExamples();
+};
