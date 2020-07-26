@@ -37654,7 +37654,7 @@
 
 	var CANVAS_HEIGHT = 100;
 	var CANVAS_WIDTH = 100;
-	var CENTER_COMPASS_CSS = "\n  height: ".concat(CANVAS_HEIGHT, "px;\n  width: ").concat(CANVAS_WIDTH, "px;\n  position: fixed;\n  top: 0;\n  left: 0;\n  right: 0;\n  bottom: 0;\n  margin: auto;\n  pointer-events: none;\n");
+	var CENTER_COMPASS_CSS = "\n  height: ".concat(CANVAS_HEIGHT, "px;\n  width: ").concat(CANVAS_WIDTH, "px;\n  position: absolute;\n  top: 0;\n  left: 0;\n  right: 0;\n  bottom: 0;\n  margin: auto;\n  pointer-events: none;\n");
 	/**
 	 * Provides a direction and position helpers for debugging purposes. Must build
 	 * its own UI and renderer to update properly.
@@ -37664,6 +37664,7 @@
 	  function DebugCompass(targetRenderer) {
 	    classCallCheck(this, DebugCompass);
 
+	    this.enabled = Settings$1.get('debug');
 	    this.targetRenderer = targetRenderer; // Create debug compass renderer.
 
 	    this.container = document.createElement('div');
@@ -37683,30 +37684,64 @@
 	    this.scene.add(this.camera);
 	    this.vec3 = new Vector3(); // TODO: Add position coordinates.
 	    // TODO: Add parent position coordinates (for precise entity positions).
+
+	    this.targetRenderer.domElement.parentElement.appendChild(this.container);
+	    SettingsEvent.listen(this.handleSettingsChange.bind(this));
 	  }
 	  /**
-	   * Updates the debug compass. Called from world updates directly, rather than
-	   * implicitly from engine updates.
-	   * @param {THREE.Camera} targetCamera
+	   * Enables renderer stats.
 	   */
 
 
 	  createClass(DebugCompass, [{
+	    key: "enable",
+	    value: function enable() {
+	      this.enabled = true;
+	      this.targetRenderer.domElement.parentElement.appendChild(this.container);
+	    }
+	    /**
+	     * Disables renderer stats.
+	     */
+
+	  }, {
+	    key: "disable",
+	    value: function disable() {
+	      this.enabled = false;
+
+	      if (this.targetRenderer.domElement.parentElement) {
+	        this.targetRenderer.domElement.parentElement.removeChild(this.container);
+	      }
+	    }
+	    /**
+	     * Updates the debug compass. Called from world updates directly, rather than
+	     * implicitly from engine updates.
+	     * @param {THREE.Camera} targetCamera
+	     */
+
+	  }, {
 	    key: "update",
 	    value: function update(targetCamera) {
+	      if (!this.enabled) {
+	        return;
+	      }
+
 	      targetCamera.getWorldDirection(this.camera.position);
 	      this.camera.position.multiplyScalar(-2);
 	      this.camera.lookAt(this.axesHelper.position);
 	      this.debugRenderer.render(this.scene, this.camera);
 	    }
-	    /**
-	     * Repositions the compass to match the renderer.
-	     */
-
 	  }, {
-	    key: "resize",
-	    value: function resize() {
-	      console.warn('Debug compass resize not implemented');
+	    key: "handleSettingsChange",
+	    value: function handleSettingsChange() {
+	      var currEnabled = Settings$1.get('debug');
+
+	      if (currEnabled && !this.enabled) {
+	        return this.enable();
+	      }
+
+	      if (!currEnabled && this.enabled) {
+	        return this.disable();
+	      }
 	    }
 	  }]);
 
@@ -38969,12 +39004,6 @@
 	            var rect = renderer.domElement.getBoundingClientRect();
 	            width = rect.width;
 	            height = rect.height;
-
-	            var compass = _this3.debugCompassMap.get(renderer);
-
-	            if (compass) {
-	              compass.resize();
-	            }
 	          }
 
 	          camera.userData.resize(width, height);

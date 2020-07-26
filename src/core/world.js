@@ -115,10 +115,6 @@ class World extends Plugin {
           const rect = renderer.domElement.getBoundingClientRect();
           width = rect.width;
           height = rect.height;
-          const compass = this.debugCompassMap.get(renderer);
-          if (compass) {
-            compass.resize();
-          }
         }
         camera.userData.resize(width, height);
       });
