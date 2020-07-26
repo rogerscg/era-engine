@@ -37654,7 +37654,10 @@
 
 	var CANVAS_HEIGHT = 100;
 	var CANVAS_WIDTH = 100;
+	var AXES = ['x', 'y', 'z'];
 	var CENTER_COMPASS_CSS = "\n  height: ".concat(CANVAS_HEIGHT, "px;\n  width: ").concat(CANVAS_WIDTH, "px;\n  position: absolute;\n  top: 0;\n  left: 0;\n  right: 0;\n  bottom: 0;\n  margin: auto;\n  pointer-events: none;\n");
+	var COORDINATE_CONTAINER_CSS = "\n  position: absolute;\n  top: 0;\n  left: 0;\n  pointer-events: none;\n  font-family: monospace;\n  padding: 15px;\n  background: rgba(0, 0, 0, .4);\n  color: rgb(0, 255, 255);\n";
+	var COORDINATE_HTML = "\n  <div>Camera Coordinates</div>\n  <div>\n    <div class='era-coord-value era-coord-x'></div>\n    <div class='era-coord-value era-coord-y'></div>\n    <div class='era-coord-value era-coord-z'></div>\n  </div>\n";
 	/**
 	 * Provides a direction and position helpers for debugging purposes. Must build
 	 * its own UI and renderer to update properly.
@@ -37665,39 +37668,72 @@
 	    classCallCheck(this, DebugCompass);
 
 	    this.enabled = Settings$1.get('debug');
-	    this.targetRenderer = targetRenderer; // Create debug compass renderer.
-
-	    this.container = document.createElement('div');
-	    this.container.style.cssText = CENTER_COMPASS_CSS; // Create renderer.
-
-	    this.scene = new Scene();
-	    this.debugRenderer = defaultEraRenderer();
-	    this.debugRenderer.setSize(CANVAS_WIDTH, CANVAS_HEIGHT);
-	    this.container.appendChild(this.debugRenderer.domElement);
-	    this.targetRenderer.domElement.parentElement.appendChild(this.container);
-	    this.camera = Camera$1.get().buildIsometricCamera();
-	    this.camera.zoom = 500;
-	    this.camera.updateProjectionMatrix(); // Add axes helper.
-
-	    this.axesHelper = new AxesHelper();
-	    this.scene.add(this.axesHelper);
-	    this.scene.add(this.camera);
-	    this.vec3 = new Vector3(); // TODO: Add position coordinates.
-	    // TODO: Add parent position coordinates (for precise entity positions).
-
-	    this.targetRenderer.domElement.parentElement.appendChild(this.container);
-	    SettingsEvent.listen(this.handleSettingsChange.bind(this));
+	    this.targetRenderer = targetRenderer;
+	    this.createAxisHelper();
+	    this.createCoordinateHelper();
+	    SettingsEvent.listen(this.handleSettingsChange.bind(this)); // TODO: Add parent position coordinates (for precise entity positions).
 	  }
 	  /**
-	   * Enables renderer stats.
+	   * Creates an axis helper at the center of the target renderer.
 	   */
 
 
 	  createClass(DebugCompass, [{
+	    key: "createAxisHelper",
+	    value: function createAxisHelper() {
+	      // Create debug compass renderer.
+	      this.container = document.createElement('div');
+	      this.container.style.cssText = CENTER_COMPASS_CSS; // Create renderer.
+
+	      this.scene = new Scene();
+	      this.debugRenderer = defaultEraRenderer();
+	      this.debugRenderer.setSize(CANVAS_WIDTH, CANVAS_HEIGHT);
+	      this.container.appendChild(this.debugRenderer.domElement);
+	      this.targetRenderer.domElement.parentElement.appendChild(this.container);
+	      this.camera = Camera$1.get().buildIsometricCamera();
+	      this.camera.zoom = 500;
+	      this.camera.updateProjectionMatrix(); // Add axes helper.
+
+	      this.axesHelper = new AxesHelper();
+	      this.scene.add(this.axesHelper);
+	      this.scene.add(this.camera);
+	    }
+	    /**
+	     * Creates a coordinates window at the top left of the renderer.
+	     */
+
+	  }, {
+	    key: "createCoordinateHelper",
+	    value: function createCoordinateHelper() {
+	      var _this = this; // Create coordinate helper container.
+
+
+	      this.coordinateContainer = document.createElement('div');
+	      this.coordinateContainer.innerHTML = COORDINATE_HTML;
+	      this.coordinateContainer.style.cssText = COORDINATE_CONTAINER_CSS;
+	      this.targetRenderer.domElement.parentElement.appendChild(this.coordinateContainer);
+	      this.coordinateDivs = new Map();
+	      AXES.forEach(function (axis) {
+	        var valueDiv = _this.coordinateContainer.getElementsByClassName("era-coord-".concat(axis))[0];
+
+	        _this.coordinateDivs.set(axis, valueDiv);
+	      });
+	      this.worldPositionDummy = new Vector3();
+	    }
+	    /**
+	     * Enables renderer stats.
+	     */
+
+	  }, {
 	    key: "enable",
 	    value: function enable() {
+	      if (this.enabled) {
+	        return;
+	      }
+
 	      this.enabled = true;
 	      this.targetRenderer.domElement.parentElement.appendChild(this.container);
+	      this.targetRenderer.domElement.parentElement.appendChild(this.coordinateContainer);
 	    }
 	    /**
 	     * Disables renderer stats.
@@ -37706,10 +37742,15 @@
 	  }, {
 	    key: "disable",
 	    value: function disable() {
+	      if (!this.enabled) {
+	        return;
+	      }
+
 	      this.enabled = false;
 
 	      if (this.targetRenderer.domElement.parentElement) {
 	        this.targetRenderer.domElement.parentElement.removeChild(this.container);
+	        this.targetRenderer.domElement.parentElement.removeChild(this.coordinateContainer);
 	      }
 	    }
 	    /**
@@ -37721,14 +37762,25 @@
 	  }, {
 	    key: "update",
 	    value: function update(targetCamera) {
+	      var _this2 = this;
+
 	      if (!this.enabled) {
 	        return;
-	      }
+	      } // Update axes helper.
+
 
 	      targetCamera.getWorldDirection(this.camera.position);
 	      this.camera.position.multiplyScalar(-2);
 	      this.camera.lookAt(this.axesHelper.position);
-	      this.debugRenderer.render(this.scene, this.camera);
+	      this.debugRenderer.render(this.scene, this.camera); // Update coordinates.
+
+	      targetCamera.getWorldPosition(this.worldPositionDummy);
+	      AXES.forEach(function (axis) {
+	        var valDiv = _this2.coordinateDivs.get(axis);
+
+	        var value = _this2.worldPositionDummy[axis];
+	        valDiv.textContent = "".concat(axis.toUpperCase(), ": ").concat(value.toFixed(2));
+	      });
 	    }
 	  }, {
 	    key: "handleSettingsChange",
