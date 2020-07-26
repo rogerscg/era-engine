@@ -37573,6 +37573,66 @@
 
 	var QUALITY_RANGE = new Vector3().setScalar(2);
 
+	var CANVAS_HEIGHT = 100;
+	var CANVAS_WIDTH = 100;
+	var CENTER_COMPASS_CSS = "\n  height: ".concat(CANVAS_HEIGHT, "px;\n  width: ").concat(CANVAS_WIDTH, "px;\n  position: fixed;\n  top: 0;\n  left: 0;\n  right: 0;\n  bottom: 0;\n  margin: auto;\n  pointer-events: none;\n");
+	/**
+	 * Provides a direction and position helpers for debugging purposes. Must build
+	 * its own UI and renderer to update properly.
+	 */
+
+	var DebugCompass = /*#__PURE__*/function () {
+	  function DebugCompass(targetRenderer) {
+	    classCallCheck(this, DebugCompass);
+
+	    this.targetRenderer = targetRenderer; // Create debug compass renderer.
+
+	    this.container = document.createElement('div');
+	    this.container.style.cssText = CENTER_COMPASS_CSS; // Create renderer.
+
+	    this.scene = new Scene();
+	    this.debugRenderer = defaultEraRenderer();
+	    this.debugRenderer.setSize(CANVAS_WIDTH, CANVAS_HEIGHT);
+	    this.container.appendChild(this.debugRenderer.domElement);
+	    this.targetRenderer.domElement.parentElement.appendChild(this.container);
+	    this.camera = Camera$1.get().buildIsometricCamera();
+	    this.camera.zoom = 500;
+	    this.camera.updateProjectionMatrix(); // Add axes helper.
+
+	    this.axesHelper = new AxesHelper();
+	    this.scene.add(this.axesHelper);
+	    this.scene.add(this.camera); // TODO: Add position coordinates.
+	    // TODO: Add parent position coordinates (for precise entity positions).
+	  }
+	  /**
+	   * Updates the debug compass. Called from world updates directly, rather than
+	   * implicitly from engine updates.
+	   * @param {THREE.Camera} targetCamera
+	   */
+
+
+	  createClass(DebugCompass, [{
+	    key: "update",
+	    value: function update(targetCamera) {
+	      targetCamera.getWorldDirection(this.camera.position);
+	      this.camera.position.multiplyScalar(-2);
+	      this.camera.lookAt(this.axesHelper.position);
+	      this.debugRenderer.render(this.scene, this.camera);
+	    }
+	    /**
+	     * Repositions the compass to match the renderer.
+	     */
+
+	  }, {
+	    key: "resize",
+	    value: function resize() {
+	      console.warn('Debug compass resize not implemented');
+	    }
+	  }]);
+
+	  return DebugCompass;
+	}();
+
 	function _createSuper$9(Derived) {
 	  var hasNativeReflectConstruct = _isNativeReflectConstruct$9();
 
@@ -38715,6 +38775,7 @@
 	    _this.entities = new Set();
 	    _this.entityCameras = new Map();
 	    _this.entitiesToRenderers = new Map();
+	    _this.debugCompassMap = new Map();
 	    window.addEventListener('resize', _this.onWindowResize.bind(assertThisInitialized(_this)), false); // A utility for adjusting quality on world entities.
 
 	    _this.qualityAdjuster = null;
@@ -38751,7 +38812,11 @@
 	      }); // Update all renderers.
 
 	      this.camerasToRenderers.forEach(function (renderer, camera) {
-	        return renderer.render(_this2.scene, camera);
+	        renderer.render(_this2.scene, camera);
+
+	        var compass = _this2.debugCompassMap.get(renderer);
+
+	        compass.update(camera);
 	      }); // Update quality.
 
 	      if (this.qualityAdjuster) {
@@ -38824,6 +38889,12 @@
 	            var rect = renderer.domElement.getBoundingClientRect();
 	            width = rect.width;
 	            height = rect.height;
+
+	            var compass = _this3.debugCompassMap.get(renderer);
+
+	            if (compass) {
+	              compass.resize();
+	            }
 	          }
 
 	          camera.userData.resize(width, height);
@@ -38875,6 +38946,8 @@
 	      }, false);
 	      renderer.name = name;
 	      new RendererStats(renderer);
+	      var debugCompass = new DebugCompass(renderer);
+	      this.debugCompassMap.set(renderer, debugCompass);
 	      this.renderers.set(name, renderer);
 	      return this;
 	    }
