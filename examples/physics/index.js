@@ -1,7 +1,6 @@
 /**
  * @author rogerscg / https://github.com/rogerscg
  */
-
 import Ball from './ball.js';
 import Stage from './stage.js';
 import {
@@ -30,12 +29,13 @@ async function start() {
 
   // Create stage.
   const stage = new Stage();
-  world.add(stage).attachCameraToEntity(stage);
+  await world.add(stage);
+  world.attachCameraToEntity(stage);
 
   // Create characters.
   for (let i = 0; i < 4; i++) {
     const ball = new Ball().setPlayerNumber(i);
-    world.add(ball);
+    await world.add(ball);
     ball.setPosition(new CANNON.Vec3((i - 2) * 5, 3, 0));
     Controls.get().registerEntity(ball);
   }

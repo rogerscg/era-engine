@@ -18,6 +18,7 @@ export { default as Models } from './core/models.js';
 export { default as Plugin } from './core/plugin.js';
 export { default as QualityAdjuster } from './core/quality_adjuster.js';
 export { default as Settings } from './core/settings.js';
+export { default as WorkerPool } from './core/worker_pool.js';
 export { default as World } from './core/world.js';
 export * from './core/util.js';
 
@@ -52,3 +53,4 @@ export { default as TweenPlugin } from './plugins/tween_plugin.js';
 
 // Terrain
 export { default as TerrainMap } from './terrain/terrain_map.js';
+export { default as TerrainTile } from './terrain/terrain_tile.js';

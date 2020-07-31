@@ -63,7 +63,7 @@ class Ball extends Entity {
   }
 
   /** @override */
-  generateMesh() {
+  async generateMesh() {
     const material = MATERIAL.clone();
     material.color.setHex(COLORS[this.playerNumber]);
     return new THREE.Mesh(GEOMETRY, material);

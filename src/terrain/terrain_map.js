@@ -17,6 +17,16 @@ class TerrainMap {
     // Must be computed post-load.
     this.elementSize = null;
     this.tiles = null;
+    this.TerrainTileClass = TerrainTile;
+  }
+
+  /**
+   * Sets a custom tile implementation for use within the terrain map.
+   * @param {TerrainTile} terrainTileClass
+   */
+  setTerrainTileClass(terrainTileClass) {
+    this.TerrainTileClass = terrainTileClass;
+    return this;
   }
 
   /**
@@ -33,7 +43,7 @@ class TerrainMap {
     // Compute how large each element will be within a tile.
     this.elementSize = this.computeElementSize_(geometry);
     this.tiles = this.breakIntoTiles_(geometry);
-    await this.loadTileTextures_();
+    await this.buildTiles_();
     this.positionTiles_();
     return heightmap;
   }
@@ -48,7 +58,7 @@ class TerrainMap {
     // Compute how large each element will be within a tile.
     this.elementSize = this.computeElementSize_(geometry);
     this.tiles = this.breakIntoTiles_(geometry);
-    await this.loadTileTextures_();
+    await this.buildTiles_();
     this.positionTiles_();
   }
 
@@ -91,7 +101,7 @@ class TerrainMap {
     // Iterate to create tiles. One tile will be filled at a time.
     for (let i = 0; i < tilesInMapRow; i++) {
       for (let j = 0; j < tilesInMapRow; j++) {
-        const tile = new TerrainTile(this.elementSize)
+        const tile = new this.TerrainTileClass(this.elementSize)
           .withPhysics()
           .setCoordinates(i, j);
         this.loadVerticesIntoTile_(vertices, tile);
@@ -135,12 +145,9 @@ class TerrainMap {
    * @async
    * @private
    */
-  async loadTileTextures_() {
+  async buildTiles_() {
     const promises = new Array();
-    this.tiles.forEach((tile) => {
-      tile.build();
-      promises.push(tile.generateTexture());
-    });
+    this.tiles.forEach((tile) => promises.push(tile.build()));
     return Promise.all(promises);
   }
 

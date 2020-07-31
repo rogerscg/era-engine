@@ -20,7 +20,7 @@ class Laser extends ERA.Entity {
   }
 
   /** @override */
-  generateMesh() {
+  async generateMesh() {
     return new THREE.Mesh(GEOMETRY, MATERIAL);
   }
 

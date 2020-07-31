@@ -214,8 +214,9 @@ class World extends Plugin {
    * Adds an entity or other ERA object to the world.
    * @param {Entity} entity
    * @return {World}
+   * @async
    */
-  add(entity) {
+  async add(entity) {
     if (this.entities.has(entity)) {
       console.warn('Entity already added to the world');
       return this;
@@ -224,7 +225,7 @@ class World extends Plugin {
       entity.registerPhysicsWorld(this.physics);
     }
     entity.setWorld(this);
-    entity.build();
+    await entity.build();
     this.entities.add(entity);
     this.scene.add(entity);
     if (entity.physicsBody) {

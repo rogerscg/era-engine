@@ -1,11 +1,11 @@
-import Noise from 'noisejs';
+import SimplexNoise from 'simplex-noise';
 import * as Comlink from 'comlink';
 import { Box2, Color, Vector3 } from 'three';
 
 // Perlin equation constants.
 const PERLIN_RANGE = 1;
 
-const noise = new Noise(0xbada55);
+const noise = new SimplexNoise(0xbada55);
 
 /**
  * Generates a texture for a terrain tile. This is meant to be run in a
@@ -148,7 +148,7 @@ class TextureGenerator {
             for (let j = canvasBox.min.y; j < canvasBox.max.y; j++) {
               const x = i + xOffset;
               const y = j + yOffset;
-              const perlinValue = noise.simplex2(
+              const perlinValue = noise.noise2D(
                 x / heightTexture.perlinFactor,
                 y / heightTexture.perlinFactor
               );
@@ -216,7 +216,7 @@ class TextureGenerator {
           for (let j = canvasBox.min.y; j < canvasBox.max.y; j++) {
             const x = i + xOffset;
             const y = j + yOffset;
-            const perlinValue = noise.simplex2(
+            const perlinValue = noise.noise2D(
               x / slopeModifier.perlinFactor,
               y / slopeModifier.perlinFactor
             );

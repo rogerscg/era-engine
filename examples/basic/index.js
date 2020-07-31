@@ -42,7 +42,8 @@ async function start() {
 
   // Create X-Wing.
   const xwing = new XWing();
-  world.add(xwing).attachCameraToEntity(xwing);
+  await world.add(xwing);
+  world.attachCameraToEntity(xwing);
   ERA.Controls.get().registerEntity(xwing);
   ERA.Controls.get().useOrbitControls(world.getCamera(), world.getRenderer());
 }

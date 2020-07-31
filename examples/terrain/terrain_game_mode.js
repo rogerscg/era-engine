@@ -1,3 +1,4 @@
+import CustomTerrainTile from './custom_terrain_tile.js';
 import {
   Camera,
   Controls,
@@ -8,6 +9,7 @@ import {
   TerrainMap,
   World,
   defaultEraRenderer,
+  TerrainTile,
 } from '../../build/era.js';
 
 /**
@@ -38,7 +40,8 @@ class TerrainGameMode extends GameMode {
 
     // Create character.
     this.character = new FreeRoamEntity();
-    this.world.add(this.character).attachCameraToEntity(this.character);
+    await this.world.add(this.character);
+    this.world.attachCameraToEntity(this.character);
     Controls.get().registerEntity(this.character);
     Controls.get().usePointerLockControls();
 
@@ -55,6 +58,7 @@ class TerrainGameMode extends GameMode {
    */
   async loadTerrain() {
     const terrainMap = new TerrainMap(/* tileSize= */ 64, /* scale=*/ 40.0);
+    terrainMap.setTerrainTileClass(CustomTerrainTile);
     await terrainMap.loadFromFile('heightmaps/simple.gltf');
     terrainMap.tiles.forEach((tile) => this.world.add(tile));
   }

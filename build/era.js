@@ -6,7 +6,7 @@ import _possibleConstructorReturn from '@babel/runtime/helpers/possibleConstruct
 import _getPrototypeOf from '@babel/runtime/helpers/getPrototypeOf';
 import _regeneratorRuntime from '@babel/runtime/regenerator';
 import _asyncToGenerator from '@babel/runtime/helpers/asyncToGenerator';
-import { FileLoader, TextureLoader, WebGLRenderer, PCFSoftShadowMap, sRGBEncoding, AnimationMixer, PerspectiveCamera, OrthographicCamera, Object3D, AmbientLight, DirectionalLight, DirectionalLightHelper, SpotLight, SpotLightHelper, CameraHelper, Vector3, LOD, Box3, Box3Helper, Scene, AxesHelper, SphereGeometry, BoxGeometry, PlaneGeometry, Geometry, Face3, Mesh, MeshBasicMaterial, CylinderGeometry, Vector2, Quaternion as Quaternion$1, Euler, AnimationClip, MeshLambertMaterial, LoopOnce, CubeGeometry, DoubleSide, FogExp2, Fog, CanvasTexture } from 'three';
+import { FileLoader, TextureLoader, WebGLRenderer, PCFSoftShadowMap, sRGBEncoding, AnimationMixer, PerspectiveCamera, OrthographicCamera, Object3D, AmbientLight, DirectionalLight, DirectionalLightHelper, SpotLight, SpotLightHelper, CameraHelper, Vector3, LOD, Box3, Box3Helper, Scene, AxesHelper, SphereGeometry, BoxGeometry, PlaneGeometry, Geometry, Face3, Mesh, MeshBasicMaterial, CylinderGeometry, Vector2, Quaternion as Quaternion$1, Euler, AnimationClip, MeshLambertMaterial, LoopOnce, CubeGeometry, DoubleSide, FogExp2, Fog } from 'three';
 import _get from '@babel/runtime/helpers/get';
 import _wrapNativeSuper from '@babel/runtime/helpers/wrapNativeSuper';
 import dat from 'dat.gui';
@@ -22,7 +22,6 @@ import io from 'socket.io-client';
 import _slicedToArray from '@babel/runtime/helpers/slicedToArray';
 import { TGALoader } from 'three/examples/jsm/loaders/TGALoader.js';
 import TWEEN from '@tweenjs/tween.js';
-import { wrap } from 'comlink';
 
 /**
  * @author rogerscg / https://github.com/rogerscg
@@ -4248,6 +4247,155 @@ var QualityAdjuster = /*#__PURE__*/function () {
   return QualityAdjuster;
 }();
 
+/**
+ * @author rogerscg / https://github.com/rogerscg
+ */
+
+var instance$7 = null;
+/**
+ * A pool for maintaining WebWorkers in order to prevent creating too many
+ * workers at once.
+ */
+
+var WorkerPool = /*#__PURE__*/function () {
+  _createClass(WorkerPool, null, [{
+    key: "get",
+    value: function get() {
+      if (!instance$7) {
+        instance$7 = new WorkerPool();
+      }
+
+      return instance$7;
+    }
+  }]);
+
+  function WorkerPool() {
+    _classCallCheck(this, WorkerPool);
+
+    this.capacity = 20; // Set of workers currently in use.
+
+    this.workers = new Set(); // A queue of resolvers.
+
+    this.queue = new Array();
+  }
+  /**
+   * Checks if there is an available worker.
+   * @returns {boolean}
+   */
+
+
+  _createClass(WorkerPool, [{
+    key: "hasAvailability",
+    value: function hasAvailability() {
+      return this.workers.size < this.capacity;
+    }
+    /**
+     * Waits for an open worker slot. Returns a reservation UUID in order to track
+     * reservation release, once available.
+     * @returns {string} UUID of the reservation.
+     * @async
+     */
+
+  }, {
+    key: "getWorkerReservation",
+    value: function () {
+      var _getWorkerReservation = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime.mark(function _callee() {
+        var uuid;
+        return _regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) {
+            switch (_context.prev = _context.next) {
+              case 0:
+                uuid = createUUID();
+
+                if (!this.hasAvailability()) {
+                  _context.next = 4;
+                  break;
+                }
+
+                this.workers.add(uuid);
+                return _context.abrupt("return", uuid);
+
+              case 4:
+                _context.next = 6;
+                return this.waitForOpening_();
+
+              case 6:
+                this.workers.add(uuid);
+                return _context.abrupt("return", uuid);
+
+              case 8:
+              case "end":
+                return _context.stop();
+            }
+          }
+        }, _callee, this);
+      }));
+
+      function getWorkerReservation() {
+        return _getWorkerReservation.apply(this, arguments);
+      }
+
+      return getWorkerReservation;
+    }()
+    /**
+     * Adds a reservation to the queue, whose promise resolves when an opening is
+     * available.
+     * @private
+     * @async
+     */
+
+  }, {
+    key: "waitForOpening_",
+    value: function () {
+      var _waitForOpening_ = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime.mark(function _callee2() {
+        var _this = this;
+
+        return _regeneratorRuntime.wrap(function _callee2$(_context2) {
+          while (1) {
+            switch (_context2.prev = _context2.next) {
+              case 0:
+                return _context2.abrupt("return", new Promise(function (resolve) {
+                  return _this.queue.push(resolve);
+                }));
+
+              case 1:
+              case "end":
+                return _context2.stop();
+            }
+          }
+        }, _callee2);
+      }));
+
+      function waitForOpening_() {
+        return _waitForOpening_.apply(this, arguments);
+      }
+
+      return waitForOpening_;
+    }()
+    /**
+     * Releases a worker from the pool.
+     * @param {string} reservationUUID
+     */
+
+  }, {
+    key: "releaseWorker",
+    value: function releaseWorker(reservationUUID) {
+      if (!this.workers.has(reservationUUID)) {
+        return console.warn('Worker pool does not contain this reservation');
+      }
+
+      this.workers["delete"](reservationUUID);
+      var resolver = this.queue.shift();
+
+      if (resolver) {
+        resolver();
+      }
+    }
+  }]);
+
+  return WorkerPool;
+}();
+
 var CANVAS_HEIGHT = 100;
 var CANVAS_WIDTH = 100;
 var AXES = ['x', 'y', 'z'];
@@ -5044,7 +5192,7 @@ var DebugRenderer = /*#__PURE__*/function () {
   return DebugRenderer;
 }();
 
-var instance$7 = null;
+var instance$8 = null;
 /**
  * Handles creation and installation of physical materials within the physics
  * engine.
@@ -5054,11 +5202,11 @@ var MaterialManager = /*#__PURE__*/function () {
   _createClass(MaterialManager, null, [{
     key: "get",
     value: function get() {
-      if (!instance$7) {
-        instance$7 = new MaterialManager();
+      if (!instance$8) {
+        instance$8 = new MaterialManager();
       }
 
-      return instance$7;
+      return instance$8;
     }
   }]);
 
@@ -5157,7 +5305,7 @@ function _createSuper$a(Derived) { var hasNativeReflectConstruct = _isNativeRefl
 function _isNativeReflectConstruct$a() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
 var MAX_DELTA = 1;
 var MAX_SUBSTEPS = 10;
-var instance$8 = null;
+var instance$9 = null;
 /**
  * API implementation for Cannon.js, a pure JavaScript physics engine.
  * https://github.com/schteppe/cannon.js
@@ -5175,11 +5323,11 @@ var PhysicsPlugin = /*#__PURE__*/function (_Plugin) {
      * Enforces singleton physics instance.
      */
     value: function get() {
-      if (!instance$8) {
-        instance$8 = new PhysicsPlugin();
+      if (!instance$9) {
+        instance$9 = new PhysicsPlugin();
       }
 
-      return instance$8;
+      return instance$9;
     }
   }]);
 
@@ -5333,7 +5481,7 @@ var PhysicsPlugin = /*#__PURE__*/function (_Plugin) {
     key: "terminate",
     value: function terminate() {
       clearInterval(this.updateInterval);
-      instance$8 = null;
+      instance$9 = null;
     }
     /**
      * Gets the position of the given entity. Must be implemented by
@@ -5678,32 +5826,59 @@ var World = /*#__PURE__*/function (_Plugin) {
      * Adds an entity or other ERA object to the world.
      * @param {Entity} entity
      * @return {World}
+     * @async
      */
 
   }, {
     key: "add",
-    value: function add(entity) {
-      if (this.entities.has(entity)) {
-        console.warn('Entity already added to the world');
-        return this;
+    value: function () {
+      var _add = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime.mark(function _callee(entity) {
+        return _regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) {
+            switch (_context.prev = _context.next) {
+              case 0:
+                if (!this.entities.has(entity)) {
+                  _context.next = 3;
+                  break;
+                }
+
+                console.warn('Entity already added to the world');
+                return _context.abrupt("return", this);
+
+              case 3:
+                if (entity.physicsBody) {
+                  entity.registerPhysicsWorld(this.physics);
+                }
+
+                entity.setWorld(this);
+                _context.next = 7;
+                return entity.build();
+
+              case 7:
+                this.entities.add(entity);
+                this.scene.add(entity);
+
+                if (entity.physicsBody) {
+                  this.physics.registerEntity(entity);
+                }
+
+                entity.onAdd();
+                return _context.abrupt("return", this);
+
+              case 12:
+              case "end":
+                return _context.stop();
+            }
+          }
+        }, _callee, this);
+      }));
+
+      function add(_x) {
+        return _add.apply(this, arguments);
       }
 
-      if (entity.physicsBody) {
-        entity.registerPhysicsWorld(this.physics);
-      }
-
-      entity.setWorld(this);
-      entity.build();
-      this.entities.add(entity);
-      this.scene.add(entity);
-
-      if (entity.physicsBody) {
-        this.physics.registerEntity(entity);
-      }
-
-      entity.onAdd();
-      return this;
-    }
+      return add;
+    }()
     /**
      * Removes an entity from the ERA world.
      * @param {Entity} entity
@@ -6647,28 +6822,55 @@ var Entity = /*#__PURE__*/function (_Object3DEventTarget) {
 
   }, {
     key: "build",
-    value: function build() {
-      if (this.built) {
-        return this;
+    value: function () {
+      var _build = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime.mark(function _callee() {
+        return _regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) {
+            switch (_context.prev = _context.next) {
+              case 0:
+                if (!this.built) {
+                  _context.next = 2;
+                  break;
+                }
+
+                return _context.abrupt("return", this);
+
+              case 2:
+                _context.next = 4;
+                return this.generateMesh();
+
+              case 4:
+                this.mesh = _context.sent;
+
+                if (this.mesh) {
+                  this.add(this.mesh);
+                  this.animationMixer = Animation.get().createAnimationMixer(this.modelName, this);
+                  this.animationClips = Animation.get().getClips(this.modelName);
+
+                  if (Settings$1.get('shadows')) {
+                    this.enableShadows();
+                  }
+                }
+
+                this.cameraArm = this.createCameraArm();
+                this.physicsBody = this.generatePhysicsBody();
+                this.built = true;
+                return _context.abrupt("return", this);
+
+              case 10:
+              case "end":
+                return _context.stop();
+            }
+          }
+        }, _callee, this);
+      }));
+
+      function build() {
+        return _build.apply(this, arguments);
       }
 
-      this.mesh = this.generateMesh();
-
-      if (this.mesh) {
-        this.add(this.mesh);
-        this.animationMixer = Animation.get().createAnimationMixer(this.modelName, this);
-        this.animationClips = Animation.get().getClips(this.modelName);
-
-        if (Settings$1.get('shadows')) {
-          this.enableShadows();
-        }
-      }
-
-      this.cameraArm = this.createCameraArm();
-      this.physicsBody = this.generatePhysicsBody();
-      this.built = true;
-      return this;
-    }
+      return build;
+    }()
     /**
      * Destroys the entity by unregistering from all core components and disposing
      * of all objects in memory.
@@ -6714,18 +6916,46 @@ var Entity = /*#__PURE__*/function (_Object3DEventTarget) {
 
   }, {
     key: "generateMesh",
-    value: function generateMesh() {
-      if (!this.meshEnabled) {
-        return;
+    value: function () {
+      var _generateMesh = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime.mark(function _callee2() {
+        var scene;
+        return _regeneratorRuntime.wrap(function _callee2$(_context2) {
+          while (1) {
+            switch (_context2.prev = _context2.next) {
+              case 0:
+                if (this.meshEnabled) {
+                  _context2.next = 2;
+                  break;
+                }
+
+                return _context2.abrupt("return");
+
+              case 2:
+                if (this.modelName) {
+                  _context2.next = 4;
+                  break;
+                }
+
+                return _context2.abrupt("return", console.warn('Model name not provided'));
+
+              case 4:
+                scene = Models.get().createModel(this.modelName);
+                return _context2.abrupt("return", scene);
+
+              case 6:
+              case "end":
+                return _context2.stop();
+            }
+          }
+        }, _callee2, this);
+      }));
+
+      function generateMesh() {
+        return _generateMesh.apply(this, arguments);
       }
 
-      if (!this.modelName) {
-        return console.warn('Model name not provided');
-      }
-
-      var scene = Models.get().createModel(this.modelName);
-      return scene;
-    }
+      return generateMesh;
+    }()
     /**
      * Creates a camera arm for the entity. All cameras will be automatically
      * added to this arm by default.
@@ -7288,12 +7518,33 @@ var Character = /*#__PURE__*/function (_Entity) {
 
   }, {
     key: "build",
-    value: function build() {
-      _get(_getPrototypeOf(Character.prototype), "build", this).call(this);
+    value: function () {
+      var _build = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime.mark(function _callee() {
+        return _regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) {
+            switch (_context.prev = _context.next) {
+              case 0:
+                _context.next = 2;
+                return _get(_getPrototypeOf(Character.prototype), "build", this).call(this);
 
-      this.playAnimation(this.idleAnimationName);
-      return this;
-    }
+              case 2:
+                this.playAnimation(this.idleAnimationName);
+                return _context.abrupt("return", this);
+
+              case 4:
+              case "end":
+                return _context.stop();
+            }
+          }
+        }, _callee, this);
+      }));
+
+      function build() {
+        return _build.apply(this, arguments);
+      }
+
+      return build;
+    }()
     /** @override */
 
   }, {
@@ -8235,7 +8486,7 @@ Controls.get().registerBindings(FreeRoamEntity);
 function _createSuper$j(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$j(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
 
 function _isNativeReflectConstruct$j() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
-var instance$9 = null;
+var instance$a = null;
 /**
  * Plugin for TWEEN.
  * https://github.com/tweenjs/tween.js
@@ -8253,11 +8504,11 @@ var TweenPlugin = /*#__PURE__*/function (_Plugin) {
      * Enforces singleton instance.
      */
     value: function get() {
-      if (!instance$9) {
-        instance$9 = new TweenPlugin();
+      if (!instance$a) {
+        instance$a = new TweenPlugin();
       }
 
-      return instance$9;
+      return instance$a;
     }
   }]);
 
@@ -8304,125 +8555,6 @@ var TweenPlugin = /*#__PURE__*/function (_Plugin) {
   return TweenPlugin;
 }(Plugin);
 
-var instance$a = null;
-/**
- * A pool for maintaining WebWorkers in order to prevent creating too many
- * workers at once.
- */
-
-var WorkerPool = /*#__PURE__*/function () {
-  _createClass(WorkerPool, null, [{
-    key: "get",
-    value: function get() {
-      if (!instance$a) {
-        instance$a = new WorkerPool();
-      }
-
-      return instance$a;
-    }
-  }]);
-
-  function WorkerPool() {
-    _classCallCheck(this, WorkerPool);
-
-    this.capacity = 20; // Set of workers currently in use.
-
-    this.workers = new Set(); // Available workers.
-
-    this.availableWorkers = new Array(); // A queue of resolvers.
-
-    this.queue = new Array(); // Initialize workers.
-
-    for (var i = 0; i < this.capacity; i++) {
-      this.registerWorker_();
-    }
-  }
-  /**
-   * Builds a worker. Otherwise, waits for one to be free.
-   * @return {Worker}
-   * @async
-   */
-
-
-  _createClass(WorkerPool, [{
-    key: "getWorker",
-    value: function () {
-      var _getWorker = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime.mark(function _callee() {
-        var _this = this;
-
-        return _regeneratorRuntime.wrap(function _callee$(_context) {
-          while (1) {
-            switch (_context.prev = _context.next) {
-              case 0:
-                if (!(this.availableWorkers.length > 0)) {
-                  _context.next = 2;
-                  break;
-                }
-
-                return _context.abrupt("return", this.availableWorkers.shift());
-
-              case 2:
-                return _context.abrupt("return", new Promise(function (resolve) {
-                  return _this.queue.push(resolve);
-                }));
-
-              case 3:
-              case "end":
-                return _context.stop();
-            }
-          }
-        }, _callee, this);
-      }));
-
-      function getWorker() {
-        return _getWorker.apply(this, arguments);
-      }
-
-      return getWorker;
-    }()
-    /**
-     * Releases a worker from the pool.
-     * @param {Worker} worker
-     */
-
-  }, {
-    key: "releaseWorker",
-    value: function releaseWorker(worker) {
-      if (!this.workers.has(worker)) {
-        return console.warn('Worker pool does not contain this worker');
-      }
-
-      var resolver = this.queue.shift();
-
-      if (resolver) {
-        resolver(worker);
-        return;
-      }
-
-      this.availableWorkers.push(worker);
-    }
-    /**
-     * Registers a worker to the pool.
-     * @return {Worker}
-     * @private
-     */
-
-  }, {
-    key: "registerWorker_",
-    value: function registerWorker_() {
-      // TODO: This needs to be more flexible.
-      var worker = new Worker('/src/terrain/texture_worker.js', {
-        type: 'module'
-      });
-      this.workers.add(worker);
-      this.availableWorkers.push(worker);
-      return worker;
-    }
-  }]);
-
-  return WorkerPool;
-}();
-
 function _createSuper$k(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$k(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
 
 function _isNativeReflectConstruct$k() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
@@ -8430,7 +8562,6 @@ var DEBUG_MATERIAL = new MeshLambertMaterial({
   color: 0xff0000,
   wireframe: true
 });
-var TEXTURE_QUALITY = 8;
 /**
  * An individual tile of terrain.
  */
@@ -8475,35 +8606,63 @@ var TerrainTile = /*#__PURE__*/function (_Entity) {
 
   }, {
     key: "generateMesh",
-    value: function generateMesh() {
-      if (!this.data) {
-        return console.error('Attempting to create a terrain tile with no data');
+    value: function () {
+      var _generateMesh = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime.mark(function _callee() {
+        var dataHeight, dataWidth, totalWidth, totalHeight, geometry, material, mesh;
+        return _regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) {
+            switch (_context.prev = _context.next) {
+              case 0:
+                if (this.data) {
+                  _context.next = 2;
+                  break;
+                }
+
+                return _context.abrupt("return", console.error('Attempting to create a terrain tile with no data'));
+
+              case 2:
+                dataHeight = this.data.length;
+                dataWidth = this.data[0].length;
+                totalWidth = (dataWidth - 1) * this.elementSize;
+                totalHeight = (dataHeight - 1) * this.elementSize;
+                geometry = new PlaneGeometry(totalWidth, totalHeight, dataWidth - 1, dataHeight - 1);
+                this.data.forEach(function (row, rowIndex) {
+                  row.forEach(function (value, valueIndex) {
+                    var vertexIndex = rowIndex * dataWidth + valueIndex;
+                    geometry.vertices[vertexIndex].z = value;
+                  });
+                });
+                geometry.rotateX(-Math.PI / 2);
+                geometry.computeBoundingBox();
+                geometry.computeFaceNormals();
+                geometry.computeVertexNormals();
+                material = new MeshLambertMaterial();
+                mesh = new Mesh(geometry, material);
+                mesh.castShadow = true;
+                mesh.receiveShadow = true; // Debug init.
+
+                this.generateDebugWalls(mesh);
+                this.toggleDebug();
+                _context.next = 20;
+                return this.generateTexture(mesh);
+
+              case 20:
+                return _context.abrupt("return", mesh);
+
+              case 21:
+              case "end":
+                return _context.stop();
+            }
+          }
+        }, _callee, this);
+      }));
+
+      function generateMesh() {
+        return _generateMesh.apply(this, arguments);
       }
 
-      var dataHeight = this.data.length;
-      var dataWidth = this.data[0].length;
-      var totalWidth = (dataWidth - 1) * this.elementSize;
-      var totalHeight = (dataHeight - 1) * this.elementSize;
-      var geometry = new PlaneGeometry(totalWidth, totalHeight, dataWidth - 1, dataHeight - 1);
-      this.data.forEach(function (row, rowIndex) {
-        row.forEach(function (value, valueIndex) {
-          var vertexIndex = rowIndex * dataWidth + valueIndex;
-          geometry.vertices[vertexIndex].z = value;
-        });
-      });
-      geometry.rotateX(-Math.PI / 2);
-      geometry.computeBoundingBox();
-      geometry.computeFaceNormals();
-      geometry.computeVertexNormals();
-      var material = new MeshLambertMaterial();
-      var mesh = new Mesh(geometry, material);
-      mesh.castShadow = true;
-      mesh.receiveShadow = true; // Debug init.
-
-      this.generateDebugWalls(mesh);
-      this.toggleDebug();
-      return mesh;
-    }
+      return generateMesh;
+    }()
     /** @override */
 
   }, {
@@ -8533,49 +8692,22 @@ var TerrainTile = /*#__PURE__*/function (_Entity) {
   }, {
     key: "generateTexture",
     value: function () {
-      var _generateTexture = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime.mark(function _callee() {
-        var mesh, worker, TextureGenerator, size, imageData, canvas, context, texture;
-        return _regeneratorRuntime.wrap(function _callee$(_context) {
+      var _generateTexture = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime.mark(function _callee2(mesh) {
+        return _regeneratorRuntime.wrap(function _callee2$(_context2) {
           while (1) {
-            switch (_context.prev = _context.next) {
+            switch (_context2.prev = _context2.next) {
               case 0:
-                return _context.abrupt("return");
+                console.warn('No generateTexture implementation for terrain tile.');
 
-              case 4:
-                worker = _context.sent;
-                TextureGenerator = wrap(worker);
-                size = TEXTURE_QUALITY * (this.data.length - 1);
-                _context.next = 9;
-                return new TextureGenerator(size, this.getCoordinates());
-
-              case 9:
-                this.textureGenerator = _context.sent;
-                _context.next = 12;
-                return this.textureGenerator.generate(mesh.geometry.faces, mesh.geometry.vertices, mesh.geometry.boundingBox);
-
-              case 12:
-                imageData = _context.sent;
-                WorkerPool.get().releaseWorker(worker); // Use the image data generated by the texture worker.
-
-                canvas = document.createElement('canvas');
-                canvas.width = size;
-                canvas.height = size;
-                context = canvas.getContext('2d');
-                context.putImageData(imageData, 0, 0); // Set the material texture.
-
-                texture = new CanvasTexture(canvas);
-                mesh.material.map = texture;
-                mesh.material.needsUpdate = true;
-
-              case 22:
+              case 1:
               case "end":
-                return _context.stop();
+                return _context2.stop();
             }
           }
-        }, _callee, this);
+        }, _callee2);
       }));
 
-      function generateTexture() {
+      function generateTexture(_x) {
         return _generateTexture.apply(this, arguments);
       }
 
@@ -8712,15 +8844,27 @@ var TerrainMap = /*#__PURE__*/function () {
 
     this.elementSize = null;
     this.tiles = null;
+    this.TerrainTileClass = TerrainTile;
   }
   /**
-   * Loads the terrain map from a 3D model.
-   * @param {string} modelUrl
-   * @async
+   * Sets a custom tile implementation for use within the terrain map.
+   * @param {TerrainTile} terrainTileClass
    */
 
 
   _createClass(TerrainMap, [{
+    key: "setTerrainTileClass",
+    value: function setTerrainTileClass(terrainTileClass) {
+      this.TerrainTileClass = terrainTileClass;
+      return this;
+    }
+    /**
+     * Loads the terrain map from a 3D model.
+     * @param {string} modelUrl
+     * @async
+     */
+
+  }, {
     key: "loadFromFile",
     value: function () {
       var _loadFromFile = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime.mark(function _callee(modelUrl) {
@@ -8742,7 +8886,7 @@ var TerrainMap = /*#__PURE__*/function () {
                 this.elementSize = this.computeElementSize_(geometry);
                 this.tiles = this.breakIntoTiles_(geometry);
                 _context.next = 11;
-                return this.loadTileTextures_();
+                return this.buildTiles_();
 
               case 11:
                 this.positionTiles_();
@@ -8781,7 +8925,7 @@ var TerrainMap = /*#__PURE__*/function () {
                 this.elementSize = this.computeElementSize_(geometry);
                 this.tiles = this.breakIntoTiles_(geometry);
                 _context2.next = 5;
-                return this.loadTileTextures_();
+                return this.buildTiles_();
 
               case 5:
                 this.positionTiles_();
@@ -8848,7 +8992,7 @@ var TerrainMap = /*#__PURE__*/function () {
 
       for (var i = 0; i < tilesInMapRow; i++) {
         for (var j = 0; j < tilesInMapRow; j++) {
-          var tile = new TerrainTile(this.elementSize).withPhysics().setCoordinates(i, j);
+          var tile = new this.TerrainTileClass(this.elementSize).withPhysics().setCoordinates(i, j);
           this.loadVerticesIntoTile_(vertices, tile);
           tiles.push(tile);
         }
@@ -8900,9 +9044,9 @@ var TerrainMap = /*#__PURE__*/function () {
      */
 
   }, {
-    key: "loadTileTextures_",
+    key: "buildTiles_",
     value: function () {
-      var _loadTileTextures_ = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime.mark(function _callee3() {
+      var _buildTiles_ = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime.mark(function _callee3() {
         var promises;
         return _regeneratorRuntime.wrap(function _callee3$(_context3) {
           while (1) {
@@ -8910,8 +9054,7 @@ var TerrainMap = /*#__PURE__*/function () {
               case 0:
                 promises = new Array();
                 this.tiles.forEach(function (tile) {
-                  tile.build();
-                  promises.push(tile.generateTexture());
+                  return promises.push(tile.build());
                 });
                 return _context3.abrupt("return", Promise.all(promises));
 
@@ -8923,11 +9066,11 @@ var TerrainMap = /*#__PURE__*/function () {
         }, _callee3, this);
       }));
 
-      function loadTileTextures_() {
-        return _loadTileTextures_.apply(this, arguments);
+      function buildTiles_() {
+        return _buildTiles_.apply(this, arguments);
       }
 
-      return loadTileTextures_;
+      return buildTiles_;
     }()
     /**
      * Positions all tiles in the world so that they align properly.
@@ -8955,4 +9098,4 @@ var TerrainMap = /*#__PURE__*/function () {
   return TerrainMap;
 }();
 
-export { Action, Animation, Audio, Bindings, Camera, Character, Controls, Engine, EngineResetEvent, Entity, Environment, EraEvent, EventTarget, Events, FreeRoamEntity, GameMode, Light, MaterialManager, Models, Network, network_registry as NetworkRegistry, Object3DEventTarget, PhysicsPlugin, Plugin, QualityAdjuster, RendererStats, Settings$1 as Settings, SettingsEvent, SettingsPanel$1 as SettingsPanel, Skybox, TerrainMap, TweenPlugin, World, createUUID, defaultEraRenderer, disableShadows, dispose, extractMeshes, extractMeshesByName, getHexColorRatio, getRootScene, getRootWorld, lerp, loadJsonFromFile, loadTexture, shuffleArray, toDegrees, toRadians, vectorToAngle };
+export { Action, Animation, Audio, Bindings, Camera, Character, Controls, Engine, EngineResetEvent, Entity, Environment, EraEvent, EventTarget, Events, FreeRoamEntity, GameMode, Light, MaterialManager, Models, Network, network_registry as NetworkRegistry, Object3DEventTarget, PhysicsPlugin, Plugin, QualityAdjuster, RendererStats, Settings$1 as Settings, SettingsEvent, SettingsPanel$1 as SettingsPanel, Skybox, TerrainMap, TerrainTile, TweenPlugin, WorkerPool, World, createUUID, defaultEraRenderer, disableShadows, dispose, extractMeshes, extractMeshesByName, getHexColorRatio, getRootScene, getRootWorld, lerp, loadJsonFromFile, loadTexture, shuffleArray, toDegrees, toRadians, vectorToAngle };

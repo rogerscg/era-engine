@@ -54,8 +54,8 @@ class XWing extends ERA.Entity {
   }
 
   /** @override */
-  build() {
-    super.build();
+  async build() {
+    await super.build();
     // Build cannons based on offsets.
     this.cannons = new Cannons(0.53, 0.15, -0.1).build();
     this.mesh.add(this.cannons);

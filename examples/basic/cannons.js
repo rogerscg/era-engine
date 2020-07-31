@@ -56,8 +56,9 @@ class Cannons extends THREE.Object3D {
     // Play sound.
     ERA.Audio.get().playSound('xwing_fire', 0.5);
     // Create laser at a certain point.
-    this.emitters.forEach((emitter) => {
-      const laser = new Laser().build();
+    this.emitters.forEach(async (emitter) => {
+      const laser = new Laser();
+      await laser.build();
       laser.position.copy(emitter.getWorldPosition(WORLD_POS_VEC));
       ERA.getRootWorld(this).add(laser);
     });
