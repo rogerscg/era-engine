@@ -41,13 +41,13 @@ async function start() {
 
   // Create some basic terrain.
   const terrain = new Terrain().withPhysics();
-  world.add(terrain);
+  await world.add(terrain);
 
   // Create characters.
   for (let i = 0; i < NUM_PLAYERS; i++) {
     const character = new Character().withPhysics().setPlayerNumber(i);
+    await world.add(character);
     world
-      .add(character)
       .attachCameraToEntity(character, `player-${i + 1}`)
       .associateEntityWithRenderer(character, `player-${i + 1}`);
     Controls.get().registerEntity(character);

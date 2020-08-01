@@ -11,6 +11,7 @@ import {
   World,
   defaultEraRenderer,
 } from '../../build/era.js';
+import * as THREE from 'three';
 
 const WIDTH = 20;
 
@@ -42,7 +43,8 @@ class LodGameMode extends GameMode {
 
     // Create character.
     this.character = new FreeRoamEntity(0.125);
-    this.world.add(this.character).attachCameraToEntity(this.character);
+    await this.world.add(this.character);
+    this.world.attachCameraToEntity(this.character);
     Controls.get().registerEntity(this.character);
     Controls.get().usePointerLockControls();
 

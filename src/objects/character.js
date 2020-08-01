@@ -191,8 +191,8 @@ class Character extends Entity {
   }
 
   /** @override */
-  build() {
-    super.build();
+  async build() {
+    await super.build();
     this.playAnimation(this.idleAnimationName);
     return this;
   }

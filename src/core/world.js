@@ -1,6 +1,7 @@
 /**
  * @author rogerscg / https://github.com/rogerscg
  */
+import DebugCompass from '../debug/debug_compass.js';
 import Plugin from './plugin.js';
 import QualityAdjuster from './quality_adjuster.js';
 import RendererStats from '../debug/renderer_stats.js';
@@ -26,6 +27,7 @@ class World extends Plugin {
     this.entities = new Set();
     this.entityCameras = new Map();
     this.entitiesToRenderers = new Map();
+    this.debugCompassMap = new Map();
     window.addEventListener('resize', this.onWindowResize.bind(this), false);
 
     // A utility for adjusting quality on world entities.
@@ -55,9 +57,11 @@ class World extends Plugin {
     });
 
     // Update all renderers.
-    this.camerasToRenderers.forEach((renderer, camera) =>
-      renderer.render(this.scene, camera)
-    );
+    this.camerasToRenderers.forEach((renderer, camera) => {
+      renderer.render(this.scene, camera);
+      const compass = this.debugCompassMap.get(renderer);
+      compass.update(camera);
+    });
 
     // Update quality.
     if (this.qualityAdjuster) {
@@ -156,6 +160,8 @@ class World extends Plugin {
     );
     renderer.name = name;
     new RendererStats(renderer);
+    const debugCompass = new DebugCompass(renderer);
+    this.debugCompassMap.set(renderer, debugCompass);
     this.renderers.set(name, renderer);
     return this;
   }
@@ -208,8 +214,9 @@ class World extends Plugin {
    * Adds an entity or other ERA object to the world.
    * @param {Entity} entity
    * @return {World}
+   * @async
    */
-  add(entity) {
+  async add(entity) {
     if (this.entities.has(entity)) {
       console.warn('Entity already added to the world');
       return this;
@@ -218,7 +225,7 @@ class World extends Plugin {
       entity.registerPhysicsWorld(this.physics);
     }
     entity.setWorld(this);
-    entity.build();
+    await entity.build();
     this.entities.add(entity);
     this.scene.add(entity);
     if (entity.physicsBody) {

@@ -76,7 +76,8 @@ class MazeGameMode extends GameMode {
     });
     this.currentLevel = level;
     await level.load();
-    this.world.add(level).attachCameraToEntity(level);
+    await this.world.add(level);
+    this.world.attachCameraToEntity(level);
   }
 
   /**

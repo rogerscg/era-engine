@@ -170,11 +170,11 @@ class Entity extends Object3DEventTarget {
   /**
    * Creates the mesh and physics object.
    */
-  build() {
+  async build() {
     if (this.built) {
       return this;
     }
-    this.mesh = this.generateMesh();
+    this.mesh = await this.generateMesh();
     if (this.mesh) {
       this.add(this.mesh);
       this.animationMixer = Animation.get().createAnimationMixer(
@@ -226,7 +226,7 @@ class Entity extends Object3DEventTarget {
   /**
    * Creates the mesh for the entity, using the entity name provided.
    */
-  generateMesh() {
+  async generateMesh() {
     if (!this.meshEnabled) {
       return;
     }

@@ -36,9 +36,9 @@ class Level extends Entity {
   }
 
   /** @override */
-  build() {
-    super.build();
-    this.loadObjective();
+  async build() {
+    await super.build();
+    await this.loadObjective();
     return this;
   }
 
@@ -60,7 +60,7 @@ class Level extends Entity {
   /**
    * Loads the objective entity into the level.
    */
-  loadObjective() {
+  async loadObjective() {
     this.objective = new Objective().withPhysics();
     // Register listener for when the objective has been reached.
     this.objective.addEventListener('completed', () => this.complete());
@@ -68,7 +68,7 @@ class Level extends Entity {
     if (!objectivePoint) {
       return console.error('No objective point found.');
     }
-    this.getWorld().add(this.objective);
+    await this.getWorld().add(this.objective);
     this.objective.physicsBody.position.copy(objectivePoint.position);
   }
 

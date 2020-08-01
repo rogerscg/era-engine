@@ -17,7 +17,10 @@ implement features on their own.
 
 ## Developing
 
-To build, run `npm run build`. The ERA engine uses Rollup, and builds to `build/era.js` as well as `build/era.module.js`.
+To build, run `npm run build`. The ERA engine uses Rollup and Babel, building to
+`build/era.js`. Examples must be rebuilt with `npm run-script build-examples`.
+To run both before submitting a PR, run `npm run-script build-all`. To build a
+specific example, run `npm run-script build-examples -- --example=<example>`.
 
-To bring up a demo, run `npm start` and navigate to `localhost:5000/dev.html`. It will
-be a blank screen, but you can interact with the engine in the console.
+To bring up a demo, install `http-server` by running `npm install -g http-server`.
+You can then run `npm start` or `http-server` and navigate to `localhost:5000`.
