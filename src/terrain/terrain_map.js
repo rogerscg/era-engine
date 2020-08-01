@@ -4,7 +4,8 @@ import * as THREE from 'three';
 
 /**
  * Handles loading a terrain map from a 3D model and parsing it into digestible
- * tiles.
+ * tiles. All terrain maps should be square, with dimensions that are a power of
+ * 2.
  */
 class TerrainMap {
   /**
@@ -15,7 +16,7 @@ class TerrainMap {
     this.tileSize = tileSize;
     this.scale = scale;
     // Must be computed post-load.
-    this.elementSize = null;
+    this.elementSize = 1 * this.scale;
     this.tiles = null;
     this.TerrainTileClass = TerrainTile;
   }
@@ -36,16 +37,17 @@ class TerrainMap {
    */
   async loadFromFile(modelUrl) {
     const model = await Models.get().loadModelWithoutStorage(modelUrl);
-    const heightmap = model.getObjectByName('Grid');
-    const bufferGeometry = heightmap.geometry;
+    const heightmapObj = model.getObjectByName('Grid');
+    const bufferGeometry = heightmapObj.geometry;
     const geometry = new THREE.Geometry().fromBufferGeometry(bufferGeometry);
     geometry.mergeVertices();
-    // Compute how large each element will be within a tile.
     this.elementSize = this.computeElementSize_(geometry);
-    this.tiles = this.breakIntoTiles_(geometry);
+    const heightmap = this.extractHeightmapFromGeometry(geometry);
+    geometry.dispose();
+    // Compute how large each element will be within a tile.
+    this.tiles = this.breakIntoTiles_(heightmap);
     await this.buildTiles_();
     this.positionTiles_();
-    return heightmap;
   }
 
   /**
@@ -55,11 +57,43 @@ class TerrainMap {
    */
   async loadFromGeometry(geometry) {
     geometry.mergeVertices();
-    // Compute how large each element will be within a tile.
     this.elementSize = this.computeElementSize_(geometry);
-    this.tiles = this.breakIntoTiles_(geometry);
+    const heightmap = this.extractHeightmapFromGeometry(geometry);
+    geometry.dispose();
+    // Compute how large each element will be within a tile.
+    this.tiles = this.breakIntoTiles_(heightmap);
     await this.buildTiles_();
     this.positionTiles_();
+  }
+
+  /**
+   * Extracts elevation data from the given geometry and forms a generic matrix.
+   * The y element of each vertex is meant to be the height.
+   * @param {THREE.Geometry} geometry
+   * @returns {Array<Array<number>}
+   */
+  extractHeightmapFromGeometry(geometry) {
+    const vertices = geometry.vertices;
+    // Preprocess vertices first.
+    // TODO: This is inefficient, and also depends on stable sorting.
+    vertices.sort((a, b) => a.x - b.x);
+    vertices.sort((a, b) => b.z - a.z);
+    // Extract values.
+    const dimensions = Math.sqrt(vertices.length);
+    if (parseInt(dimensions) != dimensions) {
+      return console.error('Dimensions not an integer, geometry not square.');
+    }
+    const matrix = new Array();
+    for (let i = 0; i < dimensions; i++) {
+      const row = new Array();
+      for (let j = 0; j < dimensions; j++) {
+        const vIndex = i * dimensions + j;
+        const value = vertices[vIndex].y;
+        row.push(value);
+      }
+      matrix.push(row);
+    }
+    return matrix;
   }
 
   /**
@@ -76,25 +110,17 @@ class TerrainMap {
   }
 
   /**
-   * Breaks the given geometry into tiles.
-   * @param {THREE.Geometry} geometry
+   * Breaks the given heightmap into tiles.
+   * @param {Array<Array<number>>} heightmap
    * @async
    * @private
    */
-  breakIntoTiles_(geometry) {
-    const vertices = geometry.vertices;
-    // Preprocess vertices first.
-    // TODO: This is inefficient, and also depends on stable sorting.
-    vertices.sort((a, b) => a.x - b.x);
-    //vertices.sort((a, b) => b.y - a.y);
-    vertices.sort((a, b) => b.z - a.z);
+  breakIntoTiles_(heightmap) {
     // We track tile size by the number of quads in a tile, not by the number
     // of vertices, so add one vertex count.
     const tileVertWidth = this.tileSize + 1;
-    // Get how many vertices are in a row on the loaded geometry.
-    const geometryVertWidth = Math.sqrt(vertices.length);
     // Determine how many tiles we need in a row on the given map.
-    const tilesInMapRow = (geometryVertWidth - 1) / (tileVertWidth - 1);
+    const tilesInMapRow = (heightmap.length - 1) / (tileVertWidth - 1);
     // We can throw all tiles into an array, as they each keep their own
     // coordinates relative to the map.
     const tiles = new Array();
@@ -104,7 +130,7 @@ class TerrainMap {
         const tile = new this.TerrainTileClass(this.elementSize)
           .withPhysics()
           .setCoordinates(i, j);
-        this.loadVerticesIntoTile_(vertices, tile);
+        this.loadVerticesIntoTile_(heightmap, tile);
         tiles.push(tile);
       }
     }
@@ -112,28 +138,25 @@ class TerrainMap {
   }
 
   /**
-   * Loads vertices into a tile from a larger geometry. This is difficult due to
-   * the vertices being in a one-dimensional array, while the tile consumes a
-   * matrix.
-   * @param {Array<THREE.Vector3>} vertices
+   * Loads elevation values into a tile from a heightmap.
+   * @param {Array<Array<number>>} heightmap
    * @param {TerrainTile} tile
    * @private
    */
-  loadVerticesIntoTile_(vertices, tile) {
-    const geometryVertWidth = Math.sqrt(vertices.length);
+  loadVerticesIntoTile_(heightmap, tile) {
     const coordinates = tile.getCoordinates();
-    // Compute the number of vertices we can skip based on the y coordinate.
-    const yOffset = geometryVertWidth * coordinates.y * this.tileSize;
-    // Compute the x offset.
+    // Compute the number of rows we can skip based on the y coordinate.
+    const yOffset = coordinates.y * this.tileSize;
+    // Compute the number of columns we can skip based on the x coordinate.
     const xOffset = coordinates.x * this.tileSize;
     // Now that we have our starting point, we can consume chunks of size
     // `tileSize` at a time, skipping to the next row until we have consumed
     // `tileSize` rows.
     const matrix = new Array();
     for (let i = 0; i < this.tileSize + 1; i++) {
-      const startIndex = i * geometryVertWidth + yOffset + xOffset;
-      let row = vertices.slice(startIndex, startIndex + this.tileSize + 1);
-      row = row.map((x) => x.y * this.scale);
+      const rowIndex = yOffset + i;
+      let row = heightmap[rowIndex].slice(xOffset, xOffset + this.tileSize + 1);
+      row = row.map((x) => x * this.scale);
       matrix.splice(0, 0, row);
     }
     // Fill tile out with data.
