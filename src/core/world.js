@@ -199,7 +199,7 @@ class World extends Plugin {
    * @param {Environment} environment
    * @return {World}
    */
-  setEnvironment(environment) {
+  async setEnvironment(environment) {
     this.add(environment);
     this.renderers.forEach((renderer) =>
       renderer.setClearColor(environment.getClearColor())
@@ -227,7 +227,7 @@ class World extends Plugin {
     entity.setWorld(this);
     await entity.build();
     this.entities.add(entity);
-    this.scene.add(entity);
+    this.scene.add(entity.visualRoot);
     if (entity.physicsBody) {
       this.physics.registerEntity(entity);
     }
@@ -244,7 +244,9 @@ class World extends Plugin {
     if (this.physics && entity.physicsEnabled) {
       this.physics.unregisterEntity(entity);
     }
-    this.scene.remove(entity);
+    if (entity.visualRoot) {
+      this.scene.remove(entity.visualRoot);
+    }
     this.entities.delete(entity);
     if (entity.getWorld() == this) {
       entity.setWorld(null);

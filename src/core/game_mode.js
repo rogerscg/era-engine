@@ -1,4 +1,4 @@
-import {EventTarget} from '../events/event_target.js';
+import EventTarget from '../events/event_target.js';
 
 /**
  * Represents a game that will be run on the engine. The purpose of a game

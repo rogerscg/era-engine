@@ -23,8 +23,8 @@ class Stage extends Entity {
     camera.position.y = 20;
     this.cameraArm.rotation.z = Math.PI / 6;
     this.cameraArm.rotation.y = -Math.PI / 4;
-    const target = new THREE.Vector3().copy(this.position);
-    target.y += 20;
+    const target = new THREE.Vector3().copy(this.getPosition());
+    target.y += SIDE / 2 + 20;
     camera.lookAt(target);
   }
 

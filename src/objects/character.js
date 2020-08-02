@@ -203,7 +203,7 @@ class Character extends Entity {
     camera.position.x = 5;
     this.cameraArm.rotation.z = Math.PI / 6;
     this.cameraArm.rotation.y = Math.PI / 2;
-    camera.lookAt(this.position);
+    camera.lookAt(this.visualRoot.position);
     // TODO: Fix this junk.
     Promise.resolve().then(() => (camera.position.y = 1.2));
   }

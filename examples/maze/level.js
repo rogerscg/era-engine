@@ -32,7 +32,7 @@ class Level extends Entity {
     camera.position.x = 20;
     this.cameraArm.rotation.z = Math.PI / 4;
     this.cameraArm.rotation.y = Math.PI / 2;
-    camera.lookAt(this.position);
+    camera.lookAt(this.visualRoot.position);
   }
 
   /** @override */
@@ -64,12 +64,12 @@ class Level extends Entity {
     this.objective = new Objective().withPhysics();
     // Register listener for when the objective has been reached.
     this.objective.addEventListener('completed', () => this.complete());
-    const objectivePoint = this.getObjectByName('Objective');
+    const objectivePoint = this.visualRoot.getObjectByName('Objective');
     if (!objectivePoint) {
       return console.error('No objective point found.');
     }
     await this.getWorld().add(this.objective);
-    this.objective.physicsBody.position.copy(objectivePoint.position);
+    this.objective.setPosition(objectivePoint.position);
   }
 
   /**
@@ -77,7 +77,7 @@ class Level extends Entity {
    * @returns {THREE.Object3D}
    */
   getSpawnPoint() {
-    return this.getObjectByName('Spawn');
+    return this.visualRoot.getObjectByName('Spawn');
   }
 
   /**

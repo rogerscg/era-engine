@@ -48,26 +48,26 @@ async function start() {
   // Create stairs.
   const stairs = new Stairs(0.2, 0.4, 10, 2);
   await world.add(stairs);
-  stairs.physicsBody.position.set(-5, 0, 6);
+  stairs.getPosition().set(-5, 0, 6);
 
   const stairs2 = new Stairs(0.5, 0.8, 5, 2);
   await world.add(stairs2);
-  stairs2.physicsBody.position.set(-5, 0, 4);
+  stairs2.getPosition().set(-5, 0, 4);
 
   // Create ramp.
   const ramp = new Ramp();
   await world.add(ramp);
-  ramp.physicsBody.position.set(3, -1, -3);
+  ramp.getPosition().set(3, -1, -3);
 
   // Create sphere.
   const sphere = new Sphere();
   await world.add(sphere);
-  sphere.physicsBody.position.set(2, -1, 2);
+  sphere.getPosition().set(2, -1, 2);
 
   // Create some basic terrain.
   const terrain = new Terrain();
   await world.add(terrain);
-  terrain.physicsBody.position.set(7.5, -0.125, 5);
+  terrain.getPosition().set(7.5, -0.125, 5);
 
   // Create character.
   const character = new Character();

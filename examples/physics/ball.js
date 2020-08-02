@@ -83,7 +83,7 @@ class Ball extends Entity {
     camera.position.x = 135;
     this.cameraArm.rotation.z = Math.PI / 6;
     this.cameraArm.rotation.y = -Math.PI / 3;
-    camera.lookAt(this.position);
+    camera.lookAt(this.getPosition());
   }
 
   /** @override */
