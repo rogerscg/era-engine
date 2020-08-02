@@ -39,7 +39,10 @@ class QualityAdjuster {
   update() {
     const entities = this.world.entities;
     Controls.get().registeredEntities.forEach((attachedEntity) => {
-      this.rootBox.setFromCenterAndSize(attachedEntity.position, QUALITY_RANGE);
+      this.rootBox.setFromCenterAndSize(
+        attachedEntity.visualRoot.position,
+        QUALITY_RANGE
+      );
       entities.forEach((entity) => {
         if (entity == attachedEntity) {
           return;
@@ -47,7 +50,7 @@ class QualityAdjuster {
         if (!entity.qualityAdjustEnabled) {
           return;
         }
-        this.entityBox.setFromObject(entity);
+        this.entityBox.setFromObject(entity.visualRoot);
         if (this.rootBox.intersectsBox(this.entityBox)) {
           this.world.enableEntityPhysics(entity);
         } else {

@@ -26,7 +26,7 @@ class Laser extends ERA.Entity {
 
   /** @override */
   update() {
-    this.position.z += VELOCITY;
+    this.visualRoot.position.z += VELOCITY;
     if (Date.now() - this.fireTime > LIFETIME) {
       this.destroy();
     }

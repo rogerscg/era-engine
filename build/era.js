@@ -6,7 +6,7 @@ import _possibleConstructorReturn from '@babel/runtime/helpers/possibleConstruct
 import _getPrototypeOf from '@babel/runtime/helpers/getPrototypeOf';
 import _regeneratorRuntime from '@babel/runtime/regenerator';
 import _asyncToGenerator from '@babel/runtime/helpers/asyncToGenerator';
-import { FileLoader, TextureLoader, WebGLRenderer, PCFSoftShadowMap, sRGBEncoding, AnimationMixer, PerspectiveCamera, OrthographicCamera, Object3D, AmbientLight, DirectionalLight, DirectionalLightHelper, SpotLight, SpotLightHelper, CameraHelper, Vector3, LOD, Box3, Box3Helper, Scene, AxesHelper, SphereGeometry, BoxGeometry, PlaneGeometry, Geometry, Face3, Mesh, MeshBasicMaterial, CylinderGeometry, Vector2, Quaternion as Quaternion$1, Euler, AnimationClip, MeshLambertMaterial, LoopOnce, CubeGeometry, DoubleSide, FogExp2, Fog } from 'three';
+import { FileLoader, TextureLoader, WebGLRenderer, PCFSoftShadowMap, sRGBEncoding, AnimationMixer, PerspectiveCamera, OrthographicCamera, AmbientLight, DirectionalLight, DirectionalLightHelper, SpotLight, SpotLightHelper, CameraHelper, Vector3, LOD, Box3, Box3Helper, Scene, AxesHelper, SphereGeometry, BoxGeometry, PlaneGeometry, Geometry, Face3, Mesh, MeshBasicMaterial, CylinderGeometry, Vector2, Quaternion as Quaternion$1, Euler, Object3D, AnimationClip, MeshLambertMaterial, LoopOnce, CubeGeometry, DoubleSide, FogExp2, Fog } from 'three';
 import _get from '@babel/runtime/helpers/get';
 import _wrapNativeSuper from '@babel/runtime/helpers/wrapNativeSuper';
 import dat from 'dat.gui';
@@ -3010,14 +3010,10 @@ var Controls = /*#__PURE__*/function (_Plugin) {
   return Controls;
 }(Plugin);
 
-function _createSuper$6(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$6(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
-
-function _isNativeReflectConstruct$6() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
 /**
- * A standard event target.
- * @implements {EventTargetInterface}
+ * An event target mimicks the behavior of the native browser object EventTarget
+ * in an effort to make a simple, traceable event handling system in ERA.
  */
-
 
 var EventTarget = /*#__PURE__*/function () {
   function EventTarget() {
@@ -3026,7 +3022,12 @@ var EventTarget = /*#__PURE__*/function () {
     this.listeners = new Map();
     this.uuidToLabels = new Map();
   }
-  /** @override */
+  /**
+   * Adds an event listener to the EventTarget.
+   * @param {string} label
+   * @param {function} handler
+   * @return {string} The UUID for the listener, useful for removing
+   */
 
 
   _createClass(EventTarget, [{
@@ -3041,7 +3042,29 @@ var EventTarget = /*#__PURE__*/function () {
       this.uuidToLabels.set(uuid, label);
       return uuid;
     }
-    /** @override */
+    /**
+     * Adds an event listener to the EventTarget that should only be used once
+     * and disposed.
+     * @param {string} label
+     * @param {function} handle
+     * @return {string} The UUID for the listener, useful for removing
+     */
+
+  }, {
+    key: "addOneShotEventListener",
+    value: function addOneShotEventListener(label, handler) {
+      var _this = this;
+
+      var listener = this.addEventListener(label, function (data) {
+        _this.removeEventListener(listener);
+
+        handler(data);
+      });
+    }
+    /**
+     * Removes an event listener from the EventTarget.
+     * @param {string} uuid
+     */
 
   }, {
     key: "removeEventListener",
@@ -3061,7 +3084,11 @@ var EventTarget = /*#__PURE__*/function () {
 
       return labelListeners["delete"](uuid);
     }
-    /** @override */
+    /**
+     * Fires the event on all listeners with given data.
+     * @param {string} label
+     * @param {Object} data
+     */
 
   }, {
     key: "dispatchEvent",
@@ -3080,100 +3107,10 @@ var EventTarget = /*#__PURE__*/function () {
 
   return EventTarget;
 }();
-/**
- * An EventTarget that extends THREE.Object3D for use by Entities.
- * TODO: Try and reduce duplicate code between these two due to lack of
- *       multiple inheritance in JS.
- * @implements {EventTargetInterface}
- */
 
+function _createSuper$6(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$6(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
 
-var Object3DEventTarget = /*#__PURE__*/function (_THREE$Object3D) {
-  _inherits(Object3DEventTarget, _THREE$Object3D);
-
-  var _super = _createSuper$6(Object3DEventTarget);
-
-  function Object3DEventTarget() {
-    var _this;
-
-    _classCallCheck(this, Object3DEventTarget);
-
-    _this = _super.call(this);
-    _this.listeners = new Map();
-    _this.uuidToLabels = new Map();
-    return _this;
-  }
-  /** @override */
-
-
-  _createClass(Object3DEventTarget, [{
-    key: "addEventListener",
-    value: function addEventListener(label, handler) {
-      if (!this.listeners.has(label)) {
-        this.listeners.set(label, new Map());
-      }
-
-      var uuid = createUUID();
-      this.listeners.get(label).set(uuid, handler);
-      this.uuidToLabels.set(uuid, label);
-      return uuid;
-    }
-    /** @override */
-
-  }, {
-    key: "addOneShotEventListener",
-    value: function addOneShotEventListener(label, handler) {
-      var _this2 = this;
-
-      var listener = this.addEventListener(label, function (data) {
-        _this2.removeEventListener(listener);
-
-        handler(data);
-      });
-    }
-    /** @override */
-
-  }, {
-    key: "removeEventListener",
-    value: function removeEventListener(uuid) {
-      var label = this.uuidToLabels.get(uuid);
-
-      if (!label) {
-        return false;
-      }
-
-      this.uuidToLabels["delete"](uuid);
-      var labelListeners = this.listeners.get(label);
-
-      if (!labelListeners) {
-        return false;
-      }
-
-      return labelListeners["delete"](uuid);
-    }
-    /** @override */
-
-  }, {
-    key: "dispatchEvent",
-    value: function dispatchEvent(label, data) {
-      var labelListeners = this.listeners.get(label);
-
-      if (!labelListeners) {
-        return;
-      }
-
-      labelListeners.forEach(function (handler) {
-        return handler(data);
-      });
-    }
-  }]);
-
-  return Object3DEventTarget;
-}(Object3D);
-
-function _createSuper$7(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$7(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
-
-function _isNativeReflectConstruct$7() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
+function _isNativeReflectConstruct$6() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
 /**
  * Represents a game that will be run on the engine. The purpose of a game
  * mode is to better control the state of a game as well as assist conditions to
@@ -3184,7 +3121,7 @@ function _isNativeReflectConstruct$7() { if (typeof Reflect === "undefined" || !
 var GameMode = /*#__PURE__*/function (_EventTarget) {
   _inherits(GameMode, _EventTarget);
 
-  var _super = _createSuper$7(GameMode);
+  var _super = _createSuper$6(GameMode);
 
   function GameMode() {
     _classCallCheck(this, GameMode);
@@ -3327,9 +3264,9 @@ var GameMode = /*#__PURE__*/function (_EventTarget) {
   return GameMode;
 }(EventTarget);
 
-function _createSuper$8(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$8(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
+function _createSuper$7(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$7(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
 
-function _isNativeReflectConstruct$8() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
+function _isNativeReflectConstruct$7() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
 var instance$5 = null;
 /**
  * Light core for the game engine. Creates and manages light
@@ -3339,7 +3276,7 @@ var instance$5 = null;
 var Light = /*#__PURE__*/function (_Plugin) {
   _inherits(Light, _Plugin);
 
-  var _super = _createSuper$8(Light);
+  var _super = _createSuper$7(Light);
 
   _createClass(Light, null, [{
     key: "get",
@@ -4208,7 +4145,7 @@ var QualityAdjuster = /*#__PURE__*/function () {
 
       var entities = this.world.entities;
       Controls.get().registeredEntities.forEach(function (attachedEntity) {
-        _this.rootBox.setFromCenterAndSize(attachedEntity.position, QUALITY_RANGE);
+        _this.rootBox.setFromCenterAndSize(attachedEntity.visualRoot.position, QUALITY_RANGE);
 
         entities.forEach(function (entity) {
           if (entity == attachedEntity) {
@@ -4219,7 +4156,7 @@ var QualityAdjuster = /*#__PURE__*/function () {
             return;
           }
 
-          _this.entityBox.setFromObject(entity);
+          _this.entityBox.setFromObject(entity.visualRoot);
 
           if (_this.rootBox.intersectsBox(_this.entityBox)) {
             _this.world.enableEntityPhysics(entity);
@@ -4544,9 +4481,9 @@ var DebugCompass = /*#__PURE__*/function () {
   return DebugCompass;
 }();
 
-function _createSuper$9(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$9(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
+function _createSuper$8(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$8(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
 
-function _isNativeReflectConstruct$9() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
+function _isNativeReflectConstruct$8() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
 var STATS_CONTAINER_CSS = "\n  bottom: 0;\n  position: absolute;\n  left: 0;\n";
 var WEBGL_CONTAINER_CSS = "\n  background-color: #002;\n  color: #0ff;\n  cursor: pointer;\n  font-family: Helvetica,Arial,sans-serif;\n  font-size: 9px;\n  font-weight: bold;\n  line-height: 15px;\n  opacity: 0.9;\n  padding: 0 0 3px 3px;\n  text-align: left;\n  width: 80px;\n";
 var FPS_CONTAINER_CSS = "\n  cursor: pointer;\n  opacity: 0.9;\n";
@@ -4557,7 +4494,7 @@ var FPS_CONTAINER_CSS = "\n  cursor: pointer;\n  opacity: 0.9;\n";
 var RendererStats = /*#__PURE__*/function (_Plugin) {
   _inherits(RendererStats, _Plugin);
 
-  var _super = _createSuper$9(RendererStats);
+  var _super = _createSuper$8(RendererStats);
 
   /**
    * @param {THREE.WebGLRenderer} renderer
@@ -4703,7 +4640,7 @@ var Stats = /*#__PURE__*/function () {
 var WebGLStats = /*#__PURE__*/function (_Stats) {
   _inherits(WebGLStats, _Stats);
 
-  var _super2 = _createSuper$9(WebGLStats);
+  var _super2 = _createSuper$8(WebGLStats);
 
   function WebGLStats(renderer) {
     var _this2;
@@ -4767,7 +4704,7 @@ var WebGLStats = /*#__PURE__*/function (_Stats) {
 var FpsStats = /*#__PURE__*/function (_Stats2) {
   _inherits(FpsStats, _Stats2);
 
-  var _super3 = _createSuper$9(FpsStats);
+  var _super3 = _createSuper$8(FpsStats);
 
   function FpsStats() {
     var _this3;
@@ -5300,9 +5237,9 @@ var MaterialManager = /*#__PURE__*/function () {
   return MaterialManager;
 }();
 
-function _createSuper$a(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$a(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
+function _createSuper$9(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$9(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
 
-function _isNativeReflectConstruct$a() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
+function _isNativeReflectConstruct$9() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
 var MAX_DELTA = 1;
 var MAX_SUBSTEPS = 10;
 var instance$9 = null;
@@ -5314,7 +5251,7 @@ var instance$9 = null;
 var PhysicsPlugin = /*#__PURE__*/function (_Plugin) {
   _inherits(PhysicsPlugin, _Plugin);
 
-  var _super = _createSuper$a(PhysicsPlugin);
+  var _super = _createSuper$9(PhysicsPlugin);
 
   _createClass(PhysicsPlugin, null, [{
     key: "get",
@@ -5567,9 +5504,9 @@ var PhysicsPlugin = /*#__PURE__*/function (_Plugin) {
   return PhysicsPlugin;
 }(Plugin);
 
-function _createSuper$b(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$b(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
+function _createSuper$a(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$a(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
 
-function _isNativeReflectConstruct$b() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
+function _isNativeReflectConstruct$a() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
 var DEFAULT_NAME = 'main';
 /**
  * Represents a world used to both manage rendering and physics simulations.
@@ -5578,7 +5515,7 @@ var DEFAULT_NAME = 'main';
 var World = /*#__PURE__*/function (_Plugin) {
   _inherits(World, _Plugin);
 
-  var _super = _createSuper$b(World);
+  var _super = _createSuper$a(World);
 
   function World() {
     var _this;
@@ -5810,18 +5747,37 @@ var World = /*#__PURE__*/function (_Plugin) {
 
   }, {
     key: "setEnvironment",
-    value: function setEnvironment(environment) {
-      this.add(environment);
-      this.renderers.forEach(function (renderer) {
-        return renderer.setClearColor(environment.getClearColor());
-      });
+    value: function () {
+      var _setEnvironment = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime.mark(function _callee(environment) {
+        return _regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) {
+            switch (_context.prev = _context.next) {
+              case 0:
+                this.add(environment);
+                this.renderers.forEach(function (renderer) {
+                  return renderer.setClearColor(environment.getClearColor());
+                });
 
-      if (environment.getFog()) {
-        this.scene.fog = environment.getFog();
+                if (environment.getFog()) {
+                  this.scene.fog = environment.getFog();
+                }
+
+                return _context.abrupt("return", this);
+
+              case 4:
+              case "end":
+                return _context.stop();
+            }
+          }
+        }, _callee, this);
+      }));
+
+      function setEnvironment(_x) {
+        return _setEnvironment.apply(this, arguments);
       }
 
-      return this;
-    }
+      return setEnvironment;
+    }()
     /**
      * Adds an entity or other ERA object to the world.
      * @param {Entity} entity
@@ -5832,18 +5788,18 @@ var World = /*#__PURE__*/function (_Plugin) {
   }, {
     key: "add",
     value: function () {
-      var _add = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime.mark(function _callee(entity) {
-        return _regeneratorRuntime.wrap(function _callee$(_context) {
+      var _add = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime.mark(function _callee2(entity) {
+        return _regeneratorRuntime.wrap(function _callee2$(_context2) {
           while (1) {
-            switch (_context.prev = _context.next) {
+            switch (_context2.prev = _context2.next) {
               case 0:
                 if (!this.entities.has(entity)) {
-                  _context.next = 3;
+                  _context2.next = 3;
                   break;
                 }
 
                 console.warn('Entity already added to the world');
-                return _context.abrupt("return", this);
+                return _context2.abrupt("return", this);
 
               case 3:
                 if (entity.physicsBody) {
@@ -5851,29 +5807,29 @@ var World = /*#__PURE__*/function (_Plugin) {
                 }
 
                 entity.setWorld(this);
-                _context.next = 7;
+                _context2.next = 7;
                 return entity.build();
 
               case 7:
                 this.entities.add(entity);
-                this.scene.add(entity);
+                this.scene.add(entity.visualRoot);
 
                 if (entity.physicsBody) {
                   this.physics.registerEntity(entity);
                 }
 
                 entity.onAdd();
-                return _context.abrupt("return", this);
+                return _context2.abrupt("return", this);
 
               case 12:
               case "end":
-                return _context.stop();
+                return _context2.stop();
             }
           }
-        }, _callee, this);
+        }, _callee2, this);
       }));
 
-      function add(_x) {
+      function add(_x2) {
         return _add.apply(this, arguments);
       }
 
@@ -5892,7 +5848,10 @@ var World = /*#__PURE__*/function (_Plugin) {
         this.physics.unregisterEntity(entity);
       }
 
-      this.scene.remove(entity);
+      if (entity.visualRoot) {
+        this.scene.remove(entity.visualRoot);
+      }
+
       this.entities["delete"](entity);
 
       if (entity.getWorld() == this) {
@@ -6005,9 +5964,9 @@ var World = /*#__PURE__*/function (_Plugin) {
   return World;
 }(Plugin);
 
-function _createSuper$c(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$c(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
+function _createSuper$b(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$b(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
 
-function _isNativeReflectConstruct$c() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
+function _isNativeReflectConstruct$b() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
 /**
  * Custom event fired when a soft error occurs.
  */
@@ -6015,7 +5974,7 @@ function _isNativeReflectConstruct$c() { if (typeof Reflect === "undefined" || !
 var ErrorEvent = /*#__PURE__*/function (_EraEvent) {
   _inherits(ErrorEvent, _EraEvent);
 
-  var _super = _createSuper$c(ErrorEvent);
+  var _super = _createSuper$b(ErrorEvent);
 
   function ErrorEvent(message) {
     _classCallCheck(this, ErrorEvent);
@@ -6521,9 +6480,9 @@ var Network = /*#__PURE__*/function () {
   return Network;
 }();
 
-function _createSuper$d(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$d(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
+function _createSuper$c(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$c(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
 
-function _isNativeReflectConstruct$d() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
+function _isNativeReflectConstruct$c() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
 /**
  * A map of all network instances, keyed by their server name. This is useful
  * when a client has to track multiple servers with which it communicates.
@@ -6532,7 +6491,7 @@ function _isNativeReflectConstruct$d() { if (typeof Reflect === "undefined" || !
 var NetworkRegistry = /*#__PURE__*/function (_Map) {
   _inherits(NetworkRegistry, _Map);
 
-  var _super = _createSuper$d(NetworkRegistry);
+  var _super = _createSuper$c(NetworkRegistry);
 
   function NetworkRegistry() {
     _classCallCheck(this, NetworkRegistry);
@@ -6633,9 +6592,9 @@ var Autogenerator = /*#__PURE__*/function () {
   return Autogenerator;
 }();
 
-function _createSuper$e(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$e(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
+function _createSuper$d(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$d(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
 
-function _isNativeReflectConstruct$e() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
+function _isNativeReflectConstruct$d() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
 var ENTITY_BINDINGS = {
   BACKWARD: {
     keys: {
@@ -6668,10 +6627,10 @@ var CONTROLS_ID = 'Entity';
  * that are updated by the physics engine.
  */
 
-var Entity = /*#__PURE__*/function (_Object3DEventTarget) {
-  _inherits(Entity, _Object3DEventTarget);
+var Entity = /*#__PURE__*/function (_EventTarget) {
+  _inherits(Entity, _EventTarget);
 
-  var _super = _createSuper$e(Entity);
+  var _super = _createSuper$d(Entity);
 
   _createClass(Entity, null, [{
     key: "GetBindings",
@@ -6688,13 +6647,15 @@ var Entity = /*#__PURE__*/function (_Object3DEventTarget) {
     _this = _super.call(this);
     _this.uuid = createUUID();
     _this.world = null;
-    _this.built = false;
-    _this.modelName = null;
+    _this.built = false; // Visual properties
+
+    _this.visualEnabled = true;
+    _this.visualRoot = null;
     _this.mesh = null;
+    _this.modelName = null;
     _this.cameraArm = null;
-    _this.registeredCameras = new Set();
-    _this.meshEnabled = true;
-    _this.qualityAdjustEnabled = true; // Physics properties.
+    _this.qualityAdjustEnabled = true;
+    _this.registeredCameras = new Set(); // Physics properties.
 
     _this.physicsBody = null;
     _this.physicsEnabled = true;
@@ -6726,9 +6687,21 @@ var Entity = /*#__PURE__*/function (_Object3DEventTarget) {
 
 
   _createClass(Entity, [{
+    key: "withVisual",
+    value: function withVisual() {
+      var visualEnabled = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : true;
+      this.visualEnabled = visualEnabled;
+      return this;
+    }
+    /**
+     * Enables physics generation.
+     */
+
+  }, {
     key: "withPhysics",
     value: function withPhysics() {
-      this.physicsEnabled = true;
+      var physicsEnabled = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : true;
+      this.physicsEnabled = physicsEnabled;
       return this;
     }
     /**
@@ -6803,6 +6776,19 @@ var Entity = /*#__PURE__*/function (_Object3DEventTarget) {
       return this.constructor.GetBindings();
     }
     /**
+     * @return {THREE.Vector3|CANNON.Vec3}
+     */
+
+  }, {
+    key: "getPosition",
+    value: function getPosition() {
+      if (this.physicsEnabled && this.physicsBody) {
+        return this.physicsBody.position;
+      } else if (this.visualRoot) {
+        return this.visualRoot.position;
+      }
+    }
+    /**
      * @param {THREE.Vector3|CANNON.Vec3} position
      * @return {Entity}
      */
@@ -6812,8 +6798,8 @@ var Entity = /*#__PURE__*/function (_Object3DEventTarget) {
     value: function setPosition(position) {
       if (this.physicsEnabled && this.physicsBody) {
         this.physicsBody.position.copy(position);
-      } else {
-        this.position.copy(position);
+      } else if (this.visualRoot) {
+        this.visualRoot.position.copy(position);
       }
     }
     /**
@@ -6824,6 +6810,7 @@ var Entity = /*#__PURE__*/function (_Object3DEventTarget) {
     key: "build",
     value: function () {
       var _build = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime.mark(function _callee() {
+        var mesh;
         return _regeneratorRuntime.wrap(function _callee$(_context) {
           while (1) {
             switch (_context.prev = _context.next) {
@@ -6836,15 +6823,20 @@ var Entity = /*#__PURE__*/function (_Object3DEventTarget) {
                 return _context.abrupt("return", this);
 
               case 2:
-                _context.next = 4;
+                if (this.visualEnabled) {
+                  this.visualRoot = new Object3D();
+                }
+
+                _context.next = 5;
                 return this.generateMesh();
 
-              case 4:
-                this.mesh = _context.sent;
+              case 5:
+                mesh = _context.sent;
 
-                if (this.mesh) {
-                  this.add(this.mesh);
-                  this.animationMixer = Animation.get().createAnimationMixer(this.modelName, this);
+                if (mesh) {
+                  this.mesh = mesh;
+                  this.visualRoot.add(mesh);
+                  this.animationMixer = Animation.get().createAnimationMixer(this.modelName, this.visualRoot);
                   this.animationClips = Animation.get().getClips(this.modelName);
 
                   if (Settings$1.get('shadows')) {
@@ -6857,7 +6849,7 @@ var Entity = /*#__PURE__*/function (_Object3DEventTarget) {
                 this.built = true;
                 return _context.abrupt("return", this);
 
-              case 10:
+              case 11:
               case "end":
                 return _context.stop();
             }
@@ -6879,13 +6871,11 @@ var Entity = /*#__PURE__*/function (_Object3DEventTarget) {
   }, {
     key: "destroy",
     value: function destroy() {
-      var world = getRootWorld(this);
-
-      if (!world) {
+      if (!this.world) {
         return console.warn('Destroyed entity has no root world');
       }
 
-      world.remove(this);
+      this.world.remove(this);
     }
     /**
      * Registers a physics instance to the entity. This is used for communicating
@@ -6923,7 +6913,7 @@ var Entity = /*#__PURE__*/function (_Object3DEventTarget) {
           while (1) {
             switch (_context2.prev = _context2.next) {
               case 0:
-                if (this.meshEnabled) {
+                if (this.visualEnabled) {
                   _context2.next = 2;
                   break;
                 }
@@ -6965,7 +6955,7 @@ var Entity = /*#__PURE__*/function (_Object3DEventTarget) {
     key: "createCameraArm",
     value: function createCameraArm() {
       var obj = new Object3D();
-      this.add(obj);
+      this.visualRoot.add(obj);
       return obj;
     }
     /**
@@ -7026,7 +7016,7 @@ var Entity = /*#__PURE__*/function (_Object3DEventTarget) {
       }
 
       if (this.autogeneratePhysics) {
-        return Autogenerator.generatePhysicsBody(this.mesh);
+        return Autogenerator.generatePhysicsBody(this.visualRoot);
       }
 
       return null;
@@ -7156,15 +7146,15 @@ var Entity = /*#__PURE__*/function (_Object3DEventTarget) {
       var rotation = this.physicsWorld.getRotation(this);
 
       if (position.x != null) {
-        this.position.x = position.x;
+        this.visualRoot.position.x = position.x;
       }
 
       if (position.y != null) {
-        this.position.y = position.y;
+        this.visualRoot.position.y = position.y;
       }
 
       if (position.z != null) {
-        this.position.z = position.z;
+        this.visualRoot.position.z = position.z;
       }
 
       if (rotation.w != null && !this.meshRotationLocked) {
@@ -7314,7 +7304,7 @@ var Entity = /*#__PURE__*/function (_Object3DEventTarget) {
   }, {
     key: "enableShadows",
     value: function enableShadows() {
-      this.traverse(function (child) {
+      this.visualRoot.traverse(function (child) {
         child.castShadow = true;
         child.receiveShadow = true;
       });
@@ -7326,7 +7316,7 @@ var Entity = /*#__PURE__*/function (_Object3DEventTarget) {
   }, {
     key: "disableShadows",
     value: function disableShadows() {
-      this.traverse(function (child) {
+      this.visualRoot.traverse(function (child) {
         child.castShadow = false;
         child.receiveShadow = false;
       });
@@ -7341,11 +7331,11 @@ var Entity = /*#__PURE__*/function (_Object3DEventTarget) {
   }]);
 
   return Entity;
-}(Object3DEventTarget);
+}(EventTarget);
 
-function _createSuper$f(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$f(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
+function _createSuper$e(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$e(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
 
-function _isNativeReflectConstruct$f() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
+function _isNativeReflectConstruct$e() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
 var CHARACTER_BINDINGS = {
   SPRINT: {
     keys: {
@@ -7399,7 +7389,7 @@ var DEFAULT_VELO_LERP_FACTOR = 0.15;
 var Character = /*#__PURE__*/function (_Entity) {
   _inherits(Character, _Entity);
 
-  var _super = _createSuper$f(Character);
+  var _super = _createSuper$e(Character);
 
   function Character() {
     var _this;
@@ -7554,7 +7544,7 @@ var Character = /*#__PURE__*/function (_Entity) {
       camera.position.x = 5;
       this.cameraArm.rotation.z = Math.PI / 6;
       this.cameraArm.rotation.y = Math.PI / 2;
-      camera.lookAt(this.position); // TODO: Fix this junk.
+      camera.lookAt(this.visualRoot.position); // TODO: Fix this junk.
 
       Promise.resolve().then(function () {
         return camera.position.y = 1.2;
@@ -7937,9 +7927,9 @@ var Character = /*#__PURE__*/function (_Entity) {
 
 Controls.get().registerBindings(Character);
 
-function _createSuper$g(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$g(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
+function _createSuper$f(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$f(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
 
-function _isNativeReflectConstruct$g() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
+function _isNativeReflectConstruct$f() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
 var WIDTH$1 = 500;
 var SUFFIXES = ['ft', 'bk', 'up', 'dn', 'rt', 'lf'];
 /**
@@ -7949,7 +7939,7 @@ var SUFFIXES = ['ft', 'bk', 'up', 'dn', 'rt', 'lf'];
 var Skybox = /*#__PURE__*/function (_THREE$Object3D) {
   _inherits(Skybox, _THREE$Object3D);
 
-  var _super = _createSuper$g(Skybox);
+  var _super = _createSuper$f(Skybox);
 
   function Skybox() {
     var _this;
@@ -8127,9 +8117,9 @@ var Skybox = /*#__PURE__*/function (_THREE$Object3D) {
   return Skybox;
 }(Object3D);
 
-function _createSuper$h(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$h(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
+function _createSuper$g(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$g(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
 
-function _isNativeReflectConstruct$h() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
+function _isNativeReflectConstruct$g() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
 /**
  * Provides a way of dynamically creating light, skyboxes, ambient sounds, etc
  * that are unique to an environment. Extends THREE.Object3D to act as a root
@@ -8139,7 +8129,7 @@ function _isNativeReflectConstruct$h() { if (typeof Reflect === "undefined" || !
 var Environment = /*#__PURE__*/function (_Entity) {
   _inherits(Environment, _Entity);
 
-  var _super = _createSuper$h(Environment);
+  var _super = _createSuper$g(Environment);
 
   function Environment() {
     var _this;
@@ -8147,7 +8137,6 @@ var Environment = /*#__PURE__*/function (_Entity) {
     _classCallCheck(this, Environment);
 
     _this = _super.call(this);
-    _this.meshEnabled = false;
     _this.clearColor = 0xffffff;
     _this.fog = null;
     _this.qualityAdjustEnabled = false;
@@ -8178,20 +8167,24 @@ var Environment = /*#__PURE__*/function (_Entity) {
 
               case 2:
                 _context.next = 4;
-                return loadJsonFromFile(filePath);
+                return this.build();
 
               case 4:
+                _context.next = 6;
+                return loadJsonFromFile(filePath);
+
+              case 6:
                 environmentData = _context.sent;
                 this.loadLights(environmentData.lights);
                 this.loadBackground(environmentData.background);
                 this.loadFog(environmentData.fog);
-                _context.next = 10;
+                _context.next = 12;
                 return this.loadSkybox(environmentData.skybox);
 
-              case 10:
+              case 12:
                 return _context.abrupt("return", this);
 
-              case 11:
+              case 13:
               case "end":
                 return _context.stop();
             }
@@ -8221,13 +8214,13 @@ var Environment = /*#__PURE__*/function (_Entity) {
 
       if (lightsData.ambient) {
         lightsData.ambient.forEach(function (data) {
-          return _this2.add(Light.get().createAmbientLight(data));
+          return _this2.visualRoot.add(Light.get().createAmbientLight(data));
         });
       }
 
       if (lightsData.directional) {
         lightsData.directional.forEach(function (data) {
-          return _this2.add(Light.get().createDirectionalLight(data));
+          return _this2.visualRoot.add(Light.get().createDirectionalLight(data));
         });
       }
     }
@@ -8277,7 +8270,7 @@ var Environment = /*#__PURE__*/function (_Entity) {
                 return skybox.load(directory, file, extension);
 
               case 8:
-                this.add(skybox);
+                this.visualRoot.add(skybox);
 
               case 9:
               case "end":
@@ -8336,9 +8329,9 @@ var Environment = /*#__PURE__*/function (_Entity) {
   return Environment;
 }(Entity);
 
-function _createSuper$i(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$i(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
+function _createSuper$h(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$h(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
 
-function _isNativeReflectConstruct$i() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
+function _isNativeReflectConstruct$h() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
 var FREE_ROAM_BINDINGS = {
   UP: {
     keys: {
@@ -8383,7 +8376,7 @@ var VELOCITY_COEFFICIENT = 0.5;
 var FreeRoamEntity = /*#__PURE__*/function (_Entity) {
   _inherits(FreeRoamEntity, _Entity);
 
-  var _super = _createSuper$i(FreeRoamEntity);
+  var _super = _createSuper$h(FreeRoamEntity);
 
   _createClass(FreeRoamEntity, [{
     key: "getControlsId",
@@ -8425,7 +8418,7 @@ var FreeRoamEntity = /*#__PURE__*/function (_Entity) {
     value: function positionCamera(camera) {
       this.cameraArm.add(camera);
       camera.position.x = 0.5;
-      camera.lookAt(this.position);
+      camera.lookAt(this.visualRoot.position);
     }
     /** @override */
 
@@ -8451,7 +8444,7 @@ var FreeRoamEntity = /*#__PURE__*/function (_Entity) {
         this.targetVelocity.multiplyScalar(SPRINT_COEFFICIENT);
       }
 
-      this.position.add(this.targetVelocity);
+      this.getPosition().add(this.targetVelocity);
       this.updateRotation();
     }
     /**
@@ -8483,9 +8476,9 @@ var FreeRoamEntity = /*#__PURE__*/function (_Entity) {
 
 Controls.get().registerBindings(FreeRoamEntity);
 
-function _createSuper$j(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$j(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
+function _createSuper$i(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$i(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
 
-function _isNativeReflectConstruct$j() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
+function _isNativeReflectConstruct$i() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
 var instance$a = null;
 /**
  * Plugin for TWEEN.
@@ -8495,7 +8488,7 @@ var instance$a = null;
 var TweenPlugin = /*#__PURE__*/function (_Plugin) {
   _inherits(TweenPlugin, _Plugin);
 
-  var _super = _createSuper$j(TweenPlugin);
+  var _super = _createSuper$i(TweenPlugin);
 
   _createClass(TweenPlugin, null, [{
     key: "get",
@@ -8555,9 +8548,9 @@ var TweenPlugin = /*#__PURE__*/function (_Plugin) {
   return TweenPlugin;
 }(Plugin);
 
-function _createSuper$k(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$k(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
+function _createSuper$j(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$j(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
 
-function _isNativeReflectConstruct$k() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
+function _isNativeReflectConstruct$j() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
 var DEBUG_MATERIAL = new MeshLambertMaterial({
   color: 0xff0000,
   wireframe: true
@@ -8569,7 +8562,7 @@ var DEBUG_MATERIAL = new MeshLambertMaterial({
 var TerrainTile = /*#__PURE__*/function (_Entity) {
   _inherits(TerrainTile, _Entity);
 
-  var _super = _createSuper$k(TerrainTile);
+  var _super = _createSuper$j(TerrainTile);
 
   /**
    * @param {number} size
@@ -8726,9 +8719,9 @@ var TerrainTile = /*#__PURE__*/function (_Entity) {
     key: "toggleDebug",
     value: function toggleDebug() {
       if (Settings$1.get('terrain_debug')) {
-        this.add(this.debugWalls);
+        this.visualRoot.add(this.debugWalls);
       } else {
-        this.remove(this.debugWalls);
+        this.visualRoot.remove(this.debugWalls);
       }
     }
     /**
@@ -9128,4 +9121,4 @@ var TerrainMap = /*#__PURE__*/function () {
   return TerrainMap;
 }();
 
-export { Action, Animation, Audio, Bindings, Camera, Character, Controls, Engine, EngineResetEvent, Entity, Environment, EraEvent, EventTarget, Events, FreeRoamEntity, GameMode, Light, MaterialManager, Models, Network, network_registry as NetworkRegistry, Object3DEventTarget, PhysicsPlugin, Plugin, QualityAdjuster, RendererStats, Settings$1 as Settings, SettingsEvent, SettingsPanel$1 as SettingsPanel, Skybox, TerrainMap, TerrainTile, TweenPlugin, WorkerPool, World, createUUID, defaultEraRenderer, disableShadows, dispose, extractMeshes, extractMeshesByName, getHexColorRatio, getRootScene, getRootWorld, lerp, loadJsonFromFile, loadTexture, shuffleArray, toDegrees, toRadians, vectorToAngle };
+export { Action, Animation, Audio, Bindings, Camera, Character, Controls, Engine, EngineResetEvent, Entity, Environment, EraEvent, Events, FreeRoamEntity, GameMode, Light, MaterialManager, Models, Network, network_registry as NetworkRegistry, PhysicsPlugin, Plugin, QualityAdjuster, RendererStats, Settings$1 as Settings, SettingsEvent, SettingsPanel$1 as SettingsPanel, Skybox, TerrainMap, TerrainTile, TweenPlugin, WorkerPool, World, createUUID, defaultEraRenderer, disableShadows, dispose, extractMeshes, extractMeshesByName, getHexColorRatio, getRootScene, getRootWorld, lerp, loadJsonFromFile, loadTexture, shuffleArray, toDegrees, toRadians, vectorToAngle };

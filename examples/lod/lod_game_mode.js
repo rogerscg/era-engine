@@ -83,8 +83,8 @@ class LodGameMode extends GameMode {
           Math.random() * WIDTH - WIDTH / 2
         )
       );
-      tree.scale.setScalar(Math.random() + 0.5);
-      tree.rotation.y = Math.random() * Math.PI;
+      tree.visualRoot.scale.setScalar(Math.random() + 0.5);
+      tree.visualRoot.rotation.y = Math.random() * Math.PI;
     }
   }
 }

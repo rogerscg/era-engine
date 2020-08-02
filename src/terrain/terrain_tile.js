@@ -113,9 +113,9 @@ class TerrainTile extends Entity {
    */
   toggleDebug() {
     if (Settings.get('terrain_debug')) {
-      this.add(this.debugWalls);
+      this.visualRoot.add(this.debugWalls);
     } else {
-      this.remove(this.debugWalls);
+      this.visualRoot.remove(this.debugWalls);
     }
   }
 

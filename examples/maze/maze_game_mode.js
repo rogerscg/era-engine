@@ -50,7 +50,7 @@ class MazeGameMode extends GameMode {
     // Create character.
     this.character = new Character().withPhysics();
     this.character.freeze();
-    this.world.add(this.character);
+    await this.world.add(this.character);
     Controls.get().registerEntity(this.character);
 
     // Load levels.

@@ -59,7 +59,7 @@ class Cannons extends THREE.Object3D {
     this.emitters.forEach(async (emitter) => {
       const laser = new Laser();
       await laser.build();
-      laser.position.copy(emitter.getWorldPosition(WORLD_POS_VEC));
+      laser.setPosition(emitter.getWorldPosition(WORLD_POS_VEC));
       ERA.getRootWorld(this).add(laser);
     });
     this.lastFire = Date.now();

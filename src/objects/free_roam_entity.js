@@ -75,7 +75,7 @@ class FreeRoamEntity extends Entity {
   positionCamera(camera) {
     this.cameraArm.add(camera);
     camera.position.x = 0.5;
-    camera.lookAt(this.position);
+    camera.lookAt(this.visualRoot.position);
   }
 
   /** @override */
@@ -93,7 +93,7 @@ class FreeRoamEntity extends Entity {
     if (this.getActionValue(this.bindings.SPRINT)) {
       this.targetVelocity.multiplyScalar(SPRINT_COEFFICIENT);
     }
-    this.position.add(this.targetVelocity);
+    this.getPosition().add(this.targetVelocity);
     this.updateRotation();
   }
 
