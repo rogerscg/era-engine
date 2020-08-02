@@ -14,10 +14,14 @@ const DEBUG_MATERIAL = new THREE.MeshLambertMaterial({
  */
 class TerrainTile extends Entity {
   /**
+   * @param {number} size
+   * @param {number} scale
    * @param {number} elementSize
    */
-  constructor(elementSize = 1) {
+  constructor(size, scale = 1.0, elementSize = 1.0) {
     super();
+    this.size = size;
+    this.tileScale = scale;
     // Lock mesh rotation due to discrepancies with Three and Cannon planes.
     this.meshRotationLocked = true;
     // The size of each data tile.
@@ -169,6 +173,29 @@ class TerrainTile extends Entity {
   fromMatrix(matrix) {
     this.data = matrix;
     return this;
+  }
+
+  /**
+   * Extracts the relevant data from a parent matrix.
+   * @param {Array<Array<number>>} parentMatrix
+   */
+  fromParentMatrix(parentMatrix) {
+    const coordinates = this.getCoordinates();
+    // Compute the number of rows we can skip based on the y coordinate.
+    const yOffset = coordinates.y * this.size;
+    // Compute the number of columns we can skip based on the x coordinate.
+    const xOffset = coordinates.x * this.size;
+    // Now that we have our starting point, we can consume chunks of `size` at a
+    // time, skipping to the next row until we have consumed `size` rows.
+    const matrix = new Array();
+    for (let i = 0; i < this.size + 1; i++) {
+      const rowIndex = yOffset + i;
+      let row = parentMatrix[rowIndex].slice(xOffset, xOffset + this.size + 1);
+      row = row.map((x) => x * this.tileScale);
+      matrix.splice(0, 0, row);
+    }
+    // Fill tile out with data.
+    return this.fromMatrix(matrix);
   }
 
   /**

@@ -9,7 +9,6 @@ import {
   TerrainMap,
   World,
   defaultEraRenderer,
-  TerrainTile,
 } from '../../build/era.js';
 
 /**

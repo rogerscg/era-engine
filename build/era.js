@@ -8572,16 +8572,21 @@ var TerrainTile = /*#__PURE__*/function (_Entity) {
   var _super = _createSuper$k(TerrainTile);
 
   /**
+   * @param {number} size
+   * @param {number} scale
    * @param {number} elementSize
    */
-  function TerrainTile() {
+  function TerrainTile(size) {
     var _this;
 
-    var elementSize = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 1;
+    var scale = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 1.0;
+    var elementSize = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 1.0;
 
     _classCallCheck(this, TerrainTile);
 
-    _this = _super.call(this); // Lock mesh rotation due to discrepancies with Three and Cannon planes.
+    _this = _super.call(this);
+    _this.size = size;
+    _this.tileScale = scale; // Lock mesh rotation due to discrepancies with Three and Cannon planes.
 
     _this.meshRotationLocked = true; // The size of each data tile.
 
@@ -8798,6 +8803,37 @@ var TerrainTile = /*#__PURE__*/function (_Entity) {
       return this;
     }
     /**
+     * Extracts the relevant data from a parent matrix.
+     * @param {Array<Array<number>>} parentMatrix
+     */
+
+  }, {
+    key: "fromParentMatrix",
+    value: function fromParentMatrix(parentMatrix) {
+      var _this2 = this;
+
+      var coordinates = this.getCoordinates(); // Compute the number of rows we can skip based on the y coordinate.
+
+      var yOffset = coordinates.y * this.size; // Compute the number of columns we can skip based on the x coordinate.
+
+      var xOffset = coordinates.x * this.size; // Now that we have our starting point, we can consume chunks of `size` at a
+      // time, skipping to the next row until we have consumed `size` rows.
+
+      var matrix = new Array();
+
+      for (var i = 0; i < this.size + 1; i++) {
+        var rowIndex = yOffset + i;
+        var row = parentMatrix[rowIndex].slice(xOffset, xOffset + this.size + 1);
+        row = row.map(function (x) {
+          return x * _this2.tileScale;
+        });
+        matrix.splice(0, 0, row);
+      } // Fill tile out with data.
+
+
+      return this.fromMatrix(matrix);
+    }
+    /**
      * Sets the coordinates of the tile relative to other tiles in the map.
      * @param {number} x
      * @param {number} y
@@ -8883,7 +8919,7 @@ var TerrainMap = /*#__PURE__*/function () {
                 bufferGeometry = heightmapObj.geometry;
                 geometry = new Geometry().fromBufferGeometry(bufferGeometry);
                 geometry.mergeVertices();
-                this.elementSize = this.computeElementSize_(geometry);
+                this.elementSize = this.computeGeometryElementSize_(geometry);
                 heightmap = this.extractHeightmapFromGeometry(geometry);
                 geometry.dispose(); // Compute how large each element will be within a tile.
 
@@ -8924,7 +8960,7 @@ var TerrainMap = /*#__PURE__*/function () {
             switch (_context2.prev = _context2.next) {
               case 0:
                 geometry.mergeVertices();
-                this.elementSize = this.computeElementSize_(geometry);
+                this.elementSize = this.computeGeometryElementSize_(geometry);
                 heightmap = this.extractHeightmapFromGeometry(geometry);
                 geometry.dispose(); // Compute how large each element will be within a tile.
 
@@ -8999,8 +9035,8 @@ var TerrainMap = /*#__PURE__*/function () {
      */
 
   }, {
-    key: "computeElementSize_",
-    value: function computeElementSize_(geometry) {
+    key: "computeGeometryElementSize_",
+    value: function computeGeometryElementSize_(geometry) {
       geometry.computeBoundingBox();
       var width = geometry.boundingBox.max.x - geometry.boundingBox.min.x;
       var numVertices = Math.sqrt(geometry.vertices.length);
@@ -9010,64 +9046,26 @@ var TerrainMap = /*#__PURE__*/function () {
      * Breaks the given heightmap into tiles.
      * @param {Array<Array<number>>} heightmap
      * @async
-     * @private
+     * @protected
      */
 
   }, {
     key: "breakIntoTiles_",
     value: function breakIntoTiles_(heightmap) {
-      // We track tile size by the number of quads in a tile, not by the number
-      // of vertices, so add one vertex count.
-      var tileVertWidth = this.tileSize + 1; // Determine how many tiles we need in a row on the given map.
-
-      var tilesInMapRow = (heightmap.length - 1) / (tileVertWidth - 1); // We can throw all tiles into an array, as they each keep their own
+      // Determine how many tiles we need in a row on the given map.
+      var tilesInMapRow = (heightmap.length - 1) / this.tileSize; // We can throw all tiles into an array, as they each keep their own
       // coordinates relative to the map.
 
       var tiles = new Array(); // Iterate to create tiles. One tile will be filled at a time.
 
       for (var i = 0; i < tilesInMapRow; i++) {
         for (var j = 0; j < tilesInMapRow; j++) {
-          var tile = new this.TerrainTileClass(this.elementSize).withPhysics().setCoordinates(i, j);
-          this.loadVerticesIntoTile_(heightmap, tile);
+          var tile = new this.TerrainTileClass(this.tileSize, this.scale, this.elementSize).withPhysics().setCoordinates(i, j).fromParentMatrix(heightmap);
           tiles.push(tile);
         }
       }
 
       return tiles;
-    }
-    /**
-     * Loads elevation values into a tile from a heightmap.
-     * @param {Array<Array<number>>} heightmap
-     * @param {TerrainTile} tile
-     * @private
-     */
-
-  }, {
-    key: "loadVerticesIntoTile_",
-    value: function loadVerticesIntoTile_(heightmap, tile) {
-      var _this = this;
-
-      var coordinates = tile.getCoordinates(); // Compute the number of rows we can skip based on the y coordinate.
-
-      var yOffset = coordinates.y * this.tileSize; // Compute the number of columns we can skip based on the x coordinate.
-
-      var xOffset = coordinates.x * this.tileSize; // Now that we have our starting point, we can consume chunks of size
-      // `tileSize` at a time, skipping to the next row until we have consumed
-      // `tileSize` rows.
-
-      var matrix = new Array();
-
-      for (var i = 0; i < this.tileSize + 1; i++) {
-        var rowIndex = yOffset + i;
-        var row = heightmap[rowIndex].slice(xOffset, xOffset + this.tileSize + 1);
-        row = row.map(function (x) {
-          return x * _this.scale;
-        });
-        matrix.splice(0, 0, row);
-      } // Fill tile out with data.
-
-
-      tile.fromMatrix(matrix);
     }
     /**
      * Loads all tile textures before the terrain map is finished loading.
@@ -9112,16 +9110,16 @@ var TerrainMap = /*#__PURE__*/function () {
   }, {
     key: "positionTiles_",
     value: function positionTiles_() {
-      var _this2 = this;
+      var _this = this;
 
       this.tiles.forEach(function (tile) {
         var coords = tile.getCoordinates();
-        var tilesInMapRow = Math.sqrt(_this2.tiles.length); // We want the middle of the terrain map to be at the world origin, so we
+        var tilesInMapRow = Math.sqrt(_this.tiles.length); // We want the middle of the terrain map to be at the world origin, so we
         // create an offset based on half of the terrain map width.
 
         var tileOffset = tilesInMapRow / 2 - 0.5;
-        var x = (coords.x - tileOffset) * _this2.tileSize * _this2.elementSize;
-        var z = -(coords.y - tileOffset) * _this2.tileSize * _this2.elementSize;
+        var x = (coords.x - tileOffset) * _this.tileSize * _this.elementSize;
+        var z = -(coords.y - tileOffset) * _this.tileSize * _this.elementSize;
         tile.setPosition(new Vector3(x, 0, z));
       });
     }

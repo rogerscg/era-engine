@@ -41,7 +41,7 @@ class TerrainMap {
     const bufferGeometry = heightmapObj.geometry;
     const geometry = new THREE.Geometry().fromBufferGeometry(bufferGeometry);
     geometry.mergeVertices();
-    this.elementSize = this.computeElementSize_(geometry);
+    this.elementSize = this.computeGeometryElementSize_(geometry);
     const heightmap = this.extractHeightmapFromGeometry(geometry);
     geometry.dispose();
     // Compute how large each element will be within a tile.
@@ -57,7 +57,7 @@ class TerrainMap {
    */
   async loadFromGeometry(geometry) {
     geometry.mergeVertices();
-    this.elementSize = this.computeElementSize_(geometry);
+    this.elementSize = this.computeGeometryElementSize_(geometry);
     const heightmap = this.extractHeightmapFromGeometry(geometry);
     geometry.dispose();
     // Compute how large each element will be within a tile.
@@ -102,7 +102,7 @@ class TerrainMap {
    * @param {THREE.Geometry} geometry
    * @return {number}
    */
-  computeElementSize_(geometry) {
+  computeGeometryElementSize_(geometry) {
     geometry.computeBoundingBox();
     const width = geometry.boundingBox.max.x - geometry.boundingBox.min.x;
     const numVertices = Math.sqrt(geometry.vertices.length);
@@ -113,54 +113,29 @@ class TerrainMap {
    * Breaks the given heightmap into tiles.
    * @param {Array<Array<number>>} heightmap
    * @async
-   * @private
+   * @protected
    */
   breakIntoTiles_(heightmap) {
-    // We track tile size by the number of quads in a tile, not by the number
-    // of vertices, so add one vertex count.
-    const tileVertWidth = this.tileSize + 1;
     // Determine how many tiles we need in a row on the given map.
-    const tilesInMapRow = (heightmap.length - 1) / (tileVertWidth - 1);
+    const tilesInMapRow = (heightmap.length - 1) / this.tileSize;
     // We can throw all tiles into an array, as they each keep their own
     // coordinates relative to the map.
     const tiles = new Array();
     // Iterate to create tiles. One tile will be filled at a time.
     for (let i = 0; i < tilesInMapRow; i++) {
       for (let j = 0; j < tilesInMapRow; j++) {
-        const tile = new this.TerrainTileClass(this.elementSize)
+        const tile = new this.TerrainTileClass(
+          this.tileSize,
+          this.scale,
+          this.elementSize
+        )
           .withPhysics()
-          .setCoordinates(i, j);
-        this.loadVerticesIntoTile_(heightmap, tile);
+          .setCoordinates(i, j)
+          .fromParentMatrix(heightmap);
         tiles.push(tile);
       }
     }
     return tiles;
-  }
-
-  /**
-   * Loads elevation values into a tile from a heightmap.
-   * @param {Array<Array<number>>} heightmap
-   * @param {TerrainTile} tile
-   * @private
-   */
-  loadVerticesIntoTile_(heightmap, tile) {
-    const coordinates = tile.getCoordinates();
-    // Compute the number of rows we can skip based on the y coordinate.
-    const yOffset = coordinates.y * this.tileSize;
-    // Compute the number of columns we can skip based on the x coordinate.
-    const xOffset = coordinates.x * this.tileSize;
-    // Now that we have our starting point, we can consume chunks of size
-    // `tileSize` at a time, skipping to the next row until we have consumed
-    // `tileSize` rows.
-    const matrix = new Array();
-    for (let i = 0; i < this.tileSize + 1; i++) {
-      const rowIndex = yOffset + i;
-      let row = heightmap[rowIndex].slice(xOffset, xOffset + this.tileSize + 1);
-      row = row.map((x) => x * this.scale);
-      matrix.splice(0, 0, row);
-    }
-    // Fill tile out with data.
-    tile.fromMatrix(matrix);
   }
 
   /**
