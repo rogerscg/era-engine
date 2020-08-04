@@ -44,6 +44,7 @@ class LodGameMode extends GameMode {
     // Create character.
     this.character = new FreeRoamEntity(0.125);
     await this.world.add(this.character);
+    this.character.getPosition().y += 5;
     this.world.attachCameraToEntity(this.character);
     Controls.get().registerEntity(this.character);
     Controls.get().usePointerLockControls();

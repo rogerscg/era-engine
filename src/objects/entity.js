@@ -421,11 +421,11 @@ class Entity extends EventTarget {
     if (this.bindings) {
       this.calculateInputVector();
     }
-    if (!this.mesh || !this.physicsBody || !this.physicsWorld) {
+    if (!this.visualRoot || !this.physicsBody) {
       return;
     }
-    const position = this.physicsWorld.getPosition(this);
-    const rotation = this.physicsWorld.getRotation(this);
+    const position = this.physicsBody.position;
+    const rotation = this.physicsBody.quaternion;
     if (position.x != null) {
       this.visualRoot.position.x = position.x;
     }
@@ -435,7 +435,7 @@ class Entity extends EventTarget {
     if (position.z != null) {
       this.visualRoot.position.z = position.z;
     }
-    if (rotation.w != null && !this.meshRotationLocked) {
+    if (this.mesh != null && rotation.w != null && !this.meshRotationLocked) {
       this.mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
     }
   }

@@ -51,7 +51,7 @@ class World extends Plugin {
     // handling updates on its own.
     // TODO: Separate physics updates from entity updates.
     this.entities.forEach((entity) => {
-      if (!entity.physicsBody) {
+      if (!entity.physicsBody || !entity.physicsWorld) {
         entity.update();
       }
     });
