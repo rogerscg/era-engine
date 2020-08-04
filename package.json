@@ -1,6 +1,6 @@
 {
   "name": "era-engine",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "description": "ERA Engine - A wrapper around Three.js to assist development.",
   "main": "build/era.js",
   "scripts": {
