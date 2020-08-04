@@ -5421,30 +5421,6 @@ var PhysicsPlugin = /*#__PURE__*/function (_Plugin) {
       instance$9 = null;
     }
     /**
-     * Gets the position of the given entity. Must be implemented by
-     * engine-specific implementations.
-     * @param {Entity} entity
-     * @returns {CANNON.Vec3}
-     */
-
-  }, {
-    key: "getPosition",
-    value: function getPosition(entity) {
-      return entity.physicsBody.position;
-    }
-    /**
-     * Gets the rotation of the given entity. Must be implemented by
-     * engine-specific implementations.
-     * @param {Entity} entity
-     * @returns {Object}
-     */
-
-  }, {
-    key: "getRotation",
-    value: function getRotation(entity) {
-      return entity.physicsBody.quaternion;
-    }
-    /**
      * Sets a debug renderer on the physics instance. This should be overriden by
      * each engine-specific implementation for ease of use.
      */
@@ -5565,7 +5541,7 @@ var World = /*#__PURE__*/function (_Plugin) {
       // handling updates on its own.
       // TODO: Separate physics updates from entity updates.
       this.entities.forEach(function (entity) {
-        if (!entity.physicsBody) {
+        if (!entity.physicsBody || !entity.physicsWorld) {
           entity.update();
         }
       }); // Update all renderers.
@@ -7138,12 +7114,12 @@ var Entity = /*#__PURE__*/function (_EventTarget) {
         this.calculateInputVector();
       }
 
-      if (!this.mesh || !this.physicsBody || !this.physicsWorld) {
+      if (!this.visualRoot || !this.physicsBody) {
         return;
       }
 
-      var position = this.physicsWorld.getPosition(this);
-      var rotation = this.physicsWorld.getRotation(this);
+      var position = this.physicsBody.position;
+      var rotation = this.physicsBody.quaternion;
 
       if (position.x != null) {
         this.visualRoot.position.x = position.x;
@@ -7157,7 +7133,7 @@ var Entity = /*#__PURE__*/function (_EventTarget) {
         this.visualRoot.position.z = position.z;
       }
 
-      if (rotation.w != null && !this.meshRotationLocked) {
+      if (this.mesh != null && rotation.w != null && !this.meshRotationLocked) {
         this.mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
       }
     }
@@ -9114,6 +9090,7 @@ var TerrainMap = /*#__PURE__*/function () {
         var x = (coords.x - tileOffset) * _this.tileSize * _this.elementSize;
         var z = -(coords.y - tileOffset) * _this.tileSize * _this.elementSize;
         tile.setPosition(new Vector3(x, 0, z));
+        console.log(tile);
       });
     }
   }]);

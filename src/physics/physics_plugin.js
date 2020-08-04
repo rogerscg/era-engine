@@ -148,26 +148,6 @@ class PhysicsPlugin extends Plugin {
   }
 
   /**
-   * Gets the position of the given entity. Must be implemented by
-   * engine-specific implementations.
-   * @param {Entity} entity
-   * @returns {CANNON.Vec3}
-   */
-  getPosition(entity) {
-    return entity.physicsBody.position;
-  }
-
-  /**
-   * Gets the rotation of the given entity. Must be implemented by
-   * engine-specific implementations.
-   * @param {Entity} entity
-   * @returns {Object}
-   */
-  getRotation(entity) {
-    return entity.physicsBody.quaternion;
-  }
-
-  /**
    * Sets a debug renderer on the physics instance. This should be overriden by
    * each engine-specific implementation for ease of use.
    */
