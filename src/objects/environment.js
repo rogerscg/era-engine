@@ -14,7 +14,7 @@ class Environment extends Entity {
     super();
     this.clearColor = 0xffffff;
     this.fog = null;
-    this.qualityAdjustEnabled = false;
+    this.physicsQualityAdjustEnabled = false;
   }
 
   /**

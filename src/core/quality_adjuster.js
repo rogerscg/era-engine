@@ -16,7 +16,7 @@ class QualityAdjuster {
   constructor() {
     this.rootBox = new THREE.Box3();
     this.rootBoxHelper = new THREE.Box3Helper(this.rootBox, 0xffff00);
-    this.vectorDummy = new THREE.Vector3();
+    this.cameraPosition = new THREE.Vector3();
     this.entityBox = new THREE.Box3();
 
     SettingsEvent.listen(this.handleSettingsChange.bind(this));
@@ -37,26 +37,61 @@ class QualityAdjuster {
    * necessary.
    */
   update() {
-    const entities = this.world.entities;
-    Controls.get().registeredEntities.forEach((attachedEntity) => {
-      this.rootBox.setFromCenterAndSize(
-        attachedEntity.visualRoot.position,
-        QUALITY_RANGE
-      );
-      entities.forEach((entity) => {
-        if (entity == attachedEntity) {
+    this.updatePhysicsQuality_();
+    this.updateEntitiesWithCustomQuality_();
+  }
+
+  /**
+   * Updates the physics of a given entity, if necessary.
+   */
+  updatePhysicsQuality_() {
+    this.world.entities.forEach((entity) => {
+      if (!entity.physicsQualityAdjustEnabled) {
+        return;
+      }
+      let intersected = false;
+      this.entityBox.setFromObject(entity.visualRoot);
+      Controls.get().registeredEntities.forEach((attachedEntity) => {
+        if (attachedEntity == entity) {
           return;
         }
-        if (!entity.qualityAdjustEnabled) {
-          return;
-        }
-        this.entityBox.setFromObject(entity.visualRoot);
+        this.rootBox.setFromCenterAndSize(
+          attachedEntity.visualRoot.position,
+          QUALITY_RANGE
+        );
         if (this.rootBox.intersectsBox(this.entityBox)) {
-          this.world.enableEntityPhysics(entity);
-        } else {
-          this.world.disableEntityPhysics(entity);
+          intersected = true;
         }
       });
+      // If the entity intersected with any of the controlled entities, enable
+      // physics.
+      intersected
+        ? this.world.enableEntityPhysics(entity)
+        : this.world.disableEntityPhysics(entity);
+    });
+  }
+
+  /**
+   * Fires custom updates of entities.
+   */
+  updateEntitiesWithCustomQuality_() {
+    this.world.entities.forEach((entity) => {
+      if (!entity.hasCustomQualityAdjust || !entity.visualRoot) {
+        return;
+      }
+      let minCameraDistance = Infinity;
+      this.world.cameras.forEach((camera) => {
+        camera.getWorldPosition(this.cameraPosition);
+        this.entityBox.setFromObject(entity.visualRoot);
+        const dist = this.entityBox.distanceToPoint(this.cameraPosition);
+        if (dist < minCameraDistance) {
+          minCameraDistance = dist;
+        }
+      });
+      // Allow the entity to update its own quality.
+      if (minCameraDistance != Infinity) {
+        entity.adjustQuality(minCameraDistance);
+      }
     });
   }
 
