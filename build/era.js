@@ -4116,7 +4116,7 @@ var QualityAdjuster = /*#__PURE__*/function () {
 
     this.rootBox = new Box3();
     this.rootBoxHelper = new Box3Helper(this.rootBox, 0xffff00);
-    this.vectorDummy = new Vector3();
+    this.cameraPosition = new Vector3();
     this.entityBox = new Box3();
     SettingsEvent.listen(this.handleSettingsChange.bind(this));
   }
@@ -4141,29 +4141,75 @@ var QualityAdjuster = /*#__PURE__*/function () {
   }, {
     key: "update",
     value: function update() {
+      this.updatePhysicsQuality_();
+      this.updateEntitiesWithCustomQuality_();
+    }
+    /**
+     * Updates the physics of a given entity, if necessary.
+     */
+
+  }, {
+    key: "updatePhysicsQuality_",
+    value: function updatePhysicsQuality_() {
       var _this = this;
 
-      var entities = this.world.entities;
-      Controls.get().registeredEntities.forEach(function (attachedEntity) {
-        _this.rootBox.setFromCenterAndSize(attachedEntity.visualRoot.position, QUALITY_RANGE);
+      this.world.entities.forEach(function (entity) {
+        if (!entity.physicsQualityAdjustEnabled) {
+          return;
+        }
 
-        entities.forEach(function (entity) {
-          if (entity == attachedEntity) {
+        var intersected = false;
+
+        _this.entityBox.setFromObject(entity.visualRoot);
+
+        Controls.get().registeredEntities.forEach(function (attachedEntity) {
+          if (attachedEntity == entity) {
             return;
           }
 
-          if (!entity.qualityAdjustEnabled) {
-            return;
-          }
-
-          _this.entityBox.setFromObject(entity.visualRoot);
+          _this.rootBox.setFromCenterAndSize(attachedEntity.visualRoot.position, QUALITY_RANGE);
 
           if (_this.rootBox.intersectsBox(_this.entityBox)) {
-            _this.world.enableEntityPhysics(entity);
-          } else {
-            _this.world.disableEntityPhysics(entity);
+            intersected = true;
           }
-        });
+        }); // If the entity intersected with any of the controlled entities, enable
+        // physics.
+
+        intersected ? _this.world.enableEntityPhysics(entity) : _this.world.disableEntityPhysics(entity);
+      });
+    }
+    /**
+     * Fires custom updates of entities.
+     */
+
+  }, {
+    key: "updateEntitiesWithCustomQuality_",
+    value: function updateEntitiesWithCustomQuality_() {
+      var _this2 = this;
+
+      this.world.entities.forEach(function (entity) {
+        if (!entity.hasCustomQualityAdjust || !entity.visualRoot) {
+          return;
+        }
+
+        var minCameraDistance = Infinity;
+
+        _this2.world.cameras.forEach(function (camera) {
+          camera.getWorldPosition(_this2.cameraPosition);
+
+          _this2.entityBox.setFromObject(entity.visualRoot);
+
+          var dist = _this2.entityBox.distanceToPoint(_this2.cameraPosition);
+
+          if (dist < minCameraDistance) {
+            minCameraDistance = dist;
+          }
+        }); // Allow the entity to update its own quality.
+
+
+        if (minCameraDistance != Infinity) {
+          entity.adjustQuality(minCameraDistance);
+        }
       });
     }
   }, {
@@ -6623,14 +6669,16 @@ var Entity = /*#__PURE__*/function (_EventTarget) {
     _this = _super.call(this);
     _this.uuid = createUUID();
     _this.world = null;
-    _this.built = false; // Visual properties
+    _this.built = false;
+    _this.hasCustomQualityAdjust = true;
+    _this.physicsQualityAdjustEnabled = true;
+    _this.qualityLevel = null; // Visual properties
 
     _this.visualEnabled = true;
     _this.visualRoot = null;
     _this.mesh = null;
     _this.modelName = null;
     _this.cameraArm = null;
-    _this.qualityAdjustEnabled = true;
     _this.registeredCameras = new Set(); // Physics properties.
 
     _this.physicsBody = null;
@@ -7304,6 +7352,19 @@ var Entity = /*#__PURE__*/function (_EventTarget) {
   }, {
     key: "handleSettingsChange",
     value: function handleSettingsChange() {}
+    /**
+     * Considers if the quality of the entity should be adjusted, given the
+     * minimum distance to an active camera in the scene.
+     * @param {number} distance
+     */
+
+  }, {
+    key: "adjustQuality",
+    value: function adjustQuality(distance) {
+      // No custom quality adjustment function set, assume custom adjustment is
+      // disabled.
+      this.hasCustomQualityAdjust = false;
+    }
   }]);
 
   return Entity;
@@ -7373,7 +7434,7 @@ var Character = /*#__PURE__*/function (_Entity) {
     _classCallCheck(this, Character);
 
     _this = _super.call(this);
-    _this.qualityAdjustEnabled = false; // Make all defaults overrideable by subclasses.
+    _this.physicsQualityAdjustEnabled = false; // Make all defaults overrideable by subclasses.
     // Height of the character.
 
     _this.height = DEFAULT_HEIGHT; // Offset used for smoother movement. Increase for larger vertical motion.
@@ -8115,7 +8176,7 @@ var Environment = /*#__PURE__*/function (_Entity) {
     _this = _super.call(this);
     _this.clearColor = 0xffffff;
     _this.fog = null;
-    _this.qualityAdjustEnabled = false;
+    _this.physicsQualityAdjustEnabled = false;
     return _this;
   }
   /**
@@ -9090,7 +9151,6 @@ var TerrainMap = /*#__PURE__*/function () {
         var x = (coords.x - tileOffset) * _this.tileSize * _this.elementSize;
         var z = -(coords.y - tileOffset) * _this.tileSize * _this.elementSize;
         tile.setPosition(new Vector3(x, 0, z));
-        console.log(tile);
       });
     }
   }]);

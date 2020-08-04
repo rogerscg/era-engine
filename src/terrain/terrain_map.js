@@ -163,7 +163,6 @@ class TerrainMap {
       const x = (coords.x - tileOffset) * this.tileSize * this.elementSize;
       const z = -(coords.y - tileOffset) * this.tileSize * this.elementSize;
       tile.setPosition(new THREE.Vector3(x, 0, z));
-      console.log(tile);
     });
   }
 }

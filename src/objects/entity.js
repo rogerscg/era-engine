@@ -11,7 +11,7 @@ import Physics from '../physics/physics_plugin.js';
 import Settings from '../core/settings.js';
 import SettingsEvent from '../events/settings_event.js';
 import { Bindings } from '../core/bindings.js';
-import { createUUID, getRootWorld } from '../core/util.js';
+import { createUUID } from '../core/util.js';
 import * as THREE from 'three';
 
 const ENTITY_BINDINGS = {
@@ -57,6 +57,9 @@ class Entity extends EventTarget {
     this.uuid = createUUID();
     this.world = null;
     this.built = false;
+    this.hasCustomQualityAdjust = true;
+    this.physicsQualityAdjustEnabled = true;
+    this.qualityLevel = null;
 
     // Visual properties
     this.visualEnabled = true;
@@ -64,7 +67,6 @@ class Entity extends EventTarget {
     this.mesh = null;
     this.modelName = null;
     this.cameraArm = null;
-    this.qualityAdjustEnabled = true;
     this.registeredCameras = new Set();
 
     // Physics properties.
@@ -570,6 +572,17 @@ class Entity extends EventTarget {
    * Handles a settings change event.
    */
   handleSettingsChange() {}
+
+  /**
+   * Considers if the quality of the entity should be adjusted, given the
+   * minimum distance to an active camera in the scene.
+   * @param {number} distance
+   */
+  adjustQuality(distance) {
+    // No custom quality adjustment function set, assume custom adjustment is
+    // disabled.
+    this.hasCustomQualityAdjust = false;
+  }
 }
 
 export default Entity;

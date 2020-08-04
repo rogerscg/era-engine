@@ -1,3 +1,4 @@
+import CustomTerrainTile from './custom_terrain_tile.js';
 import Tree from './tree.js';
 import {
   Camera,
@@ -62,8 +63,10 @@ class LodGameMode extends GameMode {
    * @async
    */
   async loadTerrain() {
-    const terrainMap = new TerrainMap(/* tileSize= */ 64);
-    const terrainGeometry = new THREE.PlaneGeometry(WIDTH, WIDTH, 256, 256);
+    const terrainMap = new TerrainMap(/* tileSize= */ 32).setTerrainTileClass(
+      CustomTerrainTile
+    );
+    const terrainGeometry = new THREE.PlaneGeometry(WIDTH, WIDTH, 128, 128);
     terrainGeometry.rotateX(-Math.PI / 2);
     await terrainMap.loadFromGeometry(terrainGeometry);
     terrainMap.tiles.forEach((tile) => this.world.add(tile));
