@@ -64,6 +64,7 @@ class Controls extends Plugin {
     this.registerCustomBindings();
 
     this.pointerLockEnabled = false;
+    this.pointerLockTarget = null;
 
     SettingsEvent.listen(this.loadSettings.bind(this));
   }
@@ -361,8 +362,10 @@ class Controls extends Plugin {
    * Handles the mouse click event. Separate from mouse down and up.
    */
   onMouseClick(e) {
-    // TODO: Use correct element.
-    if (this.pointerLockEnabled) {
+    if (
+      this.pointerLockEnabled &&
+      (this.pointerLockTarget === null || e.target == this.pointerLockTarget)
+    ) {
       this.requestPointerLock();
     }
   }
@@ -451,6 +454,9 @@ class Controls extends Plugin {
     if (!this.controlsEnabled) {
       return;
     }
+    if (this.pointerLockEnabled && !document.pointerLockElement) {
+      return;
+    }
     const ratio = this.mouseSensitivity / 50;
     this.registeredEntities.forEach((entity) => {
       entity.setMouseMovement(e.movementX * ratio, e.movementY * ratio);
@@ -497,8 +503,10 @@ class Controls extends Plugin {
 
   /**
    * Creates pointer lock controls on the renderer.
+   * @param {Element} target
    */
-  usePointerLockControls() {
+  usePointerLockControls(target) {
+    this.pointerLockTarget = target;
     this.pointerLockEnabled = true;
     this.requestPointerLock();
   }

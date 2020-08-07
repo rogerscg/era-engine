@@ -78,7 +78,7 @@ async function start() {
   await world.add(character);
   world.attachCameraToEntity(character);
   Controls.get().registerEntity(character);
-  Controls.get().usePointerLockControls();
+  Controls.get().usePointerLockControls(renderer.domElement);
 }
 
 document.addEventListener('DOMContentLoaded', start);

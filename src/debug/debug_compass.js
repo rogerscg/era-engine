@@ -85,6 +85,9 @@ class DebugCompass {
     this.coordinateContainer = document.createElement('div');
     this.coordinateContainer.innerHTML = COORDINATE_HTML;
     this.coordinateContainer.style.cssText = COORDINATE_CONTAINER_CSS;
+    if (this.enabled) {
+      this.coordinateContainer.style.display = 'block';
+    }
     this.targetRenderer.domElement.parentElement.appendChild(
       this.coordinateContainer
     );

@@ -2414,6 +2414,7 @@ var Controls = /*#__PURE__*/function (_Plugin) {
     _this.registerCustomBindings();
 
     _this.pointerLockEnabled = false;
+    _this.pointerLockTarget = null;
     SettingsEvent.listen(_this.loadSettings.bind(_assertThisInitialized(_this)));
     return _this;
   }
@@ -2779,8 +2780,7 @@ var Controls = /*#__PURE__*/function (_Plugin) {
   }, {
     key: "onMouseClick",
     value: function onMouseClick(e) {
-      // TODO: Use correct element.
-      if (this.pointerLockEnabled) {
+      if (this.pointerLockEnabled && (this.pointerLockTarget === null || e.target == this.pointerLockTarget)) {
         this.requestPointerLock();
       }
     }
@@ -2885,6 +2885,10 @@ var Controls = /*#__PURE__*/function (_Plugin) {
         return;
       }
 
+      if (this.pointerLockEnabled && !document.pointerLockElement) {
+        return;
+      }
+
       var ratio = this.mouseSensitivity / 50;
       this.registeredEntities.forEach(function (entity) {
         entity.setMouseMovement(e.movementX * ratio, e.movementY * ratio);
@@ -2940,11 +2944,13 @@ var Controls = /*#__PURE__*/function (_Plugin) {
     }
     /**
      * Creates pointer lock controls on the renderer.
+     * @param {Element} target
      */
 
   }, {
     key: "usePointerLockControls",
-    value: function usePointerLockControls() {
+    value: function usePointerLockControls(target) {
+      this.pointerLockTarget = target;
       this.pointerLockEnabled = true;
       this.requestPointerLock();
     }
@@ -4438,6 +4444,11 @@ var DebugCompass = /*#__PURE__*/function () {
       this.coordinateContainer = document.createElement('div');
       this.coordinateContainer.innerHTML = COORDINATE_HTML;
       this.coordinateContainer.style.cssText = COORDINATE_CONTAINER_CSS;
+
+      if (this.enabled) {
+        this.coordinateContainer.style.display = 'block';
+      }
+
       this.targetRenderer.domElement.parentElement.appendChild(this.coordinateContainer);
       this.coordinateDivs = new Map();
       AXES.forEach(function (axis) {
