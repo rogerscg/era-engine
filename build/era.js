@@ -4383,7 +4383,7 @@ var CANVAS_HEIGHT = 100;
 var CANVAS_WIDTH = 100;
 var AXES = ['x', 'y', 'z'];
 var CENTER_COMPASS_CSS = "\n  height: ".concat(CANVAS_HEIGHT, "px;\n  width: ").concat(CANVAS_WIDTH, "px;\n  position: absolute;\n  top: 0;\n  left: 0;\n  right: 0;\n  bottom: 0;\n  margin: auto;\n  pointer-events: none;\n");
-var COORDINATE_CONTAINER_CSS = "\n  position: absolute;\n  top: 0;\n  left: 0;\n  pointer-events: none;\n  font-family: monospace;\n  padding: 15px;\n  background: rgba(0, 0, 0, .4);\n  color: rgb(0, 255, 255);\n";
+var COORDINATE_CONTAINER_CSS = "\n  position: absolute;\n  top: 0;\n  left: 0;\n  pointer-events: none;\n  font-family: monospace;\n  padding: 15px;\n  background: rgba(0, 0, 0, .4);\n  color: rgb(0, 255, 255);\n  display: none;\n";
 var COORDINATE_HTML = "\n  <div>Camera Coordinates</div>\n  <div>\n    <div class='era-coord-value era-coord-x'></div>\n    <div class='era-coord-value era-coord-y'></div>\n    <div class='era-coord-value era-coord-z'></div>\n  </div>\n";
 /**
  * Provides a direction and position helpers for debugging purposes. Must build
@@ -4459,6 +4459,7 @@ var DebugCompass = /*#__PURE__*/function () {
       }
 
       this.enabled = true;
+      this.coordinateContainer.style.display = 'block';
       this.targetRenderer.domElement.parentElement.appendChild(this.container);
       this.targetRenderer.domElement.parentElement.appendChild(this.coordinateContainer);
     }
@@ -4474,6 +4475,7 @@ var DebugCompass = /*#__PURE__*/function () {
       }
 
       this.enabled = false;
+      this.coordinateContainer.style.display = '';
 
       if (this.targetRenderer.domElement.parentElement) {
         this.targetRenderer.domElement.parentElement.removeChild(this.container);
@@ -4771,19 +4773,11 @@ var FpsStats = /*#__PURE__*/function (_Stats2) {
   _createClass(FpsStats, [{
     key: "createDom",
     value: function createDom() {
-      var _this4 = this;
-
       // Create root.
       var container = document.createElement('div');
       this.dom = container;
       container.classList.add('render-stats');
-      container.style.cssText = FPS_CONTAINER_CSS; // Switch panels on click.
-
-      container.addEventListener('click', function (event) {
-        event.preventDefault();
-
-        _this4.showPanel(++_this4.mode % container.children.length);
-      }, false);
+      container.style.cssText = FPS_CONTAINER_CSS;
       this.fpsPanel = this.addPanel(new Panel('FPS', '#0ff', '#002', true));
       this.msPanel = this.addPanel(new Panel('MS', '#0f0', '#020', false));
       this.timerPanel = this.addPanel(new Panel('Render', '#ff3800', '#210', false));
@@ -4792,7 +4786,6 @@ var FpsStats = /*#__PURE__*/function (_Stats2) {
         this.memPanel = this.addPanel(new Panel('MB', '#f08', '#201', true));
       }
 
-      this.showPanel(0);
       return container;
     }
   }, {
@@ -4889,7 +4882,7 @@ var Panel = /*#__PURE__*/function () {
       var canvas = document.createElement('canvas');
       canvas.width = WIDTH;
       canvas.height = HEIGHT;
-      canvas.style.cssText = 'width:83px;height:48px';
+      canvas.style.cssText = 'width:83px;height:48px;display:block;';
       var context = canvas.getContext('2d');
       context.font = 'bold ' + 9 * PR + 'px Helvetica,Arial,sans-serif';
       context.textBaseline = 'top';

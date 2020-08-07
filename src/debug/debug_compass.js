@@ -29,6 +29,7 @@ const COORDINATE_CONTAINER_CSS = `
   padding: 15px;
   background: rgba(0, 0, 0, .4);
   color: rgb(0, 255, 255);
+  display: none;
 `;
 
 const COORDINATE_HTML = `
@@ -106,6 +107,7 @@ class DebugCompass {
       return;
     }
     this.enabled = true;
+    this.coordinateContainer.style.display = 'block';
     this.targetRenderer.domElement.parentElement.appendChild(this.container);
     this.targetRenderer.domElement.parentElement.appendChild(
       this.coordinateContainer
@@ -120,6 +122,7 @@ class DebugCompass {
       return;
     }
     this.enabled = false;
+    this.coordinateContainer.style.display = '';
     if (this.targetRenderer.domElement.parentElement) {
       this.targetRenderer.domElement.parentElement.removeChild(this.container);
       this.targetRenderer.domElement.parentElement.removeChild(

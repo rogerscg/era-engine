@@ -207,16 +207,6 @@ class FpsStats extends Stats {
     container.classList.add('render-stats');
     container.style.cssText = FPS_CONTAINER_CSS;
 
-    // Switch panels on click.
-    container.addEventListener(
-      'click',
-      (event) => {
-        event.preventDefault();
-        this.showPanel(++this.mode % container.children.length);
-      },
-      false
-    );
-
     this.fpsPanel = this.addPanel(new Panel('FPS', '#0ff', '#002', true));
     this.msPanel = this.addPanel(new Panel('MS', '#0f0', '#020', false));
     this.timerPanel = this.addPanel(
@@ -225,7 +215,6 @@ class FpsStats extends Stats {
     if (window.performance && window.performance.memory) {
       this.memPanel = this.addPanel(new Panel('MB', '#f08', '#201', true));
     }
-    this.showPanel(0);
     return container;
   }
 
@@ -307,7 +296,7 @@ class Panel {
     const canvas = document.createElement('canvas');
     canvas.width = WIDTH;
     canvas.height = HEIGHT;
-    canvas.style.cssText = 'width:83px;height:48px';
+    canvas.style.cssText = 'width:83px;height:48px;display:block;';
 
     const context = canvas.getContext('2d');
     context.font = 'bold ' + 9 * PR + 'px Helvetica,Arial,sans-serif';

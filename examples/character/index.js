@@ -15,11 +15,15 @@ import {
   Environment,
   Models,
   QualityAdjuster,
+  Settings,
   World,
   defaultEraRenderer,
 } from '../../build/era.js';
 
 async function start() {
+  // Load settings.
+  await Settings.load();
+
   // Load models.
   await Models.get().loadAllFromFile('models.json');
 
