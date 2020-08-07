@@ -7401,6 +7401,7 @@ var CHARACTER_BINDINGS = {
     }
   }
 };
+var DEFAULT_STATES = ['idle', 'walking', 'sprinting', 'jumping', 'falling', 'landing'];
 var RAYCAST_GEO = new BoxGeometry(0.2, 0.2, 0.2);
 var RAYCAST_MATERIAL = new MeshLambertMaterial({
   color: 0xff0000
@@ -7419,7 +7420,7 @@ var DEFAULT_FALL_THRESHOLD = 700;
 var DEFAULT_JUMP_MIN = 500;
 var DEFAULT_LAND_MIX_THRESHOLD = 150;
 var DEFAULT_LAND_SPEED_THRESHOLD = 5;
-var DEFAULT_LAND_TIME_THRESHOLD = 1500;
+var DEFAULT_LAND_TIME_THRESHOLD = 500;
 var DEFAULT_VELO_LERP_FACTOR = 0.15;
 /**
  * A special entity used for controlling an organic character, such as a human.
@@ -7463,17 +7464,11 @@ var Character = /*#__PURE__*/function (_Entity) {
     _this.landSpeedThreshold = DEFAULT_LAND_SPEED_THRESHOLD; // The amount of time falling in ms that a character needs to endure before
     // triggering a landing action.
 
-    _this.landTimeThreshold = DEFAULT_LAND_TIME_THRESHOLD; // TODO: Bundle animation names with states.
-
-    _this.idleAnimationName = null;
-    _this.walkingAnimationName = null;
-    _this.sprintingAnimationName = null;
-    _this.jumpingAnimationName = null;
-    _this.fallingAnimationName = null;
-    _this.landingAnimationName = null;
+    _this.landTimeThreshold = DEFAULT_LAND_TIME_THRESHOLD;
+    _this.animations = new Map();
+    _this.states = new Set(DEFAULT_STATES);
     _this.jumpAction = null;
-    _this.landAction = null; // TODO: Make state a common practice in ERA.
-
+    _this.landAction = null;
     _this.state = 'idle';
     _this.grounded = false;
     _this.frozen = false;
@@ -7559,7 +7554,7 @@ var Character = /*#__PURE__*/function (_Entity) {
                 return _get(_getPrototypeOf(Character.prototype), "build", this).call(this);
 
               case 2:
-                this.playAnimation(this.idleAnimationName);
+                this.playAnimation(this.animations.get(this.state));
                 return _context.abrupt("return", this);
 
               case 4:
@@ -7608,6 +7603,25 @@ var Character = /*#__PURE__*/function (_Entity) {
     key: "handleSettingsChange",
     value: function handleSettingsChange() {
       this.toggleRaycastDebug();
+    }
+    /**
+     * Adds a state to the character as well as the animation for the given state.
+     * @param {string} stateName
+     * @param {string} animationName
+     * @returns {Character}
+     */
+
+  }, {
+    key: "addState",
+    value: function addState(stateName) {
+      var animationName = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : null;
+      this.states.add(stateName);
+
+      if (animationName) {
+        this.animations.set(stateName, animationName);
+      }
+
+      return this;
     }
     /**
      * Raycast to the ground.
@@ -7664,7 +7678,7 @@ var Character = /*#__PURE__*/function (_Entity) {
         this.previouslyGrounded = false;
         return this.fall();
       } else {
-        if (!this.previouslyGrounded && this.wasFalling) {
+        if (!this.previouslyGrounded) {
           this.land();
         }
 
@@ -7794,7 +7808,7 @@ var Character = /*#__PURE__*/function (_Entity) {
       }
 
       this.state = 'idle';
-      this.playAnimation(this.idleAnimationName);
+      this.playAnimation(this.animations.get('idle'));
     }
     /**
      * Marks the character in a walking state.
@@ -7816,7 +7830,7 @@ var Character = /*#__PURE__*/function (_Entity) {
       }
 
       this.state = 'walking';
-      this.playAnimation(this.walkingAnimationName);
+      this.playAnimation(this.animations.get('walking'));
     }
     /**
      * Marks the character in a sprint state.
@@ -7838,7 +7852,7 @@ var Character = /*#__PURE__*/function (_Entity) {
       }
 
       this.state = 'sprinting';
-      this.playAnimation(this.sprintingAnimationName);
+      this.playAnimation(this.animations.get('sprinting'));
     }
     /**
      * Marks the character in a jump state.
@@ -7853,7 +7867,7 @@ var Character = /*#__PURE__*/function (_Entity) {
 
       this.state = 'jumping';
       this.jumpTime = performance.now();
-      this.jumpAction = this.playAnimation(this.jumpingAnimationName);
+      this.jumpAction = this.playAnimation(this.animations.get('jumping'));
 
       if (!this.jumpAction) {
         return;
@@ -7884,7 +7898,7 @@ var Character = /*#__PURE__*/function (_Entity) {
 
       this.wasFalling = true;
       this.state = 'falling';
-      this.playAnimation(this.fallingAnimationName);
+      this.playAnimation(this.animations.get('falling'));
     }
     /**
      * Plays landing animation.
@@ -7893,20 +7907,23 @@ var Character = /*#__PURE__*/function (_Entity) {
   }, {
     key: "land",
     value: function land() {
+      console.log('land?');
       var diff = performance.now() - this.lastGroundedTime;
 
       if (diff < this.landTimeThreshold) {
         return;
       }
 
-      this.landingDummy.set(this.physicsBody.velocity.x, this.physicsBody.velocity.z); // TODO: We should have a cooler running landing animation like a roll or
-      //       stumble.
+      this.landingDummy.set(this.physicsBody.velocity.x, this.physicsBody.velocity.z);
+      console.log(this.landingDummy);
+      console.log(this.landingDummy.length()); // TODO: We should have a cooler running landing animation like a roll or
+      // stumble.
 
       if (this.landingDummy.length() > this.landSpeedThreshold) {
         return;
       }
 
-      this.landAction = this.playAnimation(this.landingAnimationName);
+      this.landAction = this.playAnimation(this.animations.get('landing'));
 
       if (!this.landAction) {
         return;

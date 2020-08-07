@@ -32,6 +32,15 @@ const CHARACTER_BINDINGS = {
   },
 };
 
+const DEFAULT_STATES = [
+  'idle',
+  'walking',
+  'sprinting',
+  'jumping',
+  'falling',
+  'landing',
+];
+
 const RAYCAST_GEO = new THREE.BoxGeometry(0.2, 0.2, 0.2);
 const RAYCAST_MATERIAL = new THREE.MeshLambertMaterial({ color: 0xff0000 });
 const RAYCAST_BLUE_MATERIAL = new THREE.MeshLambertMaterial({
@@ -50,7 +59,7 @@ const DEFAULT_FALL_THRESHOLD = 700;
 const DEFAULT_JUMP_MIN = 500;
 const DEFAULT_LAND_MIX_THRESHOLD = 150;
 const DEFAULT_LAND_SPEED_THRESHOLD = 5;
-const DEFAULT_LAND_TIME_THRESHOLD = 1500;
+const DEFAULT_LAND_TIME_THRESHOLD = 500;
 const DEFAULT_VELO_LERP_FACTOR = 0.15;
 
 /**
@@ -88,16 +97,11 @@ class Character extends Entity {
     // triggering a landing action.
     this.landTimeThreshold = DEFAULT_LAND_TIME_THRESHOLD;
 
-    // TODO: Bundle animation names with states.
-    this.idleAnimationName = null;
-    this.walkingAnimationName = null;
-    this.sprintingAnimationName = null;
-    this.jumpingAnimationName = null;
-    this.fallingAnimationName = null;
-    this.landingAnimationName = null;
+    this.animations = new Map();
+    this.states = new Set(DEFAULT_STATES);
     this.jumpAction = null;
     this.landAction = null;
-    // TODO: Make state a common practice in ERA.
+
     this.state = 'idle';
     this.grounded = false;
     this.frozen = false;
@@ -193,7 +197,7 @@ class Character extends Entity {
   /** @override */
   async build() {
     await super.build();
-    this.playAnimation(this.idleAnimationName);
+    this.playAnimation(this.animations.get(this.state));
     return this;
   }
 
@@ -212,13 +216,27 @@ class Character extends Entity {
   update() {
     super.update();
     this.updateRaycast();
-    this.updateAnimations();
+    this.updateState();
     this.updatePhysics();
   }
 
   /** @override */
   handleSettingsChange() {
     this.toggleRaycastDebug();
+  }
+
+  /**
+   * Adds a state to the character as well as the animation for the given state.
+   * @param {string} stateName
+   * @param {string} animationName
+   * @returns {Character}
+   */
+  addState(stateName, animationName = null) {
+    this.states.add(stateName);
+    if (animationName) {
+      this.animations.set(stateName, animationName);
+    }
+    return this;
   }
 
   /**
@@ -261,7 +279,7 @@ class Character extends Entity {
   /**
    * Updates the animation state of the character.
    */
-  updateAnimations() {
+  updateState() {
     if (this.frozen) {
       this.idle();
       return;
@@ -271,7 +289,7 @@ class Character extends Entity {
       this.previouslyGrounded = false;
       return this.fall();
     } else {
-      if (!this.previouslyGrounded && this.wasFalling) {
+      if (!this.previouslyGrounded) {
         this.land();
       }
       this.wasFalling = false;
@@ -384,7 +402,7 @@ class Character extends Entity {
       return;
     }
     this.state = 'idle';
-    this.playAnimation(this.idleAnimationName);
+    this.playAnimation(this.animations.get('idle'));
   }
 
   /**
@@ -401,7 +419,7 @@ class Character extends Entity {
       return;
     }
     this.state = 'walking';
-    this.playAnimation(this.walkingAnimationName);
+    this.playAnimation(this.animations.get('walking'));
   }
 
   /**
@@ -418,7 +436,7 @@ class Character extends Entity {
       return;
     }
     this.state = 'sprinting';
-    this.playAnimation(this.sprintingAnimationName);
+    this.playAnimation(this.animations.get('sprinting'));
   }
 
   /**
@@ -430,7 +448,7 @@ class Character extends Entity {
     }
     this.state = 'jumping';
     this.jumpTime = performance.now();
-    this.jumpAction = this.playAnimation(this.jumpingAnimationName);
+    this.jumpAction = this.playAnimation(this.animations.get('jumping'));
     if (!this.jumpAction) {
       return;
     }
@@ -454,13 +472,14 @@ class Character extends Entity {
     }
     this.wasFalling = true;
     this.state = 'falling';
-    this.playAnimation(this.fallingAnimationName);
+    this.playAnimation(this.animations.get('falling'));
   }
 
   /**
    * Plays landing animation.
    */
   land() {
+    console.log('land?');
     const diff = performance.now() - this.lastGroundedTime;
     if (diff < this.landTimeThreshold) {
       return;
@@ -469,12 +488,14 @@ class Character extends Entity {
       this.physicsBody.velocity.x,
       this.physicsBody.velocity.z
     );
+    console.log(this.landingDummy);
+    console.log(this.landingDummy.length());
     // TODO: We should have a cooler running landing animation like a roll or
-    //       stumble.
+    // stumble.
     if (this.landingDummy.length() > this.landSpeedThreshold) {
       return;
     }
-    this.landAction = this.playAnimation(this.landingAnimationName);
+    this.landAction = this.playAnimation(this.animations.get('landing'));
     if (!this.landAction) {
       return;
     }

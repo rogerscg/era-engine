@@ -2,13 +2,13 @@ const WorkerPlugin = require('worker-plugin');
 const path = require('path');
 
 const EXAMPLES = [
-  'basic',
+  // 'basic',
   'character',
-  'lod',
-  'maze',
-  'physics',
-  'splitscreen',
-  'terrain',
+  // 'lod',
+  // 'maze',
+  // 'physics',
+  // 'splitscreen',
+  // 'terrain',
 ];
 
 function buildAllExamples() {
@@ -25,6 +25,7 @@ function buildSpecificExample(dir) {
       filename: 'build.js',
       path: path.resolve(__dirname, `examples/${dir}/`),
     },
+    devtool: 'eval-source-map',
   };
   return rule;
 }
