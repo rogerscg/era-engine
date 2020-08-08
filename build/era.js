@@ -7531,6 +7531,8 @@ var DEFAULT_LAND_MIX_THRESHOLD = 150;
 var DEFAULT_LAND_SPEED_THRESHOLD = 5;
 var DEFAULT_LAND_TIME_THRESHOLD = 500;
 var DEFAULT_VELO_LERP_FACTOR = 0.15;
+var DEFAULT_SPEED = 2.5;
+var DEFAULT_SPRINT_MULTIPLIER = 2.5;
 /**
  * A special entity used for controlling an organic character, such as a human.
  * This is different from a standard entity in its physics and animation
@@ -7548,7 +7550,11 @@ var Character = /*#__PURE__*/function (_Entity) {
     _classCallCheck(this, Character);
 
     _this = _super.call(this);
-    _this.physicsQualityAdjustEnabled = false; // Make all defaults overrideable by subclasses.
+    _this.physicsQualityAdjustEnabled = false; // The walking speed of the character.
+
+    _this.speed = DEFAULT_SPEED; // The factor to multiply walking speed by to sprint.
+
+    _this.sprintMultiplier = DEFAULT_SPRINT_MULTIPLIER; // Make all defaults overrideable by subclasses.
     // Height of the character.
 
     _this.height = DEFAULT_HEIGHT; // Offset used for smoother movement. Increase for larger vertical motion.
@@ -7589,7 +7595,8 @@ var Character = /*#__PURE__*/function (_Entity) {
     _this.wasFalling = false;
     _this.previouslyGrounded = true;
     _this.unfreezeTimeout = null;
-    _this.landingDummy = new Vector2(); // Raycasting properties.
+    _this.landingDummy = new Vector2();
+    _this.scale = 1.0; // Raycasting properties.
 
     _this.startVec = new Vec3();
     _this.endVec = new Vec3();
@@ -7627,15 +7634,16 @@ var Character = /*#__PURE__*/function (_Entity) {
 
       capsule.collisionFilterGroup = 2; // Create center portion of capsule.
 
-      var height = this.height - this.capsuleRadius * 2 - this.capsuleOffset;
-      var cylinderShape = new Cylinder(this.capsuleRadius, this.capsuleRadius, height, 20);
+      var height = (this.height - this.capsuleRadius * 2 - this.capsuleOffset) * this.scale;
+      var cylinderShape = new Cylinder(this.capsuleRadius * this.scale, this.capsuleRadius * this.scale, height, 20);
       var quat = new Quaternion();
-      var cylinderPos = height / 2 + this.capsuleRadius + this.capsuleOffset;
+      var cylinderPos = height / 2 + this.capsuleRadius * this.scale + this.capsuleOffset * this.scale;
       capsule.addShape(cylinderShape, new Vec3(0, cylinderPos, 0), quat); // Create round ends of capsule.
 
-      var sphereShape = new Sphere(this.capsuleRadius);
-      var topPos = new Vec3(0, height + this.capsuleRadius + this.capsuleOffset, 0);
+      var sphereShape = new Sphere(this.capsuleRadius * this.scale);
+      var topPos = new Vec3(0, height + this.capsuleRadius * this.scale + this.capsuleOffset * this.scale, 0);
       var bottomPos = new Vec3(0, this.capsuleRadius + this.capsuleOffset, 0);
+      bottomPos.scale(this.scale, bottomPos);
       capsule.addShape(sphereShape, topPos);
       capsule.addShape(sphereShape, bottomPos); // Prevent capsule from tipping over.
 
@@ -7666,10 +7674,11 @@ var Character = /*#__PURE__*/function (_Entity) {
                 return _get(_getPrototypeOf(Character.prototype), "build", this).call(this);
 
               case 2:
+                this.visualRoot.scale.setScalar(this.scale);
                 this.playAnimation(this.animations.get(this.state));
                 return _context.abrupt("return", this);
 
-              case 4:
+              case 5:
               case "end":
                 return _context.stop();
             }
@@ -7724,6 +7733,20 @@ var Character = /*#__PURE__*/function (_Entity) {
     key: "handleSettingsChange",
     value: function handleSettingsChange() {
       this.toggleRaycastDebug();
+    }
+    /**
+     * Sets the scale of the character.
+     * @param {number} scale
+     * @returns {Character}
+     */
+
+  }, {
+    key: "setScale",
+    value: function setScale(scale) {
+      this.scale = scale;
+      this.rayEndBox.scale.setScalar(this.scale);
+      this.rayStartBox.scale.setScalar(this.scale);
+      return this;
     }
     /**
      * Registers states for the character.
@@ -7807,7 +7830,7 @@ var Character = /*#__PURE__*/function (_Entity) {
 
       this.ray.from.copy(this.physicsBody.interpolatedPosition);
       this.ray.to.copy(this.ray.from);
-      this.ray.from.y += this.capsuleOffset + this.height / 2;
+      this.ray.from.y += this.capsuleOffset * this.scale + this.height * this.scale / 2;
       this.rayStartBox.position.copy(this.ray.from);
       this.rayEndBox.position.copy(this.ray.to); // Intersect against the world.
 
@@ -7817,7 +7840,7 @@ var Character = /*#__PURE__*/function (_Entity) {
       if (this.ray.result.hasHit) {
         this.grounded = true;
         var hitDistance = this.ray.result.distance;
-        var diff = this.capsuleOffset + this.height / 2 - hitDistance;
+        var diff = this.capsuleOffset * this.scale + this.height * this.scale / 2 - hitDistance;
         this.rayEndBox.position.y = this.rayStartBox.position.y - hitDistance;
         this.rayEndBox.material.color.setHex(0xff8800); // Lerp new position.
 
@@ -7855,7 +7878,7 @@ var Character = /*#__PURE__*/function (_Entity) {
       } // Handle jump input.
 
 
-      if (this.getActionValue(this.bindings.JUMP) && this.state.name !== 'jumping') {
+      if (this.getActionValue(this.bindings.JUMP) && this.state.name !== 'jumping' && this.grounded) {
         if (this.states.has('jumping')) {
           this.transitionToState(this.states.get('jumping'));
         }
@@ -7905,7 +7928,7 @@ var Character = /*#__PURE__*/function (_Entity) {
       if (this.state) {
         var _this$transitions$get;
 
-        var transitionState = (_this$transitions$get = this.transitions.get(this.state.name)) === null || _this$transitions$get === void 0 ? void 0 : _this$transitions$get.get(stateName);
+        var transitionState = (_this$transitions$get = this.transitions.get(this.state.name)) === null || _this$transitions$get === void 0 ? void 0 : _this$transitions$get.get(state.name);
 
         if (transitionState && this.states.has(transitionState.name)) {
           if (this.transitionToState(transitionState)) {
@@ -7941,14 +7964,15 @@ var Character = /*#__PURE__*/function (_Entity) {
       }
 
       if (this.grounded) {
-        this.targetVelocity.x = this.inputVector.x * 2.5;
-        this.targetVelocity.z = this.inputVector.z * 2.5;
+        this.targetVelocity.x = this.inputVector.x * this.speed;
+        this.targetVelocity.z = this.inputVector.z * this.speed;
 
         if (this.getActionValue(this.bindings.SPRINT)) {
-          this.targetVelocity.x *= 2.5;
-          this.targetVelocity.z *= 2.5;
+          this.targetVelocity.x *= this.sprintMultiplier;
+          this.targetVelocity.z *= this.sprintMultiplier;
         }
 
+        this.targetVelocity.multiplyScalar(this.scale);
         this.lerpedVelocity.copy(this.physicsBody.velocity);
         this.targetVelocity.y = this.physicsBody.velocity.y;
         this.lerpedVelocity.lerp(this.targetVelocity, this.velocityLerpFactor);

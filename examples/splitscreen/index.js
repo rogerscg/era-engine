@@ -45,7 +45,10 @@ async function start() {
 
   // Create characters.
   for (let i = 0; i < NUM_PLAYERS; i++) {
-    const character = new Character().withPhysics().setPlayerNumber(i);
+    const character = new Character()
+      .withPhysics()
+      .setPlayerNumber(i)
+      .setScale(i == 0 ? 1.0 : 0.2);
     await world.add(character);
     world
       .attachCameraToEntity(character, `player-${i + 1}`)
