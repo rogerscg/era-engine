@@ -364,7 +364,7 @@ class Controls extends Plugin {
   onMouseClick(e) {
     if (
       this.pointerLockEnabled &&
-      (this.pointerLockTarget === null || e.target == this.pointerLockTarget)
+      (!this.pointerLockTarget || e.target == this.pointerLockTarget)
     ) {
       this.requestPointerLock();
     }

@@ -7,14 +7,10 @@ class Character extends EraCharacter {
   constructor() {
     super();
     this.modelName = 'robot';
-    this.idleAnimationName = 'Character|Idling';
-    this.walkingAnimationName = 'Character|Walking';
-    this.sprintingAnimationName = 'Character|Running';
-  }
-
-  /** @override */
-  jump() {
-    // Jump disabled for this level.
+    this.animations.set('idle', 'Character|Idling');
+    this.animations.set('walking', 'Character|Walking');
+    this.animations.set('running', 'Character|Running');
+    this.states.delete('jumping');
   }
 }
 

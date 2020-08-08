@@ -39,6 +39,7 @@ export { default as NetworkRegistry } from './network/network_registry.js';
 
 // Objects
 export { default as Character } from './objects/character.js';
+export { default as CharacterState } from './objects/character_state.js';
 export { default as Entity } from './objects/entity.js';
 export { default as Environment } from './objects/environment.js';
 export { default as FreeRoamEntity } from './objects/free_roam_entity.js';

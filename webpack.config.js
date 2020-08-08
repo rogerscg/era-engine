@@ -25,6 +25,7 @@ function buildSpecificExample(dir) {
       filename: 'build.js',
       path: path.resolve(__dirname, `examples/${dir}/`),
     },
+    devtool: 'eval-source-map',
   };
   return rule;
 }
