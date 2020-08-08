@@ -385,7 +385,7 @@ class Character extends Entity {
     // Handle grounded/landing state.
     if (!this.grounded) {
       if (this.states.has('falling')) {
-        this.transitionToState(this.states.get('falling'));
+        return this.transitionToState(this.states.get('falling'));
       }
     }
     // Handle jump input.
@@ -395,7 +395,7 @@ class Character extends Entity {
       this.grounded
     ) {
       if (this.states.has('jumping')) {
-        this.transitionToState(this.states.get('jumping'));
+        return this.transitionToState(this.states.get('jumping'));
       }
     }
     if (

@@ -7873,14 +7873,14 @@ var Character = /*#__PURE__*/function (_Entity) {
 
       if (!this.grounded) {
         if (this.states.has('falling')) {
-          this.transitionToState(this.states.get('falling'));
+          return this.transitionToState(this.states.get('falling'));
         }
       } // Handle jump input.
 
 
       if (this.getActionValue(this.bindings.JUMP) && this.state.name !== 'jumping' && this.grounded) {
         if (this.states.has('jumping')) {
-          this.transitionToState(this.states.get('jumping'));
+          return this.transitionToState(this.states.get('jumping'));
         }
       }
 
