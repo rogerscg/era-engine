@@ -1,4 +1,4 @@
-import { Character as EraCharacter } from '../../build/era.js';
+import { Character as EraCharacter, CharacterState } from '../../build/era.js';
 
 const MAX_CAMERA_Z = Math.PI / 4;
 const MIN_CAMERA_Z = -Math.PI / 24;
@@ -12,7 +12,7 @@ class Character extends EraCharacter {
     this.modelName = 'robot';
     this.animations.set('idle', 'Character|Idling');
     this.animations.set('walking', 'Character|Walking');
-    this.animations.set('sprinting', 'Character|Running');
+    this.animations.set('running', 'Character|Running');
     this.animations.set('jumping', 'Character|JumpUp');
     this.animations.set('falling', 'Character|Falling');
     this.animations.set('landing', 'Character|Landing');
@@ -27,7 +27,7 @@ class Character extends EraCharacter {
   /** @override */
   jump() {
     if (super.jump()) {
-      this.physicsBody.velocity.y = 5;
+      this.physicsBody.velocity.y = 3.5;
     }
   }
 

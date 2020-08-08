@@ -2780,7 +2780,7 @@ var Controls = /*#__PURE__*/function (_Plugin) {
   }, {
     key: "onMouseClick",
     value: function onMouseClick(e) {
-      if (this.pointerLockEnabled && (this.pointerLockTarget === null || e.target == this.pointerLockTarget)) {
+      if (this.pointerLockEnabled && (!this.pointerLockTarget || e.target == this.pointerLockTarget)) {
         this.requestPointerLock();
       }
     }
@@ -6553,6 +6553,116 @@ var NetworkRegistry = /*#__PURE__*/function (_Map) {
 
 var network_registry = new NetworkRegistry();
 
+var CharacterState = /*#__PURE__*/function () {
+  /**
+   * @param {string} stateName
+   */
+  function CharacterState(stateName) {
+    _classCallCheck(this, CharacterState);
+
+    this.name = stateName; // Transitions for the given states.
+
+    this.transitions = new Map(); // The function called when starting the state.
+
+    this.startFunction = null; // The function called when ending the state.
+
+    this.endFunction = null; // The function called to determine if the state is eligible.
+
+    this.eligibilityFunction = null;
+  }
+  /**
+   * Sets the state as transition state between the two states.
+   * @param {string} fromState
+   * @param {string} toState
+   * @returns {CharacterState}
+   */
+
+
+  _createClass(CharacterState, [{
+    key: "withTransition",
+    value: function withTransition(fromState, toState) {
+      this.transitions.set(fromState, toState);
+      return this;
+    }
+    /**
+     * Sets the function called at the start of the state.
+     * @param {function} startFunction
+     * @returns {CharacterState}
+     */
+
+  }, {
+    key: "withStartFunction",
+    value: function withStartFunction(startFunction) {
+      this.startFunction = startFunction;
+      return this;
+    }
+    /**
+     * Sets the function called at the end of the state.
+     * @param {function} endFunction
+     * @returns {CharacterState}
+     */
+
+  }, {
+    key: "withEndFunction",
+    value: function withEndFunction(endFunction) {
+      this.endFunction = endFunction;
+      return this;
+    }
+    /**
+     * Sets a function called to determine if the state is eligible.
+     */
+
+  }, {
+    key: "withEligibilityFunction",
+    value: function withEligibilityFunction(eligibilityFunction) {
+      this.eligibilityFunction = eligibilityFunction;
+      return this;
+    }
+    /**
+     * Marks the beginning of the state.
+     */
+
+  }, {
+    key: "start",
+    value: function start() {
+      if (this.startFunction) {
+        this.startFunction();
+      }
+    }
+    /**
+     * Marks the end of the state. Returns true if ended successfully. Otherwise,
+     * the state can prevent itself from ending by returning false.
+     * @returns {boolean}
+     */
+
+  }, {
+    key: "end",
+    value: function end() {
+      if (this.endFunction) {
+        return this.endFunction();
+      }
+
+      return true;
+    }
+    /**
+     * Returns if the state is eligible.
+     * @returns {boolean}
+     */
+
+  }, {
+    key: "isEligible",
+    value: function isEligible() {
+      if (this.eligibilityFunction) {
+        return this.eligibilityFunction();
+      }
+
+      return true;
+    }
+  }]);
+
+  return CharacterState;
+}();
+
 /**
  * Creates a physics body based on extra data provided from the model, such as
  * userData. This only works for a select number of objects, so please use
@@ -7401,7 +7511,6 @@ var CHARACTER_BINDINGS = {
     }
   }
 };
-var DEFAULT_STATES = ['idle', 'walking', 'sprinting', 'jumping', 'falling', 'landing'];
 var RAYCAST_GEO = new BoxGeometry(0.2, 0.2, 0.2);
 var RAYCAST_MATERIAL = new MeshLambertMaterial({
   color: 0xff0000
@@ -7416,7 +7525,7 @@ var DEFAULT_CAPSULE_RADIUS = 0.25;
 var DEFAULT_HEIGHT = 1.8;
 var DEFAULT_LERP_FACTOR = 0.5;
 var DEFAULT_MASS = 1;
-var DEFAULT_FALL_THRESHOLD = 700;
+var DEFAULT_FALL_THRESHOLD = 300;
 var DEFAULT_JUMP_MIN = 500;
 var DEFAULT_LAND_MIX_THRESHOLD = 150;
 var DEFAULT_LAND_SPEED_THRESHOLD = 5;
@@ -7466,10 +7575,13 @@ var Character = /*#__PURE__*/function (_Entity) {
 
     _this.landTimeThreshold = DEFAULT_LAND_TIME_THRESHOLD;
     _this.animations = new Map();
-    _this.states = new Set(DEFAULT_STATES);
+    _this.transitions = new Map();
+    _this.states = new Map();
+
+    _this.registerStates();
+
     _this.jumpAction = null;
     _this.landAction = null;
-    _this.state = 'idle';
     _this.grounded = false;
     _this.frozen = false;
     _this.lastGroundedTime = 0;
@@ -7594,7 +7706,16 @@ var Character = /*#__PURE__*/function (_Entity) {
       _get(_getPrototypeOf(Character.prototype), "update", this).call(this);
 
       this.updateRaycast();
-      this.updateAnimations();
+      this.updateState(); // Update bits.
+
+      if (!this.grounded) {
+        this.previouslyGrounded = false;
+      } else {
+        this.wasFalling = false;
+        this.lastGroundedTime = performance.now();
+        this.previouslyGrounded = true;
+      }
+
       this.updatePhysics();
     }
     /** @override */
@@ -7605,22 +7726,71 @@ var Character = /*#__PURE__*/function (_Entity) {
       this.toggleRaycastDebug();
     }
     /**
+     * Registers states for the character.
+     * @returns {Map<string, CharacterState}
+     */
+
+  }, {
+    key: "registerStates",
+    value: function registerStates() {
+      var _this2 = this;
+
+      var idleState = new CharacterState('idle').withStartFunction(function () {
+        _this2.idle();
+      });
+      this.addState(idleState);
+      var walkingState = new CharacterState('walking').withStartFunction(function () {
+        _this2.walk();
+      }).withEligibilityFunction(function () {
+        return _this2.isMovementEnabled();
+      });
+      this.addState(walkingState);
+      var runningState = new CharacterState('running').withStartFunction(function () {
+        _this2.run();
+      }).withEligibilityFunction(function () {
+        return _this2.isMovementEnabled();
+      });
+      this.addState(runningState);
+      var jumpingState = new CharacterState('jumping').withStartFunction(function () {
+        _this2.jump();
+      }).withEndFunction(function () {
+        return !_this2.isJumpCooldown();
+      });
+      this.addState(jumpingState);
+      var fallingState = new CharacterState('falling').withStartFunction(function () {
+        _this2.fall();
+      }).withEligibilityFunction(function () {
+        return _this2.shouldFall();
+      });
+      this.addState(fallingState);
+      var landingState = new CharacterState('landing').withStartFunction(function () {
+        _this2.land();
+      }).withEligibilityFunction(function () {
+        return _this2.shouldLand();
+      }).withEndFunction(function () {
+        return !_this2.isLandPlaying();
+      }).withTransition('falling', 'idle');
+      this.addState(landingState); // TODO: Add rolling state for falling -> running/walking.
+    }
+    /**
      * Adds a state to the character as well as the animation for the given state.
-     * @param {string} stateName
-     * @param {string} animationName
+     * @param {CharacterState} state
      * @returns {Character}
      */
 
   }, {
     key: "addState",
-    value: function addState(stateName) {
-      var animationName = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : null;
-      this.states.add(stateName);
+    value: function addState(state) {
+      var _this3 = this;
 
-      if (animationName) {
-        this.animations.set(stateName, animationName);
-      }
+      this.states.set(state.name, state);
+      state.transitions.forEach(function (toState, fromState) {
+        if (!_this3.transitions.has(fromState)) {
+          _this3.transitions.set(fromState, new Map());
+        }
 
+        _this3.transitions.get(fromState).set(toState, state);
+      });
       return this;
     }
     /**
@@ -7645,17 +7815,19 @@ var Character = /*#__PURE__*/function (_Entity) {
       this.ray.intersectBodies(this.physicsWorld.getWorld().bodies, this.ray.result);
 
       if (this.ray.result.hasHit) {
+        this.grounded = true;
         var hitDistance = this.ray.result.distance;
         var diff = this.capsuleOffset + this.height / 2 - hitDistance;
         this.rayEndBox.position.y = this.rayStartBox.position.y - hitDistance;
         this.rayEndBox.material.color.setHex(0xff8800); // Lerp new position.
 
-        var newY = this.physicsBody.position.y + diff;
-        var lerpedY = lerp(this.physicsBody.position.y, newY, this.lerpFactor);
-        this.physicsBody.position.y = lerpedY;
-        this.physicsBody.interpolatedPosition.y = lerpedY;
-        this.physicsBody.velocity.y = 0;
-        this.grounded = true;
+        if (this.shouldUseRaycastPosition()) {
+          var newY = this.physicsBody.position.y + diff;
+          var lerpedY = lerp(this.physicsBody.position.y, newY, this.lerpFactor);
+          this.physicsBody.position.y = lerpedY;
+          this.physicsBody.interpolatedPosition.y = lerpedY;
+          this.physicsBody.velocity.y = 0;
+        }
       } else {
         this.grounded = false;
         this.rayEndBox.material.color.setHex(0xff0000);
@@ -7666,40 +7838,95 @@ var Character = /*#__PURE__*/function (_Entity) {
      */
 
   }, {
-    key: "updateAnimations",
-    value: function updateAnimations() {
-      if (this.frozen) {
-        this.idle();
-        return;
+    key: "updateState",
+    value: function updateState() {
+      // Handle the base case.
+      if (this.frozen || !this.state) {
+        if (this.states.has('idle')) {
+          return this.transitionToState(this.states.get('idle'));
+        }
       } // Handle grounded/landing state.
 
 
       if (!this.grounded) {
-        this.previouslyGrounded = false;
-        return this.fall();
-      } else {
-        if (!this.previouslyGrounded) {
-          this.land();
+        if (this.states.has('falling')) {
+          this.transitionToState(this.states.get('falling'));
         }
+      } // Handle jump input.
 
-        this.wasFalling = false;
-        this.lastGroundedTime = performance.now();
-        this.previouslyGrounded = true;
-      }
 
-      if (this.getActionValue(this.bindings.JUMP)) {
-        return this.jump();
+      if (this.getActionValue(this.bindings.JUMP) && this.state.name !== 'jumping') {
+        if (this.states.has('jumping')) {
+          this.transitionToState(this.states.get('jumping'));
+        }
       }
 
       if (this.getActionValue(this.bindings.FORWARD) || this.getActionValue(this.bindings.BACKWARD) || this.getActionValue(this.bindings.LEFT) || this.getActionValue(this.bindings.RIGHT)) {
         if (this.getActionValue(this.bindings.SPRINT)) {
-          this.sprint();
+          if (this.states.has('running')) {
+            this.transitionToState(this.states.get('running'));
+          }
         } else {
-          this.walk();
+          if (this.states.has('walking')) {
+            this.transitionToState(this.states.get('walking'));
+          }
         }
       } else {
-        this.idle();
+        if (this.states.has('idle')) {
+          this.transitionToState(this.states.get('idle'));
+        }
       }
+    }
+    /**
+     * Transitions to the given state, waiting for any mediary states.
+     * Returns true if the transition occurred.
+     * @param {CharacterState} state
+     * @returns {boolean}
+     */
+
+  }, {
+    key: "transitionToState",
+    value: function transitionToState(state) {
+      var _this$state;
+
+      if (!state) {
+        return false;
+      }
+
+      if (this.state === state) {
+        return false;
+      }
+
+      if (!state.isEligible()) {
+        return false;
+      } // Check for transition states.
+
+
+      if (this.state) {
+        var _this$transitions$get;
+
+        var transitionState = (_this$transitions$get = this.transitions.get(this.state.name)) === null || _this$transitions$get === void 0 ? void 0 : _this$transitions$get.get(stateName);
+
+        if (transitionState && this.states.has(transitionState.name)) {
+          if (this.transitionToState(transitionState)) {
+            return false;
+          }
+        }
+      } // End current state.
+
+
+      var endSuccess = (_this$state = this.state) === null || _this$state === void 0 ? void 0 : _this$state.end();
+
+      if (this.state && !endSuccess) {
+        return false;
+      } // Update the current state.
+
+
+      this.state = state; // Start the next state.
+
+      state.start(); // TODO: Maybe have a "hard interrupt" in case of "falling during slide" or similar
+
+      return true;
     }
     /**
      * Updates the physics state of the character.
@@ -7770,6 +7997,16 @@ var Character = /*#__PURE__*/function (_Entity) {
       }
     }
     /**
+     * Returns if movement is enabled.
+     * @param {boolean}
+     */
+
+  }, {
+    key: "isMovementEnabled",
+    value: function isMovementEnabled() {
+      return this.grounded && !this.frozen;
+    }
+    /**
      * Freezes the character, preventing it from updating.
      */
 
@@ -7795,19 +8032,6 @@ var Character = /*#__PURE__*/function (_Entity) {
   }, {
     key: "idle",
     value: function idle() {
-      if (this.state == 'idle') {
-        return;
-      }
-
-      if (this.isJumpCooldown()) {
-        return;
-      }
-
-      if (this.isLandPlaying()) {
-        return;
-      }
-
-      this.state = 'idle';
       this.playAnimation(this.animations.get('idle'));
     }
     /**
@@ -7817,42 +8041,16 @@ var Character = /*#__PURE__*/function (_Entity) {
   }, {
     key: "walk",
     value: function walk() {
-      if (this.state == 'walking') {
-        return;
-      }
-
-      if (this.isJumpCooldown()) {
-        return;
-      }
-
-      if (this.isLandPlaying()) {
-        return;
-      }
-
-      this.state = 'walking';
       this.playAnimation(this.animations.get('walking'));
     }
     /**
-     * Marks the character in a sprint state.
+     * Marks the character in a running state.
      */
 
   }, {
-    key: "sprint",
-    value: function sprint() {
-      if (this.state == 'sprinting') {
-        return;
-      }
-
-      if (this.isJumpCooldown()) {
-        return;
-      }
-
-      if (this.isLandPlaying()) {
-        return;
-      }
-
-      this.state = 'sprinting';
-      this.playAnimation(this.animations.get('sprinting'));
+    key: "run",
+    value: function run() {
+      this.playAnimation(this.animations.get('running'));
     }
     /**
      * Marks the character in a jump state.
@@ -7861,11 +8059,6 @@ var Character = /*#__PURE__*/function (_Entity) {
   }, {
     key: "jump",
     value: function jump() {
-      if (this.state == 'jumping') {
-        return;
-      }
-
-      this.state = 'jumping';
       this.jumpTime = performance.now();
       this.jumpAction = this.playAnimation(this.animations.get('jumping'));
 
@@ -7878,27 +8071,59 @@ var Character = /*#__PURE__*/function (_Entity) {
       return true;
     }
     /**
+     * Determines if the jump has been long enough to end. Prevents awkward
+     * 'bouncing' from idle to jump states.
+     */
+
+    /**
+     * Determines eligibility for fall state.
+     * @returns {boolean}
+     */
+
+  }, {
+    key: "shouldFall",
+    value: function shouldFall() {
+      if (performance.now() - this.lastGroundedTime < this.fallThreshold) {
+        return false;
+      }
+
+      if (this.jumpAction && this.jumpAction.isRunning()) {
+        return false;
+      }
+
+      return true;
+    }
+    /**
      * Marks the character in a falling state.
      */
 
   }, {
     key: "fall",
     value: function fall() {
-      if (this.state == 'falling') {
-        return;
-      }
-
-      if (performance.now() - this.lastGroundedTime < this.fallThreshold) {
-        return;
-      }
-
-      if (this.jumpAction && this.jumpAction.isRunning()) {
-        return;
-      }
-
       this.wasFalling = true;
-      this.state = 'falling';
       this.playAnimation(this.animations.get('falling'));
+    }
+    /**
+     * Determines if the landing state is eligible.
+     * @returns {boolean}
+     */
+
+  }, {
+    key: "shouldLand",
+    value: function shouldLand() {
+      var diff = performance.now() - this.lastGroundedTime;
+
+      if (diff < this.landTimeThreshold) {
+        return false;
+      }
+
+      this.landingDummy.set(this.physicsBody.velocity.x, this.physicsBody.velocity.z);
+
+      if (this.landingDummy.length() > this.landSpeedThreshold) {
+        return false;
+      }
+
+      return true;
     }
     /**
      * Plays landing animation.
@@ -7907,32 +8132,15 @@ var Character = /*#__PURE__*/function (_Entity) {
   }, {
     key: "land",
     value: function land() {
-      console.log('land?');
-      var diff = performance.now() - this.lastGroundedTime;
-
-      if (diff < this.landTimeThreshold) {
-        return;
-      }
-
-      this.landingDummy.set(this.physicsBody.velocity.x, this.physicsBody.velocity.z);
-      console.log(this.landingDummy);
-      console.log(this.landingDummy.length()); // TODO: We should have a cooler running landing animation like a roll or
-      // stumble.
-
-      if (this.landingDummy.length() > this.landSpeedThreshold) {
-        return;
-      }
-
       this.landAction = this.playAnimation(this.animations.get('landing'));
 
-      if (!this.landAction) {
-        return;
+      if (this.landAction) {
+        this.landAction.loop = LoopOnce;
+        this.tempFreeze(1000 * this.landAction.getClip().duration - this.landMixThreshold);
       }
 
-      this.landAction.loop = LoopOnce;
       this.physicsBody.velocity.x = 0;
       this.physicsBody.velocity.z = 0;
-      this.tempFreeze(1000 * this.landAction.getClip().duration - this.landMixThreshold);
     }
     /**
      * Checks if the landing animation is still playing.
@@ -7956,7 +8164,8 @@ var Character = /*#__PURE__*/function (_Entity) {
   }, {
     key: "isJumpCooldown",
     value: function isJumpCooldown() {
-      return performance.now() - this.jumpTime < this.jumpMin;
+      var diff = performance.now() - this.jumpTime;
+      return diff < this.jumpMin;
     }
     /**
      * Temporarily freezes the character.
@@ -7966,12 +8175,29 @@ var Character = /*#__PURE__*/function (_Entity) {
   }, {
     key: "tempFreeze",
     value: function tempFreeze(time) {
-      var _this2 = this;
+      var _this4 = this;
 
       this.freeze();
       this.unfreezeTimeout = setTimeout(function () {
-        return _this2.unfreeze();
+        return _this4.unfreeze();
       }, time);
+    }
+    /**
+     * Determines if the raycast position should be used. Useful for actions like
+     * jumping.
+     * @returns {boolean}
+     */
+
+  }, {
+    key: "shouldUseRaycastPosition",
+    value: function shouldUseRaycastPosition() {
+      var _this$state2;
+
+      if (((_this$state2 = this.state) === null || _this$state2 === void 0 ? void 0 : _this$state2.name) == 'jumping') {
+        return false;
+      }
+
+      return true;
     }
   }], [{
     key: "GetBindings",
@@ -9179,4 +9405,4 @@ var TerrainMap = /*#__PURE__*/function () {
   return TerrainMap;
 }();
 
-export { Action, Animation, Audio, Bindings, Camera, Character, Controls, Engine, EngineResetEvent, Entity, Environment, EraEvent, Events, FreeRoamEntity, GameMode, Light, MaterialManager, Models, Network, network_registry as NetworkRegistry, PhysicsPlugin, Plugin, QualityAdjuster, RendererStats, Settings$1 as Settings, SettingsEvent, SettingsPanel$1 as SettingsPanel, Skybox, TerrainMap, TerrainTile, TweenPlugin, WorkerPool, World, createUUID, defaultEraRenderer, disableShadows, dispose, extractMeshes, extractMeshesByName, getHexColorRatio, getRootScene, getRootWorld, lerp, loadJsonFromFile, loadTexture, shuffleArray, toDegrees, toRadians, vectorToAngle };
+export { Action, Animation, Audio, Bindings, Camera, Character, CharacterState, Controls, Engine, EngineResetEvent, Entity, Environment, EraEvent, Events, FreeRoamEntity, GameMode, Light, MaterialManager, Models, Network, network_registry as NetworkRegistry, PhysicsPlugin, Plugin, QualityAdjuster, RendererStats, Settings$1 as Settings, SettingsEvent, SettingsPanel$1 as SettingsPanel, Skybox, TerrainMap, TerrainTile, TweenPlugin, WorkerPool, World, createUUID, defaultEraRenderer, disableShadows, dispose, extractMeshes, extractMeshesByName, getHexColorRatio, getRootScene, getRootWorld, lerp, loadJsonFromFile, loadTexture, shuffleArray, toDegrees, toRadians, vectorToAngle };

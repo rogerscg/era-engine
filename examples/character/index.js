@@ -50,7 +50,7 @@ async function start() {
   await world.add(stage);
 
   // Create stairs.
-  const stairs = new Stairs(0.2, 0.4, 10, 2);
+  const stairs = new Stairs(0.2, 0.4, 20, 2);
   await world.add(stairs);
   stairs.getPosition().set(-5, 0, 6);
 

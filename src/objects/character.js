@@ -1,3 +1,4 @@
+import CharacterState from './character_state.js';
 import Controls from '../core/controls.js';
 import Entity from './entity.js';
 import MaterialManager from '../physics/material_manager.js';
@@ -32,15 +33,6 @@ const CHARACTER_BINDINGS = {
   },
 };
 
-const DEFAULT_STATES = [
-  'idle',
-  'walking',
-  'sprinting',
-  'jumping',
-  'falling',
-  'landing',
-];
-
 const RAYCAST_GEO = new THREE.BoxGeometry(0.2, 0.2, 0.2);
 const RAYCAST_MATERIAL = new THREE.MeshLambertMaterial({ color: 0xff0000 });
 const RAYCAST_BLUE_MATERIAL = new THREE.MeshLambertMaterial({
@@ -55,7 +47,7 @@ const DEFAULT_CAPSULE_RADIUS = 0.25;
 const DEFAULT_HEIGHT = 1.8;
 const DEFAULT_LERP_FACTOR = 0.5;
 const DEFAULT_MASS = 1;
-const DEFAULT_FALL_THRESHOLD = 700;
+const DEFAULT_FALL_THRESHOLD = 300;
 const DEFAULT_JUMP_MIN = 500;
 const DEFAULT_LAND_MIX_THRESHOLD = 150;
 const DEFAULT_LAND_SPEED_THRESHOLD = 5;
@@ -98,11 +90,12 @@ class Character extends Entity {
     this.landTimeThreshold = DEFAULT_LAND_TIME_THRESHOLD;
 
     this.animations = new Map();
-    this.states = new Set(DEFAULT_STATES);
+    this.transitions = new Map();
+    this.states = new Map();
+    this.registerStates();
     this.jumpAction = null;
     this.landAction = null;
 
-    this.state = 'idle';
     this.grounded = false;
     this.frozen = false;
     this.lastGroundedTime = 0;
@@ -217,6 +210,14 @@ class Character extends Entity {
     super.update();
     this.updateRaycast();
     this.updateState();
+    // Update bits.
+    if (!this.grounded) {
+      this.previouslyGrounded = false;
+    } else {
+      this.wasFalling = false;
+      this.lastGroundedTime = performance.now();
+      this.previouslyGrounded = true;
+    }
     this.updatePhysics();
   }
 
@@ -226,16 +227,74 @@ class Character extends Entity {
   }
 
   /**
+   * Registers states for the character.
+   * @returns {Map<string, CharacterState}
+   */
+  registerStates() {
+    const idleState = new CharacterState('idle').withStartFunction(() => {
+      this.idle();
+    });
+    this.addState(idleState);
+    const walkingState = new CharacterState('walking')
+      .withStartFunction(() => {
+        this.walk();
+      })
+      .withEligibilityFunction(() => {
+        return this.isMovementEnabled();
+      });
+    this.addState(walkingState);
+    const runningState = new CharacterState('running')
+      .withStartFunction(() => {
+        this.run();
+      })
+      .withEligibilityFunction(() => {
+        return this.isMovementEnabled();
+      });
+    this.addState(runningState);
+    const jumpingState = new CharacterState('jumping')
+      .withStartFunction(() => {
+        this.jump();
+      })
+      .withEndFunction(() => {
+        return !this.isJumpCooldown();
+      });
+    this.addState(jumpingState);
+    const fallingState = new CharacterState('falling')
+      .withStartFunction(() => {
+        this.fall();
+      })
+      .withEligibilityFunction(() => {
+        return this.shouldFall();
+      });
+    this.addState(fallingState);
+    const landingState = new CharacterState('landing')
+      .withStartFunction(() => {
+        this.land();
+      })
+      .withEligibilityFunction(() => {
+        return this.shouldLand();
+      })
+      .withEndFunction(() => {
+        return !this.isLandPlaying();
+      })
+      .withTransition('falling', 'idle');
+    this.addState(landingState);
+    // TODO: Add rolling state for falling -> running/walking.
+  }
+
+  /**
    * Adds a state to the character as well as the animation for the given state.
-   * @param {string} stateName
-   * @param {string} animationName
+   * @param {CharacterState} state
    * @returns {Character}
    */
-  addState(stateName, animationName = null) {
-    this.states.add(stateName);
-    if (animationName) {
-      this.animations.set(stateName, animationName);
-    }
+  addState(state) {
+    this.states.set(state.name, state);
+    state.transitions.forEach((toState, fromState) => {
+      if (!this.transitions.has(fromState)) {
+        this.transitions.set(fromState, new Map());
+      }
+      this.transitions.get(fromState).set(toState, state);
+    });
     return this;
   }
 
@@ -259,17 +318,23 @@ class Character extends Entity {
       this.ray.result
     );
     if (this.ray.result.hasHit) {
+      this.grounded = true;
       const hitDistance = this.ray.result.distance;
       const diff = this.capsuleOffset + this.height / 2 - hitDistance;
       this.rayEndBox.position.y = this.rayStartBox.position.y - hitDistance;
       this.rayEndBox.material.color.setHex(0xff8800);
       // Lerp new position.
-      const newY = this.physicsBody.position.y + diff;
-      const lerpedY = lerp(this.physicsBody.position.y, newY, this.lerpFactor);
-      this.physicsBody.position.y = lerpedY;
-      this.physicsBody.interpolatedPosition.y = lerpedY;
-      this.physicsBody.velocity.y = 0;
-      this.grounded = true;
+      if (this.shouldUseRaycastPosition()) {
+        const newY = this.physicsBody.position.y + diff;
+        const lerpedY = lerp(
+          this.physicsBody.position.y,
+          newY,
+          this.lerpFactor
+        );
+        this.physicsBody.position.y = lerpedY;
+        this.physicsBody.interpolatedPosition.y = lerpedY;
+        this.physicsBody.velocity.y = 0;
+      }
     } else {
       this.grounded = false;
       this.rayEndBox.material.color.setHex(0xff0000);
@@ -280,24 +345,26 @@ class Character extends Entity {
    * Updates the animation state of the character.
    */
   updateState() {
-    if (this.frozen) {
-      this.idle();
-      return;
+    // Handle the base case.
+    if (this.frozen || !this.state) {
+      if (this.states.has('idle')) {
+        return this.transitionToState(this.states.get('idle'));
+      }
     }
     // Handle grounded/landing state.
     if (!this.grounded) {
-      this.previouslyGrounded = false;
-      return this.fall();
-    } else {
-      if (!this.previouslyGrounded) {
-        this.land();
+      if (this.states.has('falling')) {
+        this.transitionToState(this.states.get('falling'));
       }
-      this.wasFalling = false;
-      this.lastGroundedTime = performance.now();
-      this.previouslyGrounded = true;
     }
-    if (this.getActionValue(this.bindings.JUMP)) {
-      return this.jump();
+    // Handle jump input.
+    if (
+      this.getActionValue(this.bindings.JUMP) &&
+      this.state.name !== 'jumping'
+    ) {
+      if (this.states.has('jumping')) {
+        this.transitionToState(this.states.get('jumping'));
+      }
     }
     if (
       this.getActionValue(this.bindings.FORWARD) ||
@@ -306,13 +373,59 @@ class Character extends Entity {
       this.getActionValue(this.bindings.RIGHT)
     ) {
       if (this.getActionValue(this.bindings.SPRINT)) {
-        this.sprint();
+        if (this.states.has('running')) {
+          this.transitionToState(this.states.get('running'));
+        }
       } else {
-        this.walk();
+        if (this.states.has('walking')) {
+          this.transitionToState(this.states.get('walking'));
+        }
       }
     } else {
-      this.idle();
+      if (this.states.has('idle')) {
+        this.transitionToState(this.states.get('idle'));
+      }
     }
+  }
+
+  /**
+   * Transitions to the given state, waiting for any mediary states.
+   * Returns true if the transition occurred.
+   * @param {CharacterState} state
+   * @returns {boolean}
+   */
+  transitionToState(state) {
+    if (!state) {
+      return false;
+    }
+    if (this.state === state) {
+      return false;
+    }
+    if (!state.isEligible()) {
+      return false;
+    }
+    // Check for transition states.
+    if (this.state) {
+      const transitionState = this.transitions
+        .get(this.state.name)
+        ?.get(stateName);
+      if (transitionState && this.states.has(transitionState.name)) {
+        if (this.transitionToState(transitionState)) {
+          return false;
+        }
+      }
+    }
+    // End current state.
+    const endSuccess = this.state?.end();
+    if (this.state && !endSuccess) {
+      return false;
+    }
+    // Update the current state.
+    this.state = state;
+    // Start the next state.
+    state.start();
+    // TODO: Maybe have a "hard interrupt" in case of "falling during slide" or similar
+    return true;
   }
 
   /**
@@ -374,6 +487,14 @@ class Character extends Entity {
   }
 
   /**
+   * Returns if movement is enabled.
+   * @param {boolean}
+   */
+  isMovementEnabled() {
+    return this.grounded && !this.frozen;
+  }
+
+  /**
    * Freezes the character, preventing it from updating.
    */
   freeze() {
@@ -392,16 +513,6 @@ class Character extends Entity {
    * Sets the character in the idle state.
    */
   idle() {
-    if (this.state == 'idle') {
-      return;
-    }
-    if (this.isJumpCooldown()) {
-      return;
-    }
-    if (this.isLandPlaying()) {
-      return;
-    }
-    this.state = 'idle';
     this.playAnimation(this.animations.get('idle'));
   }
 
@@ -409,44 +520,20 @@ class Character extends Entity {
    * Marks the character in a walking state.
    */
   walk() {
-    if (this.state == 'walking') {
-      return;
-    }
-    if (this.isJumpCooldown()) {
-      return;
-    }
-    if (this.isLandPlaying()) {
-      return;
-    }
-    this.state = 'walking';
     this.playAnimation(this.animations.get('walking'));
   }
 
   /**
-   * Marks the character in a sprint state.
+   * Marks the character in a running state.
    */
-  sprint() {
-    if (this.state == 'sprinting') {
-      return;
-    }
-    if (this.isJumpCooldown()) {
-      return;
-    }
-    if (this.isLandPlaying()) {
-      return;
-    }
-    this.state = 'sprinting';
-    this.playAnimation(this.animations.get('sprinting'));
+  run() {
+    this.playAnimation(this.animations.get('running'));
   }
 
   /**
    * Marks the character in a jump state.
    */
   jump() {
-    if (this.state == 'jumping') {
-      return;
-    }
-    this.state = 'jumping';
     this.jumpTime = performance.now();
     this.jumpAction = this.playAnimation(this.animations.get('jumping'));
     if (!this.jumpAction) {
@@ -458,53 +545,64 @@ class Character extends Entity {
   }
 
   /**
+   * Determines if the jump has been long enough to end. Prevents awkward
+   * 'bouncing' from idle to jump states.
+   */
+
+  /**
+   * Determines eligibility for fall state.
+   * @returns {boolean}
+   */
+  shouldFall() {
+    if (performance.now() - this.lastGroundedTime < this.fallThreshold) {
+      return false;
+    }
+    if (this.jumpAction && this.jumpAction.isRunning()) {
+      return false;
+    }
+    return true;
+  }
+
+  /**
    * Marks the character in a falling state.
    */
   fall() {
-    if (this.state == 'falling') {
-      return;
-    }
-    if (performance.now() - this.lastGroundedTime < this.fallThreshold) {
-      return;
-    }
-    if (this.jumpAction && this.jumpAction.isRunning()) {
-      return;
-    }
     this.wasFalling = true;
-    this.state = 'falling';
     this.playAnimation(this.animations.get('falling'));
+  }
+
+  /**
+   * Determines if the landing state is eligible.
+   * @returns {boolean}
+   */
+  shouldLand() {
+    const diff = performance.now() - this.lastGroundedTime;
+    if (diff < this.landTimeThreshold) {
+      return false;
+    }
+    this.landingDummy.set(
+      this.physicsBody.velocity.x,
+      this.physicsBody.velocity.z
+    );
+    if (this.landingDummy.length() > this.landSpeedThreshold) {
+      return false;
+    }
+    return true;
   }
 
   /**
    * Plays landing animation.
    */
   land() {
-    console.log('land?');
-    const diff = performance.now() - this.lastGroundedTime;
-    if (diff < this.landTimeThreshold) {
-      return;
-    }
-    this.landingDummy.set(
-      this.physicsBody.velocity.x,
-      this.physicsBody.velocity.z
-    );
-    console.log(this.landingDummy);
-    console.log(this.landingDummy.length());
-    // TODO: We should have a cooler running landing animation like a roll or
-    // stumble.
-    if (this.landingDummy.length() > this.landSpeedThreshold) {
-      return;
-    }
     this.landAction = this.playAnimation(this.animations.get('landing'));
-    if (!this.landAction) {
-      return;
+    if (this.landAction) {
+      this.landAction.loop = THREE.LoopOnce;
+      this.tempFreeze(
+        1000 * this.landAction.getClip().duration - this.landMixThreshold
+      );
     }
-    this.landAction.loop = THREE.LoopOnce;
     this.physicsBody.velocity.x = 0;
     this.physicsBody.velocity.z = 0;
-    this.tempFreeze(
-      1000 * this.landAction.getClip().duration - this.landMixThreshold
-    );
   }
 
   /**
@@ -523,7 +621,8 @@ class Character extends Entity {
    * @return {boolean}
    */
   isJumpCooldown() {
-    return performance.now() - this.jumpTime < this.jumpMin;
+    const diff = performance.now() - this.jumpTime;
+    return diff < this.jumpMin;
   }
 
   /**
@@ -533,6 +632,18 @@ class Character extends Entity {
   tempFreeze(time) {
     this.freeze();
     this.unfreezeTimeout = setTimeout(() => this.unfreeze(), time);
+  }
+
+  /**
+   * Determines if the raycast position should be used. Useful for actions like
+   * jumping.
+   * @returns {boolean}
+   */
+  shouldUseRaycastPosition() {
+    if (this.state?.name == 'jumping') {
+      return false;
+    }
+    return true;
   }
 }
 

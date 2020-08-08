@@ -10,12 +10,12 @@ class Character extends EraCharacter {
   constructor() {
     super();
     this.modelName = 'robot';
-    this.idleAnimationName = 'Character|Idling';
-    this.walkingAnimationName = 'Character|Walking';
-    this.sprintingAnimationName = 'Character|Running';
-    this.jumpingAnimationName = 'Character|JumpUp';
-    this.fallingAnimationName = 'Character|Falling';
-    this.landingAnimationName = 'Character|Landing';
+    this.animations.set('idle', 'Character|Idling');
+    this.animations.set('walking', 'Character|Walking');
+    this.animations.set('running', 'Character|Running');
+    this.animations.set('jumping', 'Character|JumpUp');
+    this.animations.set('falling', 'Character|Falling');
+    this.animations.set('landing', 'Character|Landing');
   }
 
   /** @override */
@@ -27,7 +27,7 @@ class Character extends EraCharacter {
   /** @override */
   jump() {
     if (super.jump()) {
-      this.physicsBody.velocity.y = 5;
+      this.physicsBody.velocity.y = 3.5;
     }
   }
 
