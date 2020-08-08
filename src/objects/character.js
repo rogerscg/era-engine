@@ -53,6 +53,8 @@ const DEFAULT_LAND_MIX_THRESHOLD = 150;
 const DEFAULT_LAND_SPEED_THRESHOLD = 5;
 const DEFAULT_LAND_TIME_THRESHOLD = 500;
 const DEFAULT_VELO_LERP_FACTOR = 0.15;
+const DEFAULT_SPEED = 2.5;
+const DEFAULT_SPRINT_MULTIPLIER = 2.5;
 
 /**
  * A special entity used for controlling an organic character, such as a human.
@@ -63,6 +65,10 @@ class Character extends Entity {
   constructor() {
     super();
     this.physicsQualityAdjustEnabled = false;
+    // The walking speed of the character.
+    this.speed = DEFAULT_SPEED;
+    // The factor to multiply walking speed by to sprint.
+    this.sprintMultiplier = DEFAULT_SPRINT_MULTIPLIER;
     // Make all defaults overrideable by subclasses.
     // Height of the character.
     this.height = DEFAULT_HEIGHT;
@@ -104,6 +110,7 @@ class Character extends Entity {
     this.previouslyGrounded = true;
     this.unfreezeTimeout = null;
     this.landingDummy = new THREE.Vector2();
+    this.scale = 1.0;
 
     // Raycasting properties.
     this.startVec = new CANNON.Vec3();
@@ -141,22 +148,28 @@ class Character extends Entity {
     capsule.collisionFilterGroup = 2;
 
     // Create center portion of capsule.
-    const height = this.height - this.capsuleRadius * 2 - this.capsuleOffset;
+    const height =
+      (this.height - this.capsuleRadius * 2 - this.capsuleOffset) * this.scale;
     const cylinderShape = new CANNON.Cylinder(
-      this.capsuleRadius,
-      this.capsuleRadius,
+      this.capsuleRadius * this.scale,
+      this.capsuleRadius * this.scale,
       height,
       20
     );
     const quat = new CANNON.Quaternion();
-    const cylinderPos = height / 2 + this.capsuleRadius + this.capsuleOffset;
+    const cylinderPos =
+      height / 2 +
+      this.capsuleRadius * this.scale +
+      this.capsuleOffset * this.scale;
     capsule.addShape(cylinderShape, new CANNON.Vec3(0, cylinderPos, 0), quat);
 
     // Create round ends of capsule.
-    const sphereShape = new CANNON.Sphere(this.capsuleRadius);
+    const sphereShape = new CANNON.Sphere(this.capsuleRadius * this.scale);
     const topPos = new CANNON.Vec3(
       0,
-      height + this.capsuleRadius + this.capsuleOffset,
+      height +
+        this.capsuleRadius * this.scale +
+        this.capsuleOffset * this.scale,
       0
     );
     const bottomPos = new CANNON.Vec3(
@@ -164,6 +177,7 @@ class Character extends Entity {
       this.capsuleRadius + this.capsuleOffset,
       0
     );
+    bottomPos.scale(this.scale, bottomPos);
     capsule.addShape(sphereShape, topPos);
     capsule.addShape(sphereShape, bottomPos);
 
@@ -190,6 +204,7 @@ class Character extends Entity {
   /** @override */
   async build() {
     await super.build();
+    this.visualRoot.scale.setScalar(this.scale);
     this.playAnimation(this.animations.get(this.state));
     return this;
   }
@@ -224,6 +239,18 @@ class Character extends Entity {
   /** @override */
   handleSettingsChange() {
     this.toggleRaycastDebug();
+  }
+
+  /**
+   * Sets the scale of the character.
+   * @param {number} scale
+   * @returns {Character}
+   */
+  setScale(scale) {
+    this.scale = scale;
+    this.rayEndBox.scale.setScalar(this.scale);
+    this.rayStartBox.scale.setScalar(this.scale);
+    return this;
   }
 
   /**
@@ -308,7 +335,8 @@ class Character extends Entity {
     // Set up ray targets. Make the origin vector around mid-level.
     this.ray.from.copy(this.physicsBody.interpolatedPosition);
     this.ray.to.copy(this.ray.from);
-    this.ray.from.y += this.capsuleOffset + this.height / 2;
+    this.ray.from.y +=
+      this.capsuleOffset * this.scale + (this.height * this.scale) / 2;
     this.rayStartBox.position.copy(this.ray.from);
     this.rayEndBox.position.copy(this.ray.to);
     // Intersect against the world.
@@ -320,7 +348,10 @@ class Character extends Entity {
     if (this.ray.result.hasHit) {
       this.grounded = true;
       const hitDistance = this.ray.result.distance;
-      const diff = this.capsuleOffset + this.height / 2 - hitDistance;
+      const diff =
+        this.capsuleOffset * this.scale +
+        (this.height * this.scale) / 2 -
+        hitDistance;
       this.rayEndBox.position.y = this.rayStartBox.position.y - hitDistance;
       this.rayEndBox.material.color.setHex(0xff8800);
       // Lerp new position.
@@ -360,7 +391,8 @@ class Character extends Entity {
     // Handle jump input.
     if (
       this.getActionValue(this.bindings.JUMP) &&
-      this.state.name !== 'jumping'
+      this.state.name !== 'jumping' &&
+      this.grounded
     ) {
       if (this.states.has('jumping')) {
         this.transitionToState(this.states.get('jumping'));
@@ -408,7 +440,7 @@ class Character extends Entity {
     if (this.state) {
       const transitionState = this.transitions
         .get(this.state.name)
-        ?.get(stateName);
+        ?.get(state.name);
       if (transitionState && this.states.has(transitionState.name)) {
         if (this.transitionToState(transitionState)) {
           return false;
@@ -437,12 +469,13 @@ class Character extends Entity {
       return;
     }
     if (this.grounded) {
-      this.targetVelocity.x = this.inputVector.x * 2.5;
-      this.targetVelocity.z = this.inputVector.z * 2.5;
+      this.targetVelocity.x = this.inputVector.x * this.speed;
+      this.targetVelocity.z = this.inputVector.z * this.speed;
       if (this.getActionValue(this.bindings.SPRINT)) {
-        this.targetVelocity.x *= 2.5;
-        this.targetVelocity.z *= 2.5;
+        this.targetVelocity.x *= this.sprintMultiplier;
+        this.targetVelocity.z *= this.sprintMultiplier;
       }
+      this.targetVelocity.multiplyScalar(this.scale);
       this.lerpedVelocity.copy(this.physicsBody.velocity);
       this.targetVelocity.y = this.physicsBody.velocity.y;
       this.lerpedVelocity.lerp(this.targetVelocity, this.velocityLerpFactor);
