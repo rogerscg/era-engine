@@ -48,16 +48,17 @@ class TerrainTile extends Entity {
     const dataWidth = this.data[0].length;
     const totalWidth = (dataWidth - 1) * this.elementSize;
     const totalHeight = (dataHeight - 1) * this.elementSize;
-    const geometry = new THREE.PlaneGeometry(
+    const geometry = new THREE.PlaneBufferGeometry(
       totalWidth,
       totalHeight,
       dataWidth - 1,
       dataHeight - 1
     );
+    const positionAttribute = geometry.getAttribute('position');
     this.data.forEach((row, rowIndex) => {
       row.forEach((value, valueIndex) => {
         const vertexIndex = rowIndex * dataWidth + valueIndex;
-        geometry.vertices[vertexIndex].z = value;
+        positionAttribute.setZ(vertexIndex, value);
       });
     });
     geometry.rotateX(-Math.PI / 2);

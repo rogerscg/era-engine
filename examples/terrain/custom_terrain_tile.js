@@ -15,6 +15,7 @@ class CustomTerrainTile extends TerrainTile {
     const worker = new Worker('./texture_worker.js', {
       type: 'module',
     });
+    console.time(this.uuid);
     const TextureGenerator = Comlink.wrap(worker);
     const size = TEXTURE_QUALITY * (this.data.length - 1);
     this.textureGenerator = await new TextureGenerator(
@@ -22,8 +23,8 @@ class CustomTerrainTile extends TerrainTile {
       this.getCoordinates()
     );
     const imageData = await this.textureGenerator.generate(
-      mesh.geometry.faces,
-      mesh.geometry.vertices,
+      mesh.geometry.getAttribute('position'),
+      mesh.geometry.index,
       mesh.geometry.boundingBox
     );
     worker.terminate();
@@ -40,6 +41,7 @@ class CustomTerrainTile extends TerrainTile {
     const texture = new THREE.CanvasTexture(canvas);
     mesh.material.map = texture;
     mesh.material.needsUpdate = true;
+    console.timeEnd(this.uuid);
   }
 }
 

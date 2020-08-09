@@ -2,12 +2,12 @@ const WorkerPlugin = require('worker-plugin');
 const path = require('path');
 
 const EXAMPLES = [
-  'basic',
-  'character',
-  'lod',
-  'maze',
-  'physics',
-  'splitscreen',
+  //'basic',
+  //'character',
+  //'lod',
+  //'maze',
+  //'physics',
+  //'splitscreen',
   'terrain',
 ];
 
