@@ -7095,7 +7095,7 @@ var Entity = /*#__PURE__*/function (_EventTarget) {
                   break;
                 }
 
-                return _context2.abrupt("return", console.warn('Model name not provided'));
+                return _context2.abrupt("return");
 
               case 4:
                 scene = Models.get().createModel(this.modelName);

@@ -36,10 +36,8 @@ class TextureGenerator {
   generate(vertices, index, boundingBox) {
     // Detect any changes necessary due to height.
     this.modifyTextureForHeight_(vertices, index, boundingBox);
-
     // Detect any slope differences.
     this.modifyTextureForSlope_(vertices, index, boundingBox);
-
     return this.imageData;
   }
 
@@ -100,14 +98,14 @@ class TextureGenerator {
     for (let texIndex = 0; texIndex < heightTextures.length; texIndex++) {
       const heightTexture = heightTextures[texIndex];
       // Iterate over indices for faces, 3 at a time.
-      for (let fIndex = 0; fIndex < index.array.length; fIndex += 3) {
+      for (let fIndex = 0; fIndex < index.length; fIndex += 3) {
         for (let vIndex = 0; vIndex < faceVertices.length; vIndex++) {
           const targetVector = faceVertices[vIndex];
-          const vertexLocation = index.array[fIndex + vIndex] * 3;
+          const vertexLocation = index[fIndex + vIndex] * 3;
           targetVector.set(
-            vertices.array[vertexLocation],
-            vertices.array[vertexLocation + 1],
-            vertices.array[vertexLocation + 2]
+            vertices[vertexLocation],
+            vertices[vertexLocation + 1],
+            vertices[vertexLocation + 2]
           );
         }
         // Detect if any of the vertices are within the height range for the
@@ -193,15 +191,15 @@ class TextureGenerator {
     const ab = new Vector3();
     const cb = new Vector3();
     // Iterate over each face.
-    for (let fIndex = 0; fIndex < index.array.length; fIndex += 3) {
+    for (let fIndex = 0; fIndex < index.length; fIndex += 3) {
       // Build face vectors.
       for (let vIndex = 0; vIndex < 3; vIndex++) {
         const targetVector = faceVertices[vIndex];
-        const vertexLocation = index.array[fIndex + vIndex] * 3;
+        const vertexLocation = index[fIndex + vIndex] * 3;
         targetVector.set(
-          vertices.array[vertexLocation],
-          vertices.array[vertexLocation + 1],
-          vertices.array[vertexLocation + 2]
+          vertices[vertexLocation],
+          vertices[vertexLocation + 1],
+          vertices[vertexLocation + 2]
         );
       }
       // Calculate face normal.

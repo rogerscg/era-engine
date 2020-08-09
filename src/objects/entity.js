@@ -259,7 +259,7 @@ class Entity extends EventTarget {
       return;
     }
     if (!this.modelName) {
-      return console.warn('Model name not provided');
+      return;
     }
     const scene = Models.get().createModel(this.modelName);
     return scene;
