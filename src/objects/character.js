@@ -7,6 +7,7 @@ import { Bindings } from '../core/bindings.js';
 import { lerp, vectorToAngle } from '../core/util.js';
 import * as CANNON from 'cannon-es';
 import * as THREE from 'three';
+import SpringArm from './spring_arm.js';
 
 const CHARACTER_BINDINGS = {
   SPRINT: {
@@ -65,6 +66,7 @@ class Character extends Entity {
   constructor() {
     super();
     this.physicsQualityAdjustEnabled = false;
+    this.consideredForRaycast = false;
     // The walking speed of the character.
     this.speed = DEFAULT_SPEED;
     // The factor to multiply walking speed by to sprint.
@@ -211,13 +213,17 @@ class Character extends Entity {
 
   /** @override */
   positionCamera(camera) {
-    this.cameraArm.add(camera);
-    camera.position.x = 5;
+    this.cameraArm.setCamera(camera);
+    this.cameraArm.setDistance(5);
     this.cameraArm.rotation.z = Math.PI / 6;
     this.cameraArm.rotation.y = Math.PI / 2;
     camera.lookAt(this.visualRoot.position);
-    // TODO: Fix this junk.
-    Promise.resolve().then(() => (camera.position.y = 1.2));
+    this.cameraArm.position.y = 1.2;
+  }
+
+  /** @override */
+  createCameraArm() {
+    return new SpringArm().setEntity(this);
   }
 
   /** @override */
@@ -234,6 +240,7 @@ class Character extends Entity {
       this.previouslyGrounded = true;
     }
     this.updatePhysics();
+    this.cameraArm.update();
   }
 
   /** @override */

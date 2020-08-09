@@ -68,6 +68,7 @@ class Entity extends EventTarget {
     this.modelName = null;
     this.cameraArm = null;
     this.registeredCameras = new Set();
+    this.consideredForRaycast = true;
 
     // Physics properties.
     this.physicsBody = null;
