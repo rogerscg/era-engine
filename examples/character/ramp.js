@@ -4,7 +4,10 @@ import * as THREE from 'three';
 
 const SIDE = 3;
 const GEOMETRY = new THREE.BoxGeometry(SIDE, SIDE, SIDE);
-const MATERIAL = new THREE.MeshLambertMaterial({ color: 0x555555 });
+const MATERIAL = new THREE.MeshLambertMaterial({
+  color: 0x555555,
+  side: THREE.DoubleSide,
+});
 
 /**
  * A simple ramp.

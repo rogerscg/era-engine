@@ -44,6 +44,7 @@ export { default as Entity } from './objects/entity.js';
 export { default as Environment } from './objects/environment.js';
 export { default as FreeRoamEntity } from './objects/free_roam_entity.js';
 export { default as Skybox } from './objects/skybox.js';
+export { default as SpringArm } from './objects/spring_arm.js';
 
 // Physics
 export { default as MaterialManager } from './physics/material_manager.js';

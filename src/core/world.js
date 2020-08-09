@@ -32,6 +32,10 @@ class World extends Plugin {
 
     // A utility for adjusting quality on world entities.
     this.qualityAdjuster = null;
+
+    // A cached set of entities to raycast on for spring arm cameras.
+    this.raycastCacheNeedsUpdate = true;
+    this.cachedRaycastObjects = [];
   }
 
   /**
@@ -232,6 +236,7 @@ class World extends Plugin {
       this.physics.registerEntity(entity);
     }
     entity.onAdd();
+    this.raycastCacheNeedsUpdate = true;
     return this;
   }
 
@@ -252,6 +257,7 @@ class World extends Plugin {
       entity.setWorld(null);
     }
     entity.onRemove();
+    this.raycastCacheNeedsUpdate = true;
     return this;
   }
 
@@ -287,6 +293,7 @@ class World extends Plugin {
       console.warn(`Camera with name ${cameraName} does not exist`);
       return this;
     }
+    this.raycastCacheNeedsUpdate = true;
     const camera = this.cameras.get(cameraName);
     const prevEntity = this.entityCameras.get(camera);
     if (prevEntity) {
@@ -330,6 +337,25 @@ class World extends Plugin {
       name = DEFAULT_NAME;
     }
     return this.cameras.get(name);
+  }
+
+  /**
+   * Returns a list of visual roots that should be used for camera raycasting.
+   * Attempts to cache these objects in order to save computation.
+   * @returns {Array<THREE.Object3D>}
+   */
+  getRaycastObjects() {
+    if (!this.raycastCacheNeedsUpdate) {
+      return this.cachedRaycastObjects;
+    }
+    this.cachedRaycastObjects = [];
+    this.entities.forEach((entity) => {
+      if (entity.visualRoot && entity.consideredForRaycast) {
+        this.cachedRaycastObjects.push(entity.visualRoot);
+      }
+    });
+    this.raycastCacheNeedsUpdate = false;
+    return this.cachedRaycastObjects;
   }
 }
 

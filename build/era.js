@@ -6,7 +6,7 @@ import _possibleConstructorReturn from '@babel/runtime/helpers/possibleConstruct
 import _getPrototypeOf from '@babel/runtime/helpers/getPrototypeOf';
 import _regeneratorRuntime from '@babel/runtime/regenerator';
 import _asyncToGenerator from '@babel/runtime/helpers/asyncToGenerator';
-import { FileLoader, TextureLoader, WebGLRenderer, PCFSoftShadowMap, sRGBEncoding, AnimationMixer, PerspectiveCamera, OrthographicCamera, AmbientLight, DirectionalLight, DirectionalLightHelper, SpotLight, SpotLightHelper, CameraHelper, Vector3, LOD, Box3, Box3Helper, Scene, AxesHelper, SphereGeometry, BoxGeometry, PlaneGeometry, Geometry, Face3, Mesh, MeshBasicMaterial, CylinderGeometry, Vector2, Quaternion as Quaternion$1, Euler, Object3D, AnimationClip, MeshLambertMaterial, LoopOnce, CubeGeometry, DoubleSide, FogExp2, Fog } from 'three';
+import { FileLoader, TextureLoader, WebGLRenderer, PCFSoftShadowMap, sRGBEncoding, AnimationMixer, PerspectiveCamera, OrthographicCamera, AmbientLight, DirectionalLight, DirectionalLightHelper, SpotLight, SpotLightHelper, CameraHelper, Vector3, LOD, Box3, Box3Helper, Scene, AxesHelper, SphereGeometry, BoxGeometry, PlaneGeometry, Geometry, Face3, Mesh, MeshBasicMaterial, CylinderGeometry, Vector2, Quaternion as Quaternion$1, Euler, Object3D, AnimationClip, Raycaster, MeshLambertMaterial, LoopOnce, CubeGeometry, DoubleSide, FogExp2, Fog } from 'three';
 import _get from '@babel/runtime/helpers/get';
 import _wrapNativeSuper from '@babel/runtime/helpers/wrapNativeSuper';
 import dat from 'dat.gui';
@@ -5563,7 +5563,10 @@ var World = /*#__PURE__*/function (_Plugin) {
     _this.debugCompassMap = new Map();
     window.addEventListener('resize', _this.onWindowResize.bind(_assertThisInitialized(_this)), false); // A utility for adjusting quality on world entities.
 
-    _this.qualityAdjuster = null;
+    _this.qualityAdjuster = null; // A cached set of entities to raycast on for spring arm cameras.
+
+    _this.raycastCacheNeedsUpdate = true;
+    _this.cachedRaycastObjects = [];
     return _this;
   }
   /**
@@ -5845,9 +5848,10 @@ var World = /*#__PURE__*/function (_Plugin) {
                 }
 
                 entity.onAdd();
+                this.raycastCacheNeedsUpdate = true;
                 return _context2.abrupt("return", this);
 
-              case 12:
+              case 13:
               case "end":
                 return _context2.stop();
             }
@@ -5885,6 +5889,7 @@ var World = /*#__PURE__*/function (_Plugin) {
       }
 
       entity.onRemove();
+      this.raycastCacheNeedsUpdate = true;
       return this;
     }
     /**
@@ -5929,6 +5934,7 @@ var World = /*#__PURE__*/function (_Plugin) {
         return this;
       }
 
+      this.raycastCacheNeedsUpdate = true;
       var camera = this.cameras.get(cameraName);
       var prevEntity = this.entityCameras.get(camera);
 
@@ -5984,6 +5990,30 @@ var World = /*#__PURE__*/function (_Plugin) {
       }
 
       return this.cameras.get(name);
+    }
+    /**
+     * Returns a list of visual roots that should be used for camera raycasting.
+     * Attempts to cache these objects in order to save computation.
+     * @returns {Array<THREE.Object3D>}
+     */
+
+  }, {
+    key: "getRaycastObjects",
+    value: function getRaycastObjects() {
+      var _this5 = this;
+
+      if (!this.raycastCacheNeedsUpdate) {
+        return this.cachedRaycastObjects;
+      }
+
+      this.cachedRaycastObjects = [];
+      this.entities.forEach(function (entity) {
+        if (entity.visualRoot && entity.consideredForRaycast) {
+          _this5.cachedRaycastObjects.push(entity.visualRoot);
+        }
+      });
+      this.raycastCacheNeedsUpdate = false;
+      return this.cachedRaycastObjects;
     }
   }]);
 
@@ -6793,7 +6823,8 @@ var Entity = /*#__PURE__*/function (_EventTarget) {
     _this.mesh = null;
     _this.modelName = null;
     _this.cameraArm = null;
-    _this.registeredCameras = new Set(); // Physics properties.
+    _this.registeredCameras = new Set();
+    _this.consideredForRaycast = true; // Physics properties.
 
     _this.physicsBody = null;
     _this.physicsEnabled = true;
@@ -7487,6 +7518,112 @@ var Entity = /*#__PURE__*/function (_EventTarget) {
 function _createSuper$e(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$e(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
 
 function _isNativeReflectConstruct$e() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
+/**
+ * A spring arm used for attaching cameras to entities.
+ */
+
+var SpringArm = /*#__PURE__*/function (_Object3D) {
+  _inherits(SpringArm, _Object3D);
+
+  var _super = _createSuper$e(SpringArm);
+
+  function SpringArm() {
+    var _this;
+
+    _classCallCheck(this, SpringArm);
+
+    _this = _super.call(this);
+    _this.camera = null;
+    _this.entity = null;
+    _this.distance = 1.0;
+    _this.raycaster = new Raycaster(new Vector3(), new Vector3(), 0.25, 1);
+    _this.cameraPosition = new Vector3();
+    _this.cameraGhost = new Object3D();
+    _this.cameraGhost.position.x = _this.distance;
+    _this.targetPosition = new Vector3();
+    _this.lerpFactor = 0.15;
+    _this.cameraPadding = 1;
+
+    _this.add(_this.cameraGhost);
+
+    return _this;
+  }
+
+  _createClass(SpringArm, [{
+    key: "setDistance",
+    value: function setDistance(distance) {
+      this.distance = distance;
+      this.cameraGhost.position.x = this.distance;
+
+      if (this.camera && this.camera.parent == this) {
+        this.camera.position.x = distance;
+      }
+    }
+  }, {
+    key: "setCamera",
+    value: function setCamera(camera) {
+      this.camera = camera;
+      this.add(camera);
+      return this;
+    }
+  }, {
+    key: "setEntity",
+    value: function setEntity(entity) {
+      this.entity = entity;
+      this.entity.visualRoot.add(this);
+      return this;
+    }
+  }, {
+    key: "update",
+    value: function update() {
+      var _this$entity, _this$entity$getWorld;
+
+      if (!((_this$entity = this.entity) === null || _this$entity === void 0 ? void 0 : _this$entity.visualRoot) || !this.camera) {
+        return;
+      } // Update the ray.
+
+
+      this.getWorldPosition(this.raycaster.ray.origin);
+      var objects = (_this$entity$getWorld = this.entity.getWorld()) === null || _this$entity$getWorld === void 0 ? void 0 : _this$entity$getWorld.getRaycastObjects();
+      var minDistance = this.distance;
+
+      for (var y = 0; y < 2; y++) {
+        for (var z = 0; z < 2; z++) {
+          this.cameraGhost.position.y = y == 0 ? -this.cameraPadding : this.cameraPadding;
+          this.cameraGhost.position.z = z == 0 ? -this.cameraPadding : this.cameraPadding;
+          this.cameraGhost.getWorldPosition(this.cameraPosition);
+          this.cameraPosition.sub(this.raycaster.ray.origin);
+          var length = this.cameraPosition.length();
+          this.raycaster.ray.direction.copy(this.cameraPosition.normalize());
+          this.raycaster.far = length; // Cast against all objects.
+
+          var intersections = this.raycaster.intersectObjects(objects,
+          /*recurisve=*/
+          true);
+
+          if (intersections.length > 0) {
+            var intersection = intersections[0];
+
+            if (intersection.distance < minDistance) {
+              minDistance = intersection.distance;
+            }
+          }
+        }
+      }
+
+      this.targetPosition.x = minDistance;
+      this.cameraGhost.position.y = 0;
+      this.cameraGhost.position.z = 0;
+      this.camera.position.lerp(this.targetPosition, this.lerpFactor);
+    }
+  }]);
+
+  return SpringArm;
+}(Object3D);
+
+function _createSuper$f(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$f(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
+
+function _isNativeReflectConstruct$f() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
 var CHARACTER_BINDINGS = {
   SPRINT: {
     keys: {
@@ -7542,7 +7679,7 @@ var DEFAULT_SPRINT_MULTIPLIER = 2.5;
 var Character = /*#__PURE__*/function (_Entity) {
   _inherits(Character, _Entity);
 
-  var _super = _createSuper$e(Character);
+  var _super = _createSuper$f(Character);
 
   function Character() {
     var _this;
@@ -7550,7 +7687,8 @@ var Character = /*#__PURE__*/function (_Entity) {
     _classCallCheck(this, Character);
 
     _this = _super.call(this);
-    _this.physicsQualityAdjustEnabled = false; // The walking speed of the character.
+    _this.physicsQualityAdjustEnabled = false;
+    _this.consideredForRaycast = false; // The walking speed of the character.
 
     _this.speed = DEFAULT_SPEED; // The factor to multiply walking speed by to sprint.
 
@@ -7697,15 +7835,19 @@ var Character = /*#__PURE__*/function (_Entity) {
   }, {
     key: "positionCamera",
     value: function positionCamera(camera) {
-      this.cameraArm.add(camera);
-      camera.position.x = 5;
+      this.cameraArm.setCamera(camera);
+      this.cameraArm.setDistance(5);
       this.cameraArm.rotation.z = Math.PI / 6;
       this.cameraArm.rotation.y = Math.PI / 2;
-      camera.lookAt(this.visualRoot.position); // TODO: Fix this junk.
+      camera.lookAt(this.visualRoot.position);
+      this.cameraArm.position.y = 1.2;
+    }
+    /** @override */
 
-      Promise.resolve().then(function () {
-        return camera.position.y = 1.2;
-      });
+  }, {
+    key: "createCameraArm",
+    value: function createCameraArm() {
+      return new SpringArm().setEntity(this);
     }
     /** @override */
 
@@ -7726,6 +7868,7 @@ var Character = /*#__PURE__*/function (_Entity) {
       }
 
       this.updatePhysics();
+      this.cameraArm.update();
     }
     /** @override */
 
@@ -7873,14 +8016,14 @@ var Character = /*#__PURE__*/function (_Entity) {
 
       if (!this.grounded) {
         if (this.states.has('falling')) {
-          this.transitionToState(this.states.get('falling'));
+          return this.transitionToState(this.states.get('falling'));
         }
       } // Handle jump input.
 
 
       if (this.getActionValue(this.bindings.JUMP) && this.state.name !== 'jumping' && this.grounded) {
         if (this.states.has('jumping')) {
-          this.transitionToState(this.states.get('jumping'));
+          return this.transitionToState(this.states.get('jumping'));
         }
       }
 
@@ -8235,9 +8378,9 @@ var Character = /*#__PURE__*/function (_Entity) {
 
 Controls.get().registerBindings(Character);
 
-function _createSuper$f(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$f(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
+function _createSuper$g(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$g(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
 
-function _isNativeReflectConstruct$f() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
+function _isNativeReflectConstruct$g() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
 var WIDTH$1 = 500;
 var SUFFIXES = ['ft', 'bk', 'up', 'dn', 'rt', 'lf'];
 /**
@@ -8247,7 +8390,7 @@ var SUFFIXES = ['ft', 'bk', 'up', 'dn', 'rt', 'lf'];
 var Skybox = /*#__PURE__*/function (_THREE$Object3D) {
   _inherits(Skybox, _THREE$Object3D);
 
-  var _super = _createSuper$f(Skybox);
+  var _super = _createSuper$g(Skybox);
 
   function Skybox() {
     var _this;
@@ -8425,9 +8568,9 @@ var Skybox = /*#__PURE__*/function (_THREE$Object3D) {
   return Skybox;
 }(Object3D);
 
-function _createSuper$g(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$g(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
+function _createSuper$h(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$h(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
 
-function _isNativeReflectConstruct$g() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
+function _isNativeReflectConstruct$h() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
 /**
  * Provides a way of dynamically creating light, skyboxes, ambient sounds, etc
  * that are unique to an environment. Extends THREE.Object3D to act as a root
@@ -8437,7 +8580,7 @@ function _isNativeReflectConstruct$g() { if (typeof Reflect === "undefined" || !
 var Environment = /*#__PURE__*/function (_Entity) {
   _inherits(Environment, _Entity);
 
-  var _super = _createSuper$g(Environment);
+  var _super = _createSuper$h(Environment);
 
   function Environment() {
     var _this;
@@ -8637,9 +8780,9 @@ var Environment = /*#__PURE__*/function (_Entity) {
   return Environment;
 }(Entity);
 
-function _createSuper$h(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$h(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
+function _createSuper$i(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$i(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
 
-function _isNativeReflectConstruct$h() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
+function _isNativeReflectConstruct$i() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
 var FREE_ROAM_BINDINGS = {
   UP: {
     keys: {
@@ -8684,7 +8827,7 @@ var VELOCITY_COEFFICIENT = 0.5;
 var FreeRoamEntity = /*#__PURE__*/function (_Entity) {
   _inherits(FreeRoamEntity, _Entity);
 
-  var _super = _createSuper$h(FreeRoamEntity);
+  var _super = _createSuper$i(FreeRoamEntity);
 
   _createClass(FreeRoamEntity, [{
     key: "getControlsId",
@@ -8784,9 +8927,9 @@ var FreeRoamEntity = /*#__PURE__*/function (_Entity) {
 
 Controls.get().registerBindings(FreeRoamEntity);
 
-function _createSuper$i(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$i(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
+function _createSuper$j(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$j(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
 
-function _isNativeReflectConstruct$i() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
+function _isNativeReflectConstruct$j() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
 var instance$a = null;
 /**
  * Plugin for TWEEN.
@@ -8796,7 +8939,7 @@ var instance$a = null;
 var TweenPlugin = /*#__PURE__*/function (_Plugin) {
   _inherits(TweenPlugin, _Plugin);
 
-  var _super = _createSuper$i(TweenPlugin);
+  var _super = _createSuper$j(TweenPlugin);
 
   _createClass(TweenPlugin, null, [{
     key: "get",
@@ -8856,9 +8999,9 @@ var TweenPlugin = /*#__PURE__*/function (_Plugin) {
   return TweenPlugin;
 }(Plugin);
 
-function _createSuper$j(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$j(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
+function _createSuper$k(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$k(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
 
-function _isNativeReflectConstruct$j() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
+function _isNativeReflectConstruct$k() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
 var DEBUG_MATERIAL = new MeshLambertMaterial({
   color: 0xff0000,
   wireframe: true
@@ -8870,7 +9013,7 @@ var DEBUG_MATERIAL = new MeshLambertMaterial({
 var TerrainTile = /*#__PURE__*/function (_Entity) {
   _inherits(TerrainTile, _Entity);
 
-  var _super = _createSuper$j(TerrainTile);
+  var _super = _createSuper$k(TerrainTile);
 
   /**
    * @param {number} size
@@ -9429,4 +9572,4 @@ var TerrainMap = /*#__PURE__*/function () {
   return TerrainMap;
 }();
 
-export { Action, Animation, Audio, Bindings, Camera, Character, CharacterState, Controls, Engine, EngineResetEvent, Entity, Environment, EraEvent, Events, FreeRoamEntity, GameMode, Light, MaterialManager, Models, Network, network_registry as NetworkRegistry, PhysicsPlugin, Plugin, QualityAdjuster, RendererStats, Settings$1 as Settings, SettingsEvent, SettingsPanel$1 as SettingsPanel, Skybox, TerrainMap, TerrainTile, TweenPlugin, WorkerPool, World, createUUID, defaultEraRenderer, disableShadows, dispose, extractMeshes, extractMeshesByName, getHexColorRatio, getRootScene, getRootWorld, lerp, loadJsonFromFile, loadTexture, shuffleArray, toDegrees, toRadians, vectorToAngle };
+export { Action, Animation, Audio, Bindings, Camera, Character, CharacterState, Controls, Engine, EngineResetEvent, Entity, Environment, EraEvent, Events, FreeRoamEntity, GameMode, Light, MaterialManager, Models, Network, network_registry as NetworkRegistry, PhysicsPlugin, Plugin, QualityAdjuster, RendererStats, Settings$1 as Settings, SettingsEvent, SettingsPanel$1 as SettingsPanel, Skybox, SpringArm, TerrainMap, TerrainTile, TweenPlugin, WorkerPool, World, createUUID, defaultEraRenderer, disableShadows, dispose, extractMeshes, extractMeshesByName, getHexColorRatio, getRootScene, getRootWorld, lerp, loadJsonFromFile, loadTexture, shuffleArray, toDegrees, toRadians, vectorToAngle };

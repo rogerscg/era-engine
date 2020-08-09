@@ -2,7 +2,10 @@ import { Entity, MaterialManager } from '../../build/era.js';
 import * as CANNON from 'cannon-es';
 import * as THREE from 'three';
 
-const MATERIAL = new THREE.MeshLambertMaterial({ color: 0x555555 });
+const MATERIAL = new THREE.MeshLambertMaterial({
+  color: 0x555555,
+  side: THREE.DoubleSide,
+});
 
 /**
  * A terrain tile.
