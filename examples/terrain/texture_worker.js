@@ -23,35 +23,32 @@ class TextureGenerator {
     this.imageData = new ImageData(size, size);
     // Single instances for better memory usage.
     this.canvasBox2 = new Box2();
-    this.planeVector = new Vector3();
     this.coordinates = coordinates;
   }
 
   /**
    * Generates the texture, returning the image data.
-   * @param {Array<THREE.Face>} faces
-   * @param {Array<THREE.Vector3>} vertices
+   * @param {THREE.BufferAttribute} vertices
+   * @param {THREE.BufferAttribute} index
    * @param {THREE.Box3} boundingBox
    * @return {ImageData}
    */
-  generate(faces, vertices, boundingBox) {
+  generate(vertices, index, boundingBox) {
     // Detect any changes necessary due to height.
-    this.modifyTextureForHeight_(faces, vertices, boundingBox);
-
+    this.modifyTextureForHeight_(vertices, index, boundingBox);
     // Detect any slope differences.
-    this.modifyTextureForSlope_(faces, vertices, boundingBox);
-
+    this.modifyTextureForSlope_(vertices, index, boundingBox);
     return this.imageData;
   }
 
   /**
    * Modifies the terrain texture for height differences.
-   * @param {Array<THREE.Face>} faces
-   * @param {Array<THREE.Vector3>} vertices
+   * @param {THREE.BufferAttribute} vertices
+   * @param {THREE.BufferAttribute} index
    * @param {THREE.Box3} boundingBox
    * @private
    */
-  modifyTextureForHeight_(faces, vertices, boundingBox) {
+  modifyTextureForHeight_(vertices, index, boundingBox) {
     // Detect any height differences.
     // TODO: Set these dynamically.
     const heightTextures = [
@@ -97,14 +94,20 @@ class TextureGenerator {
       },
     ];
     // Iterate over each height material.
+    const faceVertices = [new Vector3(), new Vector3(), new Vector3()];
     for (let texIndex = 0; texIndex < heightTextures.length; texIndex++) {
       const heightTexture = heightTextures[texIndex];
-      faces.forEach((face) => {
-        const faceVertices = [
-          vertices[face.a],
-          vertices[face.b],
-          vertices[face.c],
-        ];
+      // Iterate over indices for faces, 3 at a time.
+      for (let fIndex = 0; fIndex < index.length; fIndex += 3) {
+        for (let vIndex = 0; vIndex < faceVertices.length; vIndex++) {
+          const targetVector = faceVertices[vIndex];
+          const vertexLocation = index[fIndex + vIndex] * 3;
+          targetVector.set(
+            vertices[vertexLocation],
+            vertices[vertexLocation + 1],
+            vertices[vertexLocation + 2]
+          );
+        }
         // Detect if any of the vertices are within the height range for the
         // given texture.
         let withinHeightThreshold = false;
@@ -116,7 +119,7 @@ class TextureGenerator {
           runningTotal += vertex.y;
         });
         if (!withinHeightThreshold) {
-          return;
+          continue;
         }
 
         // We'll use the height average from all of the vertices.
@@ -135,7 +138,7 @@ class TextureGenerator {
           (heightTexture.solid - heightTexture.min);
 
         if (perlinPercent <= 0.0) {
-          return;
+          continue;
         }
 
         // If the "perlin percent" is less than 1.0, we need to blend the
@@ -163,18 +166,18 @@ class TextureGenerator {
         } else {
           this.fillImageDataSection_(canvasBox, heightTexture.color);
         }
-      });
+      }
     }
   }
 
   /**
    * Modifies the terrain texture for face slopes.\
-   * @param {Array<THREE.Face>} faces
-   * @param {Array<THREE.Vector3>} vertices
+   * @param {THREE.BufferAttribute} vertices
+   * @param {THREE.BufferAttribute} index
    * @param {THREE.Box3} boundingBox
    * @private
    */
-  modifyTextureForSlope_(faces, vertices, boundingBox) {
+  modifyTextureForSlope_(vertices, index, boundingBox) {
     const slopeModifier = {
       min: Math.PI / 4,
       max: Math.PI / 2,
@@ -182,26 +185,38 @@ class TextureGenerator {
       perlinFactor: 3.0,
       color: new Color('rgb(50, 50, 50)'),
     };
-    const planeVector = this.planeVector;
+    const planeVector = new Vector3();
+    const faceVertices = [new Vector3(), new Vector3(), new Vector3()];
+    const faceNormal = new Vector3();
+    const ab = new Vector3();
+    const cb = new Vector3();
     // Iterate over each face.
-    faces.forEach((face) => {
-      planeVector.set(face.normal.x, 0, face.normal.z);
-      face.normal = new Vector3().copy(face.normal);
-      const angle = Math.PI / 2 - face.normal.angleTo(planeVector);
+    for (let fIndex = 0; fIndex < index.length; fIndex += 3) {
+      // Build face vectors.
+      for (let vIndex = 0; vIndex < 3; vIndex++) {
+        const targetVector = faceVertices[vIndex];
+        const vertexLocation = index[fIndex + vIndex] * 3;
+        targetVector.set(
+          vertices[vertexLocation],
+          vertices[vertexLocation + 1],
+          vertices[vertexLocation + 2]
+        );
+      }
+      // Calculate face normal.
+      ab.subVectors(faceVertices[0], faceVertices[1]);
+      cb.subVectors(faceVertices[2], faceVertices[1]);
+      faceNormal.crossVectors(ab, cb);
+      planeVector.set(faceNormal.x, 0, faceNormal.z);
+      const angle = Math.PI / 2 - faceNormal.angleTo(planeVector);
       // Get "perlin range". If it covers all of face, do a batch paint and skip
       // the perlin noise gen.
       const perlinPercent =
         (angle - slopeModifier.min) / (slopeModifier.solid - slopeModifier.min);
       if (perlinPercent <= 0.0) {
-        return;
+        continue;
       }
 
       // Get the section of the canvas texture that is relevant to the face.
-      const faceVertices = [
-        vertices[face.a],
-        vertices[face.b],
-        vertices[face.c],
-      ];
       const canvasBox = this.getFaceSegmentOnCanvas_(faceVertices, boundingBox);
 
       // If the "perlin percent" is less than 1.0, we need to blend the
@@ -230,7 +245,7 @@ class TextureGenerator {
       } else {
         this.fillImageDataSection_(canvasBox, slopeModifier.color);
       }
-    });
+    }
   }
 
   /**

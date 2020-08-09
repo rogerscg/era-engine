@@ -1,4 +1,5 @@
 import CustomTerrainTile from './custom_terrain_tile.js';
+import textureWorkerPool from './texture_worker_pool.js';
 import {
   Camera,
   Controls,
@@ -56,10 +57,14 @@ class TerrainGameMode extends GameMode {
    * @async
    */
   async loadTerrain() {
+    console.time('load');
+    textureWorkerPool.prewarm();
     const terrainMap = new TerrainMap(/* tileSize= */ 64, /* scale=*/ 40.0);
     terrainMap.setTerrainTileClass(CustomTerrainTile);
     await terrainMap.loadFromFile('heightmaps/simple.gltf');
     terrainMap.tiles.forEach((tile) => this.world.add(tile));
+    textureWorkerPool.drain();
+    console.timeEnd('load');
   }
 }
 

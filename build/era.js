@@ -6,7 +6,7 @@ import _possibleConstructorReturn from '@babel/runtime/helpers/possibleConstruct
 import _getPrototypeOf from '@babel/runtime/helpers/getPrototypeOf';
 import _regeneratorRuntime from '@babel/runtime/regenerator';
 import _asyncToGenerator from '@babel/runtime/helpers/asyncToGenerator';
-import { FileLoader, TextureLoader, WebGLRenderer, PCFSoftShadowMap, sRGBEncoding, AnimationMixer, PerspectiveCamera, OrthographicCamera, AmbientLight, DirectionalLight, DirectionalLightHelper, SpotLight, SpotLightHelper, CameraHelper, Vector3, LOD, Box3, Box3Helper, Scene, AxesHelper, SphereGeometry, BoxGeometry, PlaneGeometry, Geometry, Face3, Mesh, MeshBasicMaterial, CylinderGeometry, Vector2, Quaternion as Quaternion$1, Euler, Object3D, AnimationClip, Raycaster, MeshLambertMaterial, LoopOnce, CubeGeometry, DoubleSide, FogExp2, Fog } from 'three';
+import { FileLoader, TextureLoader, WebGLRenderer, PCFSoftShadowMap, sRGBEncoding, AnimationMixer, PerspectiveCamera, OrthographicCamera, AmbientLight, DirectionalLight, DirectionalLightHelper, SpotLight, SpotLightHelper, CameraHelper, Vector3, LOD, Box3, Box3Helper, Scene, AxesHelper, SphereGeometry, BoxGeometry, PlaneGeometry, Geometry, Face3, Mesh, MeshBasicMaterial, CylinderGeometry, Vector2, Quaternion as Quaternion$1, Euler, Object3D, AnimationClip, Raycaster, MeshLambertMaterial, LoopOnce, CubeGeometry, DoubleSide, FogExp2, Fog, PlaneBufferGeometry } from 'three';
 import _get from '@babel/runtime/helpers/get';
 import _wrapNativeSuper from '@babel/runtime/helpers/wrapNativeSuper';
 import dat from 'dat.gui';
@@ -7095,7 +7095,7 @@ var Entity = /*#__PURE__*/function (_EventTarget) {
                   break;
                 }
 
-                return _context2.abrupt("return", console.warn('Model name not provided'));
+                return _context2.abrupt("return");
 
               case 4:
                 scene = Models.get().createModel(this.modelName);
@@ -9057,7 +9057,7 @@ var TerrainTile = /*#__PURE__*/function (_Entity) {
     key: "generateMesh",
     value: function () {
       var _generateMesh = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime.mark(function _callee() {
-        var dataHeight, dataWidth, totalWidth, totalHeight, geometry, material, mesh;
+        var dataHeight, dataWidth, totalWidth, totalHeight, geometry, positionAttribute, material, mesh;
         return _regeneratorRuntime.wrap(function _callee$(_context) {
           while (1) {
             switch (_context.prev = _context.next) {
@@ -9074,11 +9074,12 @@ var TerrainTile = /*#__PURE__*/function (_Entity) {
                 dataWidth = this.data[0].length;
                 totalWidth = (dataWidth - 1) * this.elementSize;
                 totalHeight = (dataHeight - 1) * this.elementSize;
-                geometry = new PlaneGeometry(totalWidth, totalHeight, dataWidth - 1, dataHeight - 1);
+                geometry = new PlaneBufferGeometry(totalWidth, totalHeight, dataWidth - 1, dataHeight - 1);
+                positionAttribute = geometry.getAttribute('position');
                 this.data.forEach(function (row, rowIndex) {
                   row.forEach(function (value, valueIndex) {
                     var vertexIndex = rowIndex * dataWidth + valueIndex;
-                    geometry.vertices[vertexIndex].z = value;
+                    positionAttribute.setZ(vertexIndex, value);
                   });
                 });
                 geometry.rotateX(-Math.PI / 2);
@@ -9092,13 +9093,13 @@ var TerrainTile = /*#__PURE__*/function (_Entity) {
 
                 this.generateDebugWalls(mesh);
                 this.toggleDebug();
-                _context.next = 20;
+                _context.next = 21;
                 return this.generateTexture(mesh);
 
-              case 20:
+              case 21:
                 return _context.abrupt("return", mesh);
 
-              case 21:
+              case 22:
               case "end":
                 return _context.stop();
             }
